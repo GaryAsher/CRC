@@ -45,6 +45,7 @@
 			<a href="/runners" class:active={isActive('/runners')}>Runners</a>
 			<a href="/teams" class:active={isActive('/teams')}>Teams</a>
 			<a href="/submit" class:active={isActive('/submit')}>Submit</a>
+			<a href="/search" class="nav-search" title="Search" aria-label="Search">🔍</a>
 		</div>
 
 		<div class="nav-group">
@@ -62,7 +63,7 @@
 						<a href="/guidelines" class="nav-dropdown__item">📋 Guidelines</a>
 						<a href="/support" class="nav-dropdown__item">💬 Support</a>
 						<hr class="nav-dropdown__divider" />
-						<a href="/news" class="nav-dropdown__item">📡 RSS Feed</a>
+						<a href="/feed.xml" class="nav-dropdown__item">📡 RSS Feed</a>
 					</div>
 				{/if}
 			</div>
@@ -98,6 +99,7 @@
 								<a href="/profile" class="nav-user__menu-item">👤 My Profile</a>
 								<a href="/profile/edit" class="nav-user__menu-item">✏️ Edit Profile</a>
 								<a href="/profile/settings" class="nav-user__menu-item">⚙️ Settings</a>
+								<a href="/admin" class="nav-user__menu-item">🛡️ Admin</a>
 								<hr class="nav-user__menu-divider" />
 								<button type="button" class="nav-user__menu-item nav-user__menu-item--signout" onclick={signOut}>
 									🚪 Sign Out
