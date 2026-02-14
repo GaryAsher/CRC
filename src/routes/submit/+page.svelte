@@ -1,13 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
 	import { PUBLIC_WORKER_URL, PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
 
 	let { data } = $props();
 	const { games, runners } = data;
 
 	// ── Form State ────────────────────────────────────────────────────────────
-	let gameId = $state($page.url.searchParams.get('game') || '');
+	let gameId = $state('');
 	let categoryTier = $state('');
 	let categorySlug = $state('');
 	let runnerId = $state('');
