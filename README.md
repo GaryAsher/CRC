@@ -79,5 +79,3 @@ scripts/                     # CI/validation scripts (surviving from Jekyll)
 - **API:** Cloudflare Workers
 - **Deployment:** GitHub Pages (static adapter) → Cloudflare Pages (future)
 - **Language:** TypeScript
- 
- 

@@ -6,6 +6,9 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
+		// adapter-static generates a fully static site (works with GitHub Pages)
+		// When ready to move to Cloudflare Pages, swap to:
+		//   import adapter from '@sveltejs/adapter-cloudflare';
 		adapter: adapter({
 			pages: 'build',
 			assets: 'build',
@@ -22,11 +25,8 @@ const config = {
 		},
 
 		paths: {
+			// Leave empty for root domain deployment
 			base: ''
-		},
-
-		prerender: {
-			handleHttpError: 'warn'
 		}
 	}
 };

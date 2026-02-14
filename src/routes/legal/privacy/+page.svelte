@@ -245,3 +245,5 @@
 .legal-table th, .legal-table td { padding: 0.75rem; text-align: left; border: 1px solid var(--border); }
 .legal-table th { background: var(--surface); font-weight: 600; }
 </style>
+
+<!-- Cookie settings handler will be added when cookie consent is implemented -->

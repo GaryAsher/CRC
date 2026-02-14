@@ -1,14 +1,38 @@
 <script lang="ts">
 	import { supabase } from '$lib/supabase';
+	import { session } from '$stores/auth';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { PUBLIC_SITE_URL } from '$env/static/public';
+	import { onMount } from 'svelte';
+
+	let signingIn = $state(false);
+	let errorMessage = $state('');
+
+	// If already signed in, redirect
+	onMount(() => {
+		if ($session) {
+			goto('/profile');
+		}
+	});
 
 	async function signInWith(provider: 'discord' | 'twitch') {
-		await supabase.auth.signInWithOAuth({
-			provider,
-			options: {
-				redirectTo: `${PUBLIC_SITE_URL}/auth/callback`
-			}
-		});
+		signingIn = true;
+		errorMessage = '';
+
+		try {
+			const redirectTo = $page.url.searchParams.get('redirect') || '/';
+			const { error } = await supabase.auth.signInWithOAuth({
+				provider,
+				options: {
+					redirectTo: `${PUBLIC_SITE_URL}/auth/callback?redirect=${encodeURIComponent(redirectTo)}`
+				}
+			});
+			if (error) throw error;
+		} catch (err: any) {
+			errorMessage = err?.message || 'Failed to start sign in. Please try again.';
+			signingIn = false;
+		}
 	}
 </script>
 
@@ -16,33 +40,108 @@
 
 <div class="page-width">
 	<div class="sign-in-page">
-		<h1>Sign In</h1>
-		<p class="muted">Sign in to submit runs, manage your profile, and track your achievements.</p>
-		<div class="sign-in-buttons">
-			<button class="btn btn--discord" onclick={() => signInWith('discord')}>
-				Sign in with Discord
-			</button>
-			<button class="btn btn--twitch" onclick={() => signInWith('twitch')}>
-				Sign in with Twitch
-			</button>
+		<div class="sign-in-card">
+			<h1>Sign In</h1>
+			<p class="muted">Sign in to submit runs, manage your profile, and track your achievements.</p>
+
+			{#if errorMessage}
+				<div class="alert alert--error">{errorMessage}</div>
+			{/if}
+
+			<div class="sign-in-buttons">
+				<button
+					class="btn btn--discord"
+					onclick={() => signInWith('discord')}
+					disabled={signingIn}
+				>
+					{signingIn ? 'Redirecting...' : 'Sign in with Discord'}
+				</button>
+				<button
+					class="btn btn--twitch"
+					onclick={() => signInWith('twitch')}
+					disabled={signingIn}
+				>
+					{signingIn ? 'Redirecting...' : 'Sign in with Twitch'}
+				</button>
+			</div>
+
+			<div class="sign-in-footer">
+				<p class="muted">By signing in, you agree to our <a href="/legal/terms">Terms of Service</a> and <a href="/legal/privacy">Privacy Policy</a>.</p>
+			</div>
 		</div>
 	</div>
 </div>
 
 <style>
 	.sign-in-page {
-		max-width: 400px;
-		margin: 3rem auto;
+		display: flex;
+		justify-content: center;
+		padding: 3rem 0;
+	}
+	.sign-in-card {
+		max-width: 420px;
+		width: 100%;
 		text-align: center;
+		padding: 2.5rem;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 12px;
+	}
+	.sign-in-card h1 {
+		margin: 0 0 0.5rem;
+		font-size: 1.5rem;
+	}
+	.sign-in-card > .muted {
+		margin-bottom: 1.5rem;
 	}
 	.sign-in-buttons {
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
-		margin-top: 1.5rem;
 	}
-	.btn--discord { background: #5865F2; color: #fff; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 1rem; cursor: pointer; }
-	.btn--twitch { background: #9146FF; color: #fff; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 1rem; cursor: pointer; }
-	.btn--discord:hover { background: #4752C4; }
-	.btn--twitch:hover { background: #772CE8; }
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.6rem;
+		padding: 0.75rem 1.5rem;
+		border: none;
+		border-radius: 8px;
+		font-size: 1rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background 0.15s, opacity 0.15s;
+	}
+	.btn:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+	.btn--discord {
+		background: #5865F2;
+		color: #fff;
+	}
+	.btn--discord:hover:not(:disabled) { background: #4752C4; }
+	.btn--twitch {
+		background: #9146FF;
+		color: #fff;
+	}
+	.btn--twitch:hover:not(:disabled) { background: #772CE8; }
+	.sign-in-footer {
+		margin-top: 1.5rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--border);
+	}
+	.sign-in-footer .muted { font-size: 0.8rem; }
+	.sign-in-footer a { color: var(--accent); text-decoration: none; }
+	.sign-in-footer a:hover { text-decoration: underline; }
+	.alert--error {
+		padding: 0.75rem 1rem;
+		border-radius: 6px;
+		margin-bottom: 1rem;
+		font-size: 0.9rem;
+		background: rgba(239, 68, 68, 0.1);
+		border: 1px solid rgba(239, 68, 68, 0.3);
+		color: #ef4444;
+		text-align: left;
+	}
 </style>

@@ -94,8 +94,8 @@
 								</div>
 							</div>
 							<div class="nav-user__menu-items">
+								<a href="/profile" class="nav-user__menu-item">👤 My Profile</a>
 								<a href="/profile/edit" class="nav-user__menu-item">✏️ Edit Profile</a>
-								<a href="/profile/theme" class="nav-user__menu-item">🎨 Theme</a>
 								<a href="/profile/settings" class="nav-user__menu-item">⚙️ Settings</a>
 								<hr class="nav-user__menu-divider" />
 								<button type="button" class="nav-user__menu-item nav-user__menu-item--signout" onclick={signOut}>

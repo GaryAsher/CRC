@@ -134,3 +134,5 @@
 .legal-table th { background: var(--surface); font-weight: 600; }
 .legal-table code { font-size: 0.8rem; background: var(--bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
 </style>
+
+<!-- Cookie settings handler will be added when cookie consent is implemented -->
