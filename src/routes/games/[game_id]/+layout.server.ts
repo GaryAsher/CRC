@@ -2,12 +2,6 @@ import { getGame, getRunsForGame, getGames, getAllCategories } from '$lib/server
 import { error } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 
-export function entries() {
-	return getGames()
-		.filter((g) => !g.game_id.startsWith('_'))
-		.map((g) => ({ game_id: g.game_id }));
-}
-
 export const load: LayoutServerLoad = async ({ params }) => {
 	const game = getGame(params.game_id);
 
