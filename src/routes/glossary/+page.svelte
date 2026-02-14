@@ -1,0 +1,16 @@
+<svelte:head><title>Glossary | Challenge Run Community</title></svelte:head>
+
+<div class="page-width">
+	<h1>Glossary</h1>
+	<p class="muted mb-4">Definitions for gameplay interactions used across CRC.</p>
+
+	<div class="card"><h2>Hit</h2><p>Placeholder: add your CRC hit definition here.</p></div>
+	<div class="card"><h2>Damage</h2><p>Placeholder: add your CRC damage definition here.</p></div>
+	<div class="card"><h2>Hard CC</h2><p>Placeholder: effects that fully prevent actions (stun, freeze, knockdown, etc.).</p></div>
+	<div class="card"><h2>Soft CC</h2><p>Placeholder: effects that limit actions without fully stopping them (slow, blind, aim disruption, etc.).</p></div>
+</div>
+
+<style>
+	.card { margin-bottom: 1rem; }
+	.card h2 { margin: 0 0 0.5rem; }
+</style>

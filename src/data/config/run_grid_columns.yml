@@ -1,0 +1,18 @@
+- key: runner
+  label: Runner
+- key: character
+  label: Character
+  optional_flag: character
+- key: challenge
+  label: Challenge
+- key: restrictions
+  label: Restrictions
+- key: glitches
+  label: Glitches Used
+  optional_flag: glitches
+- key: timing
+  label: Time
+- key: date_completed
+  label: Date Accomplished
+- key: video
+  label: Video

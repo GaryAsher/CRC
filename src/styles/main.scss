@@ -1,0 +1,53 @@
+// =============================================================================
+// CRC Main Stylesheet
+// =============================================================================
+// Mirrors the import order from the Jekyll site's assets/css/style.scss.
+// Imported once in +layout.svelte to apply globally.
+// =============================================================================
+
+// Base
+@import './base/variables';     // Theme variables (CSS custom properties)
+@import './base/themes';        // Theme color overrides
+@import './base/reset';         // Global defaults and reset
+@import './base/responsive';    // Responsive breakpoint tweaks
+@import './base/markdown';      // Markdown content styles
+@import './components/layout';  // Container, page-width
+
+// Components
+@import './components/shared';        // Muted, card, card-lift
+@import './components/header';        // Header + navigation
+@import './components/footer';        // Footer + theme picker
+@import './components/buttons';       // Button styles
+@import './components/tags';          // Tags, pills, chips
+@import './components/tag-chips';     // Tag chip variants
+@import './components/tag-picker';    // Searchable tag filter
+@import './components/az-nav';        // A-Z letter navigation
+@import './components/results-bar';   // Results bar (count + reset)
+@import './components/forms';         // Inputs, selects, focus states
+@import './components/cards';         // Game & runner cards
+@import './components/game-hero';     // Game hero banner
+@import './components/filters-grid';  // Filter grid layouts
+@import './components/utilities';     // Grid, pagination, spinner
+@import './components/runner-profile'; // Runner profile page
+@import './components/tabs';          // Tabs and tab panels
+@import './components/tab-active';    // Active tab enhancement
+@import './components/runs-table';    // Runs table and mobile cards
+@import './components/floating-menu'; // Column filter dropdown
+@import './components/submit-form';   // Submit form styles
+@import './components/submit-form-base'; // Submit form base
+@import './components/accordion';     // Collapsible sections
+@import './components/rule-builder';  // Rule builder tool
+@import './components/runs-filter-bar'; // Runs page filter bar
+@import './components/filter-chips';  // Filter chips & input
+@import './components/runs-typeahead'; // Typeahead filter
+@import './components/back-to-top';   // Back to top button
+
+// Pages
+@import './pages/homepage';         // Homepage grid layout
+@import './pages/news-carousel';    // News carousel + related
+@import './pages/news-posts';       // News list and single posts
+@import './pages/teams';            // Teams index and single pages
+@import './pages/recent-runs';      // Recent runs sidebar list
+@import './pages/global-search';    // Global search page
+@import './pages/submit-run';       // Submit run page
+@import './pages/category-tiers';   // Category tier navigation

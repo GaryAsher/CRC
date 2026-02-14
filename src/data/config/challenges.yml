@@ -1,0 +1,107 @@
+# 0-9
+1cc:
+  label: "1CC"
+  aliases: 
+    - "1 Credit Clear"
+  
+# A
+
+# B
+blindfolded:
+  label: "Blindfolded"
+  description: |
+    - Complete the run without being able to see the screen.
+    - Monitor must be visibly off or covered.
+    - Webcam/handcam strongly recommended for verification.
+    
+# C
+
+# D
+damageless:
+  label: "Damageless"
+  description: |
+    - Damage is any loss of your character’s current health, regardless of the source.
+    - Changes to maximum health are not damage, even if they also change current health or later restore.
+  aliases: 
+    - "NoDamage"
+    - "No-Damage"
+    - "No Damage"
+  
+deathless:
+  label: "Deathless"
+  description: |
+    - A death is when your character fails in a way that resets progress, typically with a penalty like losing lives, items, or other resources.
+  aliases:
+    - "No-Death"
+    - "No Death"
+
+# E
+
+# F
+flawless:
+  label: "Flawless"
+  aliases:
+    - "Perfect"
+  
+# G
+
+# H
+high-score:
+  label: "High Score"
+
+hitless:
+  label: "Hitless"
+  description: |
+    - A hit is when an NPC or dynamic object makes contact with your character's hurtbox, causing damage or hard crowd control (Hard CC).
+    - Player-initiated actions that cause damage or movement are NOT hits.
+  aliases:
+    - "NoHit"
+    - "No-Hit"
+    - "No Hit"
+
+# I
+
+# J
+
+# K
+
+# L
+
+# M
+minimalist:
+  label: "Minimalist"
+
+# N
+
+no-hit-no-damage:
+  label: "No-Hit / No-Damage"
+  aliases:
+    - "No-Hit No-Damage"
+    - "No Hit No Damage"
+    - "No Hit - No Damage"
+    - "nohitnodamage"
+    - "NHND"
+ 
+# O
+
+# P
+
+# Q
+
+# R
+
+# S
+
+# T
+
+# U
+
+# V
+
+# W
+
+# X
+
+# Y
+
+# Z

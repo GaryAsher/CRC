@@ -1,0 +1,103 @@
+// ============================================================
+// Theme Variables
+// ============================================================
+// All CSS custom properties used throughout the site.
+// Edit these values to change the global design tokens.
+// ============================================================
+
+:root {
+  // ──────────────────────────────────────────────────────────
+  // COLORS - Core Palette
+  // ──────────────────────────────────────────────────────────
+  --accent: #3BC36E;                    // Primary brand color (green)
+  --accent-rgb: 59, 195, 110;           // RGB values for rgba() usage
+  --bg: #0f0f0f;                        // Page background
+  --fg: #ffffff;                        // Primary text color
+
+  // ──────────────────────────────────────────────────────────
+  // COLORS - Surfaces & Borders
+  // ──────────────────────────────────────────────────────────
+  --border: rgba(255, 255, 255, 0.12);        // Default border
+  --border-hover: rgba(255, 255, 255, 0.2);   // Border on hover
+  --panel: rgba(255, 255, 255, 0.04);         // Panel/card background
+  --surface: #0b0b0b;                         // Elevated surface
+  --surface-2: #111;                          // Secondary surface
+  --card-bg: rgba(255, 255, 255, 0.02);       // Card background
+  --bg-hover: rgba(255, 255, 255, 0.08);      // Background on hover
+  --bg-soft: rgba(255, 255, 255, 0.06);       // Subtle background
+
+  // ──────────────────────────────────────────────────────────
+  // COLORS - Text Variations
+  // ──────────────────────────────────────────────────────────
+  --placeholder: rgba(255, 255, 255, 0.6);    // Input placeholder
+  --placeholder-dim: rgba(255, 255, 255, 0.55);
+  --text-muted: rgba(255, 255, 255, 0.78);    // Secondary text
+  --text-dim: rgba(255, 255, 255, 0.75);      // Tertiary text
+
+  // ──────────────────────────────────────────────────────────
+  // COLORS - Focus States
+  // ──────────────────────────────────────────────────────────
+  --focus: rgba(var(--accent-rgb), 0.6);           // Focus ring (uses accent)
+  --focus-2: rgba(var(--accent-rgb), 0.35);        // Subtle focus glow
+
+  // ──────────────────────────────────────────────────────────
+  // COLORS - Overlays
+  // ──────────────────────────────────────────────────────────
+  --overlay-strong: rgba(15, 15, 15, 0.95);   // Modal backdrop
+  --overlay-mid: rgba(15, 15, 15, 0.6);       // Medium overlay
+  --overlay-light: rgba(15, 15, 15, 0.35);    // Light overlay
+
+  // ──────────────────────────────────────────────────────────
+  // COLORS - Hero Overlays (gradient stops)
+  // ──────────────────────────────────────────────────────────
+  --hero-strong: rgba(15, 15, 15, 0.92);      // Bottom of hero
+  --hero-mid: rgba(15, 15, 15, 0.65);         // Middle of hero
+  --hero-light: rgba(15, 15, 15, 0.45);       // Top of hero
+
+  // ──────────────────────────────────────────────────────────
+  // COLORS - Status Indicators
+  // ──────────────────────────────────────────────────────────
+  --status-verified: #10b981;                 // Green - approved
+  --status-pending: #f59e0b;                  // Yellow - waiting
+  --status-rejected: #ef4444;                 // Red - denied
+
+  // ──────────────────────────────────────────────────────────
+  // LAYOUT - Page Structure
+  // ──────────────────────────────────────────────────────────
+  --page-max: 960px;                          // Maximum content width
+  --gutter: 1.5rem;                           // Page side padding
+  --section-pad-y: 3rem;                      // Vertical section padding
+
+  // ──────────────────────────────────────────────────────────
+  // LAYOUT - Border Radius Scale
+  // ──────────────────────────────────────────────────────────
+  --radius-sm: 10px;                          // Small (buttons, inputs)
+  --radius-md: 12px;                          // Medium (cards)
+  --radius-lg: 14px;                          // Large (panels)
+  --radius-xl: 16px;                          // Extra large (heroes)
+  --radius: var(--radius-md);                 // Default alias
+
+  // ──────────────────────────────────────────────────────────
+  // LAYOUT - Spacing Scale
+  // ──────────────────────────────────────────────────────────
+  --space-1: 0.35rem;                         // 5.6px - tight
+  --space-2: 0.5rem;                          // 8px - small
+  --space-3: 0.75rem;                         // 12px - medium
+  --space-4: 1rem;                            // 16px - default
+  --space-5: 1.25rem;                         // 20px - large
+  --space-6: 1.5rem;                          // 24px - extra large
+
+  // ──────────────────────────────────────────────────────────
+  // LAYOUT - Touch & Interactive
+  // ──────────────────────────────────────────────────────────
+  --tap: 36px;                                // Minimum touch target
+  --az-size: 36px;                            // A-Z nav button size
+  --az-gap: 0.35rem;                          // A-Z nav gap
+
+  // ──────────────────────────────────────────────────────────
+  // COMPONENTS - Pill/Tag Styling
+  // ──────────────────────────────────────────────────────────
+  --pill-padding: 0.25rem 0.65rem;            // Tag internal padding
+  --pill-font-size: 0.85rem;                  // Tag text size
+  --pill-gap: 0.4rem;                         // Gap between tags
+}

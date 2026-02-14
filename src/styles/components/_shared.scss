@@ -1,0 +1,545 @@
+// ============================================================
+// Shared Components
+// ============================================================
+// Small utility components used across the site.
+//
+// CLASSES:
+//   .muted           - Muted text color
+//   .card            - Basic card container
+//   .card--compact   - Compact card variant
+//   .card-lift       - Hover lift effect
+//   .card-lift--sm   - Smaller lift effect
+// ============================================================
+
+// ──────────────────────────────────────────────────────────
+// Muted Text
+// ──────────────────────────────────────────────────────────
+.muted { 
+  color: var(--text-muted); 
+}
+
+.muted a { 
+  color: inherit; 
+}
+
+// ──────────────────────────────────────────────────────────
+// Card Container
+// ──────────────────────────────────────────────────────────
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: var(--space-4) 0;
+  background: var(--surface);
+}
+
+.card label.muted {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+// Non-clickable filter labels
+.filter-label-text {
+  display: block;
+  margin-bottom: 0.25rem;
+  pointer-events: none;
+  user-select: none;
+}
+
+// Compact card (no top margin)
+.card.card--compact {
+  margin: 0 0 1rem 0;
+}
+
+// ──────────────────────────────────────────────────────────
+// Card Lift Effect (hover animation)
+// ──────────────────────────────────────────────────────────
+.card-lift {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border-color: var(--accent);
+}
+
+// Smaller lift for compact cards
+.card-lift--sm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+// Respect reduced motion preference
+@media (prefers-reduced-motion: reduce) {
+  .card-lift,
+  .card-lift--sm {
+    transition: border-color 0.15s ease;
+  }
+  
+  .card-lift:hover,
+  .card-lift--sm:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+// Community Achievements (Game Page)
+// ──────────────────────────────────────────────────────────
+.community-achievements-game {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.achievement-game-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  
+  &[open] .accordion-icon {
+    transform: rotate(180deg);
+  }
+}
+
+.achievement-game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  cursor: pointer;
+  list-style: none;
+  
+  &::-webkit-details-marker {
+    display: none;
+  }
+  
+  &:hover {
+    background: var(--surface);
+  }
+}
+
+.achievement-game-header__left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.achievement-game-header__right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.achievement-game-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.achievement-game-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.achievement-game-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.achievement-game-desc {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.achievement-game-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+}
+
+.achievement-game-stat__completed {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.achievement-game-stat__progress {
+  color: var(--text-muted);
+}
+
+.achievement-game-content {
+  padding: 0 1rem 1rem 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.achievement-game-requirements {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  
+  h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+  }
+  
+  ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.9rem;
+    
+    li {
+      margin: 0.25rem 0;
+    }
+  }
+}
+
+.achievement-game-runners {
+  h4 {
+    margin: 1rem 0 0.75rem 0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+  }
+}
+
+.achievement-runners-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.achievement-runner-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  
+  &--completed {
+    border-color: rgba(16, 185, 129, 0.3);
+    background: rgba(16, 185, 129, 0.05);
+  }
+}
+
+.achievement-runner-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: inherit;
+  min-width: 150px;
+  
+  &:hover .achievement-runner-name {
+    color: var(--accent);
+  }
+}
+
+.achievement-runner-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--surface-2);
+  flex-shrink: 0;
+}
+
+.achievement-runner-name {
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.achievement-runner-progress {
+  flex: 1;
+  min-width: 120px;
+  max-width: 200px;
+  
+  .progress-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  
+  .progress-bar--full .progress-bar__fill {
+    background: #10b981;
+  }
+  
+  .progress-bar__fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+  
+  .progress-bar__text {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-align: center;
+  }
+}
+
+.achievement-runner-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  min-width: 100px;
+}
+
+.achievement-status-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  
+  &--completed {
+    background: #10b981;
+    color: #fff;
+  }
+  
+  &--progress {
+    background: #3b82f6;
+    color: #fff;
+  }
+}
+
+.achievement-runner-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.achievement-game-empty {
+  padding: 1rem;
+  text-align: center;
+}
+
+// Difficulty badges (shared)
+.difficulty {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  
+  &--easy {
+    background: #22c55e;
+    color: #fff;
+  }
+  
+  &--medium {
+    background: #eab308;
+    color: #000;
+  }
+  
+  &--hard {
+    background: #f97316;
+    color: #fff;
+  }
+  
+  &--legendary {
+    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    color: #fff;
+  }
+}
+
+// Responsive adjustments for achievements
+@media (max-width: 600px) {
+  .achievement-game-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .achievement-game-header__right {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .achievement-runner-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .achievement-runner-info {
+    min-width: auto;
+  }
+  
+  .achievement-runner-progress {
+    width: 100%;
+    max-width: none;
+  }
+  
+  .achievement-runner-status {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+// ──────────────────────────────────────────────────────────
+// Rules Accordion (Game Overview)
+// ──────────────────────────────────────────────────────────
+.rules-accordion {
+  &[open] .accordion-icon {
+    transform: rotate(180deg);
+  }
+}
+
+.rules-accordion__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+  padding: 0;
+  
+  &::-webkit-details-marker {
+    display: none;
+  }
+}
+
+.rules-accordion__title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.rules-accordion__content {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+// ──────────────────────────────────────────────────────────
+// Game Link Banners (Modded/Base Game)
+// ──────────────────────────────────────────────────────────
+.game-link-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.game-link-banner--base {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.game-link-banner--modded {
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.game-link-banner__icon {
+  font-size: 1.5rem;
+}
+
+.game-link-banner__text {
+  flex: 1;
+  min-width: 200px;
+}
+
+.game-link-banner__links {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+// ──────────────────────────────────────────────────────────
+// Modded Badge
+// ──────────────────────────────────────────────────────────
+.modded-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.35rem 0.65rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
+}
+
+.modded-badge--inline {
+  font-size: 0.6rem;
+  padding: 0.25rem 0.5rem;
+  vertical-align: middle;
+  margin-left: 0.5rem;
+}
+
+.modded-badge--card {
+  font-size: 0.6rem;
+  padding: 0.25rem 0.5rem;
+}
+
+// Game hero modded badge positioning
+.game-hero__modded-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+}
+
+.game-hero--modded {
+  position: relative;
+}
+
+// Game card modded badge positioning
+.game-card__modded-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 5;
+}
+
+.game-card--modded {
+  position: relative;
+}
+
+// ──────────────────────────────────────────────────────────
+// Responsive: Modded/Link Banners
+// ──────────────────────────────────────────────────────────
+@media (max-width: 600px) {
+  .game-link-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
+  
+  .game-link-banner__links {
+    width: 100%;
+  }
+  
+  .game-link-banner__links .btn {
+    flex: 1;
+    text-align: center;
+  }
+}

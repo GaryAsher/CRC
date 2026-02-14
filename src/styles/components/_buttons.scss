@@ -1,0 +1,54 @@
+// ============================================================
+// Buttons
+// ============================================================
+// Base button styles and variants.
+// 
+// CLASSES:
+//   .btn          - Base button style
+//   .btn--outline - Transparent background, border only
+//
+// STATES:
+//   :hover        - Hover effect
+//   :disabled     - Reduced opacity, no pointer
+// ============================================================
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--border);      // Default border
+  background: var(--surface);           // Elevated surface background
+  color: var(--fg);                     // Primary text color
+  border-radius: var(--radius-sm);      // Rounded corners (10px)
+  padding: 0.55rem 0.85rem;             // Internal spacing
+  cursor: pointer;
+  line-height: 1;
+  min-height: var(--tap);               // Minimum touch target (36px)
+}
+
+.btn:hover {
+  background: var(--panel);             // Slightly lighter on hover
+  text-decoration: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+  background: var(--surface);           // No hover effect when disabled
+}
+
+// ──────────────────────────────────────────────────────────
+// Outline Variant
+// ──────────────────────────────────────────────────────────
+.btn--outline {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.btn--outline:hover {
+  background: var(--panel);
+  border-color: var(--accent);          // Accent border on hover
+  color: var(--fg);
+}

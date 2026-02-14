@@ -1,0 +1,73 @@
+// ============================================================
+// Back to Top Button
+// ============================================================
+// Fixed floating button that scrolls to page top.
+// Uses CSS transitions for smooth fade in/out.
+//
+// TEST: Scroll down on any long page - button appears smoothly
+// ============================================================
+
+.back-to-top {
+  position: fixed;
+  bottom: 5rem; // Moved up to avoid overlapping footer theme picker
+  right: 2rem;
+  z-index: 90;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--fg);
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  
+  // Smooth transition for appearing (ease-in) and disappearing
+  // Using different timing for show vs hide for better UX
+  opacity: 1;
+  transform: translateY(0);
+  transition: 
+    transform 0.3s ease-out, 
+    opacity 0.4s ease-in,  // Ease-in for appearing
+    background 0.2s ease;
+}
+
+.back-to-top:hover {
+  transform: translateY(-3px);
+  background: var(--accent);
+  filter: brightness(1.1);
+}
+
+.back-to-top:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+// Hidden state with smooth fade out (ease-out for disappearing)
+.back-to-top[hidden] {
+  display: flex; // Override hidden's display:none to allow animation
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(20px);
+  transition: 
+    transform 0.25s ease-in,  // Faster exit
+    opacity 0.25s ease-out,   // Ease-out for disappearing
+    background 0.2s ease;
+}
+
+@media (max-width: 600px) {
+  .back-to-top {
+    bottom: 4rem; // Adjusted for mobile
+    right: 1rem;
+    width: 44px;
+    height: 44px;
+    font-size: 1.25rem;
+  }
+}

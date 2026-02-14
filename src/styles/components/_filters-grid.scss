@@ -1,0 +1,154 @@
+// ============================================================
+// Filters Grid
+// ============================================================
+// Grid layouts for filter sections on games index and runs pages.
+//
+// CLASSES:
+//   .filters-grid        - 2-column grid (default)
+//   .filters-grid--three - 3-column grid (games index)
+//   .filters-grid--runs  - 4-column grid (runs advanced search)
+//   .tag-filter          - Individual filter box within grid
+//   .filter-groups       - Flex row for advanced search filters
+//   .filter-group        - Individual filter in advanced search
+//
+// RESPONSIVE:
+//   < 1000px - 4-col → 2-col
+//   < 800px  - 3-col → 2-col
+//   < 560px  - All → 1-col
+// ============================================================
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+  align-items: start;
+  margin: 0 0 0.9rem 0;
+  width: 100%;
+}
+
+// 3-column variant (games index: Platform, Genre, Challenges)
+.filters-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+// 4-column variant (runs page advanced search)
+.filters-grid--runs {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+
+// Individual filter box styling
+.filters-grid .tag-filter {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  min-height: 120px;                      // Prevent layout shift when chips appear
+}
+
+// ──────────────────────────────────────────────────────────
+// Advanced Search Filter Groups (runs page)
+// ──────────────────────────────────────────────────────────
+.filter-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.filter-group {
+  flex: 1 1 0;                            // Equal width for all filter groups
+  min-width: 150px;
+}
+
+.filter-group__label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+// ──────────────────────────────────────────────────────────
+// Selections Row (chips + reset button)
+// ──────────────────────────────────────────────────────────
+.filter-selections-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+}
+
+.filter-selections-row .filter-selections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+// Accent-styled reset button (stands out from chips)
+.btn--reset-accent {
+  margin-left: auto;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn--reset-accent:hover {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+// ──────────────────────────────────────────────────────────
+// Responsive Breakpoints
+// ──────────────────────────────────────────────────────────
+@media (max-width: 1000px) {
+  .filters-grid--runs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .filters-grid--three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  .filter-group {
+    flex: 1 1 45%;                        // 2 per row on tablet
+    min-width: 140px;
+  }
+}
+
+@media (max-width: 560px) {
+  .filters-grid,
+  .filters-grid--three,
+  .filters-grid--runs {
+    grid-template-columns: 1fr;           // Single column on mobile
+  }
+  
+  .filter-groups {
+    flex-direction: column;
+  }
+  
+  .filter-group {
+    flex: 1 1 100%;                       // Full width on mobile
+    min-width: 0;
+  }
+  
+  .filter-selections-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .btn--reset-accent {
+    margin-left: 0;
+    margin-top: 0.5rem;
+  }
+}

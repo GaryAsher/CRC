@@ -1,0 +1,106 @@
+# 0-9
+2d:
+  label: "2D"
+3d:
+  label: "3D"
+
+# A
+action:
+  label: "Action"
+  
+action-adventure:
+  label: "Action-Adventure"
+
+
+# B
+bullet-hell:
+  label: "Bullet Hell"
+  
+# C
+
+# D
+difficult:
+  label: "Difficult"
+
+dungeon-crawler:
+  label: "Dungeon Crawler"
+
+# E
+
+# F
+
+# G
+great-soundtrack:
+  label: "Great Soundtrack"
+
+# H
+hack-and-slash:
+  label: "Hack and Slash"
+
+# I
+indie:
+  label: "Indie"
+  
+# J
+
+# K
+
+# L
+
+# M
+metroidvania:
+  label: "Metroidvania"
+  
+mythology:
+  label: "Mythology"
+
+# N
+
+# O
+
+# P
+platformer:
+  label: "Platformer"
+
+precision-platformer:
+  label: "Precision Platformer"
+  
+puzzle:
+  label: "Puzzle"
+
+# Q
+
+# R
+replay-value:
+  label: "Replay Value"
+
+roguelike:
+  label: "Roguelike"
+  
+roguelite:
+  label: "Roguelite"
+
+# S
+singleplayer:
+  label: "Singleplayer"
+  aliases: 
+    - "Single Player"
+
+souls-like:
+  label: "Souls-like"
+  aliases: 
+    - "Soulslike"
+
+# T
+
+# U
+
+# V
+
+# W
+
+# X
+
+# Y
+
+# Z
