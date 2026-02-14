@@ -61,7 +61,7 @@
 						<a href="/guidelines" class="nav-dropdown__item">📋 Guidelines</a>
 						<a href="/support" class="nav-dropdown__item">💬 Support</a>
 						<hr class="nav-dropdown__divider" />
-						<a href="/feed.xml" class="nav-dropdown__item">📡 RSS Feed</a>
+						<a href="/news" class="nav-dropdown__item">📡 RSS Feed</a>
 					</div>
 				{/if}
 			</div>
