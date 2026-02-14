@@ -4,7 +4,7 @@
 	let { data } = $props();
 	const { games, runners } = data;
 
-	let query = $state($page.url.searchParams.get('q') || '');
+	let query = $state('');
 	let filter = $state<'all' | 'games' | 'runners'>('all');
 
 	let results = $derived.by(() => {
