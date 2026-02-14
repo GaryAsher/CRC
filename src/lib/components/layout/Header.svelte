@@ -44,6 +44,7 @@
 			<a href="/games" class:active={isActive('/games')}>Games</a>
 			<a href="/runners" class:active={isActive('/runners')}>Runners</a>
 			<a href="/teams" class:active={isActive('/teams')}>Teams</a>
+			<a href="/submit" class:active={isActive('/submit')}>Submit</a>
 		</div>
 
 		<div class="nav-group">

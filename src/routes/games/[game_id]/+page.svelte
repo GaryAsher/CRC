@@ -35,6 +35,11 @@
 	</section>
 {/if}
 
+<!-- Submit Run CTA -->
+<section class="submit-cta">
+	<a href="/submit?game={game.game_id}" class="btn btn--accent">Submit a Run for {game.game_name}</a>
+</section>
+
 <!-- General Rules Preview -->
 {#if game.general_rules}
 	<section>
@@ -67,6 +72,12 @@
 <style>
 	section { margin-bottom: 2rem; }
 	h2 { margin-bottom: 0.75rem; }
+	.submit-cta { text-align: center; }
+	.btn--accent {
+		display: inline-block; background: var(--accent); color: #fff; padding: 0.6rem 1.5rem;
+		border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem;
+	}
+	.btn--accent:hover { opacity: 0.9; }
 	.game-link-banner {
 		display: flex;
 		align-items: center;
