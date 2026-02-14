@@ -80,3 +80,4 @@ scripts/                     # CI/validation scripts (surviving from Jekyll)
 - **Deployment:** GitHub Pages (static adapter) → Cloudflare Pages (future)
 - **Language:** TypeScript
  
+ 
