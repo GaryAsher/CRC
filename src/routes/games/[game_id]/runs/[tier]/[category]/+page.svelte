@@ -5,7 +5,7 @@
 	const game = $derived(data.game);
 	const cat = $derived(data.category);
 	const tier = $derived(data.tier);
-	const fm = $derived(data.filterMeta);
+	const parentSlug = $derived(data.parentSlug || cat.slug);
 
 	// ── Filter state ────────────────────────────────────────────
 	let searchQuery = $state('');
@@ -165,7 +165,6 @@
 {#if data.subcategories.length > 0}
 	<div class="subcategory-pills">
 		<span class="muted sub-label">Browse:</span>
-		{@const parentSlug = data.parentSlug || cat.slug}
 		<a
 			href="/games/{game.game_id}/runs/{tier}/{parentSlug}"
 			class="pill pill--sub"
