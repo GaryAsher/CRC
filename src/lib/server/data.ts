@@ -1,12 +1,15 @@
 // =============================================================================
 // Server-Side Data Loading
 // =============================================================================
-// Reads markdown collections and YAML config files using Vite's import.meta.glob
-// so data is bundled at build time. This works on Cloudflare Workers (no fs).
+// Reads markdown collections and YAML config files at build/request time.
+// This file uses Node's `fs` and only runs server-side (in +page.server.ts,
+// +layout.server.ts, hooks.server.ts, or +server.ts files).
 //
 // Replaces: Jekyll's collection system + all generate-*.js scripts
 // =============================================================================
 
+import fs from 'fs';
+import path from 'path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import type {
@@ -19,42 +22,30 @@ import type {
 	AdminConfig
 } from '$types';
 
-// ─── Vite Glob Imports (resolved at build time) ────────────────────────────
-// These eagerly load all matching files as raw strings.
-// The keys are relative paths like "../../data/games/hades-2.md"
-
-const gameFiles = import.meta.glob('../../data/games/*.md', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
-const runnerFiles = import.meta.glob('../../data/runners/*.md', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
-const runFiles = import.meta.glob('../../data/runs/**/*.md', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
-const achievementFiles = import.meta.glob('../../data/achievements/*.md', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
-const teamFiles = import.meta.glob('../../data/teams/*.md', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
-const postFiles = import.meta.glob('../../data/posts/*.md', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
-const configFiles = import.meta.glob('../../data/config/*.yml', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
+// Resolve from project root (works in both dev and build)
+const DATA_DIR = path.resolve('src/data');
 
 // ─── Generic Helpers ────────────────────────────────────────────────────────
 
-/** Extract filename from a glob path like "../../data/games/hades-2.md" */
-function getFilename(filepath: string): string {
-	return filepath.split('/').pop() || '';
-}
-
 /**
- * Parse all markdown files from a glob result.
+ * Read all .md files from a directory and parse YAML front matter.
  * Skips files starting with _ (test content) and README.md.
  * Includes the markdown body as `content` if present.
  */
-function parseCollection<T>(
-	files: Record<string, string>,
-	includeHidden = false
-): T[] {
-	return Object.entries(files)
-		.filter(([filepath]) => {
-			const filename = getFilename(filepath);
-			if (filename === 'README.md') return false;
-			if (!includeHidden && filename.startsWith('_')) return false;
+function loadCollection<T>(dir: string, includeHidden = false): T[] {
+	const fullPath = path.join(DATA_DIR, dir);
+	if (!fs.existsSync(fullPath)) return [];
+
+	return fs
+		.readdirSync(fullPath)
+		.filter((f) => {
+			if (!f.endsWith('.md')) return false;
+			if (f === 'README.md') return false;
+			if (!includeHidden && f.startsWith('_')) return false;
 			return true;
 		})
-		.map(([, raw]) => {
+		.map((f) => {
+			const raw = fs.readFileSync(path.join(fullPath, f), 'utf-8');
 			const { data, content } = matter(raw);
 			const trimmed = content.trim();
 			return {
@@ -65,28 +56,61 @@ function parseCollection<T>(
 }
 
 /**
- * Parse a YAML config file by filename.
+ * Recursively load .md files from a directory and all subdirectories.
+ * Used for runs (which are organized in game_id subdirectories).
+ * Skips the `rejected/` subdirectory.
+ */
+function loadCollectionRecursive<T>(dir: string): T[] {
+	const fullPath = path.join(DATA_DIR, dir);
+	if (!fs.existsSync(fullPath)) return [];
+
+	const results: T[] = [];
+
+	function walk(currentDir: string) {
+		for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
+			if (entry.isDirectory()) {
+				// Skip rejected runs and hidden directories
+				if (entry.name === 'rejected' || entry.name.startsWith('.')) continue;
+				walk(path.join(currentDir, entry.name));
+			} else if (
+				entry.isFile() &&
+				entry.name.endsWith('.md') &&
+				!entry.name.startsWith('_') &&
+				entry.name !== 'README.md'
+			) {
+				const raw = fs.readFileSync(path.join(currentDir, entry.name), 'utf-8');
+				const { data } = matter(raw);
+				results.push(data as T);
+			}
+		}
+	}
+
+	walk(fullPath);
+	return results;
+}
+
+/**
+ * Load a YAML config file from the config/ directory (_data/ equivalent).
  */
 function loadYaml<T>(filename: string): T {
-	const match = Object.entries(configFiles).find(
-		([filepath]) => getFilename(filepath) === filename
-	);
-	if (!match) {
+	const filePath = path.join(DATA_DIR, 'config', filename);
+	if (!fs.existsSync(filePath)) {
 		throw new Error(`Config file not found: ${filename}`);
 	}
-	return yaml.load(match[1]) as T;
+	const raw = fs.readFileSync(filePath, 'utf-8');
+	return yaml.load(raw) as T;
 }
 
 // ─── Games ──────────────────────────────────────────────────────────────────
 
 /** Get all active (non-hidden) games. */
 export function getGames(): Game[] {
-	return parseCollection<Game>(gameFiles);
+	return loadCollection<Game>('games');
 }
 
 /** Get all games including test/hidden ones (for admin). */
 export function getAllGames(): Game[] {
-	return parseCollection<Game>(gameFiles, true);
+	return loadCollection<Game>('games', true);
 }
 
 /** Get a single game by ID. Returns undefined if not found. */
@@ -103,7 +127,7 @@ export function getActiveGames(): Game[] {
 
 /** Get all active (non-hidden) runners. */
 export function getRunners(): Runner[] {
-	return parseCollection<Runner>(runnerFiles);
+	return loadCollection<Runner>('runners');
 }
 
 /** Get a single runner by ID. */
@@ -115,20 +139,7 @@ export function getRunner(runnerId: string): Runner | undefined {
 
 /** Get all approved runs across all games. */
 export function getRuns(): Run[] {
-	// Filter out rejected directory and README/hidden files
-	return Object.entries(runFiles)
-		.filter(([filepath]) => {
-			const filename = getFilename(filepath);
-			if (filename === 'README.md') return false;
-			if (filename.startsWith('_')) return false;
-			// Skip rejected runs
-			if (filepath.includes('/rejected/')) return false;
-			return true;
-		})
-		.map(([, raw]) => {
-			const { data } = matter(raw);
-			return data as Run;
-		});
+	return loadCollectionRecursive<Run>('runs');
 }
 
 /** Get all approved runs for a specific game. */
@@ -155,7 +166,7 @@ export function getRunsForCategory(gameId: string, categorySlug: string): Run[] 
 
 /** Get all achievements. */
 export function getAchievements(): Achievement[] {
-	return parseCollection<Achievement>(achievementFiles);
+	return loadCollection<Achievement>('achievements');
 }
 
 /** Get achievements for a specific runner. */
@@ -175,7 +186,7 @@ export function getAchievementsForGame(gameId: string): Achievement[] {
 // ─── Teams ──────────────────────────────────────────────────────────────────
 
 export function getTeams(): Team[] {
-	return parseCollection<Team>(teamFiles);
+	return loadCollection<Team>('teams');
 }
 
 export function getTeam(teamId: string): Team | undefined {
@@ -186,16 +197,18 @@ export function getTeam(teamId: string): Team | undefined {
 
 /** Get all blog/news posts, sorted newest first. */
 export function getPosts(): Post[] {
-	return Object.entries(postFiles)
-		.filter(([filepath]) => {
-			const filename = getFilename(filepath);
-			return filename !== 'README.md';
-		})
-		.map(([filepath, raw]) => {
+	const fullPath = path.join(DATA_DIR, 'posts');
+	if (!fs.existsSync(fullPath)) return [];
+
+	return fs
+		.readdirSync(fullPath)
+		.filter((f) => f.endsWith('.md') && f !== 'README.md')
+		.map((f) => {
+			const raw = fs.readFileSync(path.join(fullPath, f), 'utf-8');
 			const { data, content } = matter(raw);
-			const filename = getFilename(filepath);
+
 			// Extract slug from filename: 2026-01-12-welcome-to-crc.md → welcome-to-crc
-			const slug = filename.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.md$/, '');
+			const slug = f.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.md$/, '');
 
 			return {
 				...data,
@@ -359,4 +372,32 @@ export function getAllCategories(game: Game): CategoryInfo[] {
 	}
 
 	return categories;
+}
+
+// ─── Game History ───────────────────────────────────────────────────────────
+
+export interface HistoryEntry {
+	date: string;
+	action: string;
+	target?: string;
+	note?: string;
+	by?: { discord?: string; github?: string };
+}
+
+export function getGameHistory(gameId: string): HistoryEntry[] {
+	const historyPath = path.join(DATA_DIR, 'config', 'history', `${gameId}.yml`);
+	try {
+		if (fs.existsSync(historyPath)) {
+			const raw = fs.readFileSync(historyPath, 'utf-8');
+			const parsed = yaml.load(raw);
+			if (Array.isArray(parsed)) {
+				return (parsed as HistoryEntry[]).sort((a, b) =>
+					(b.date || '').localeCompare(a.date || '')
+				);
+			}
+		}
+	} catch {
+		// No history file or parse error
+	}
+	return [];
 }
