@@ -93,6 +93,9 @@ export const consent = createConsentStore();
 /** Whether the user has made a choice at all */
 export const hasConsented = writable<boolean>(loadConsent() !== null);
 
+/** Trigger to open the cookie settings modal from anywhere (e.g. footer link) */
+export const showCookieSettings = writable<boolean>(false);
+
 // Keep hasConsented in sync
 consent.subscribe((value) => {
 	hasConsented.set(value !== null);

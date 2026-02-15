@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { consent, hasConsented } from '$stores/consent';
+	import { consent, hasConsented, showCookieSettings } from '$stores/consent';
 
 	let showBanner = $state(!$hasConsented);
 	let showModal = $state(false);
@@ -9,6 +9,14 @@
 	consent.subscribe((value) => {
 		if (value !== null) {
 			showBanner = false;
+		}
+	});
+
+	// Allow other components (e.g. footer) to open the settings modal
+	showCookieSettings.subscribe((value) => {
+		if (value) {
+			openSettings();
+			showCookieSettings.set(false);
 		}
 	});
 

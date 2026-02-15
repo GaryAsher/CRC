@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { showCookieSettings } from '$stores/consent';
+
 	const year = new Date().getFullYear();
 </script>
 
@@ -39,6 +41,7 @@
 					<li><a href="/legal/privacy">Privacy Policy</a></li>
 					<li><a href="/legal/terms">Terms of Service</a></li>
 					<li><a href="/legal/cookies">Cookie Policy</a></li>
+					<li><button class="footer-link-btn" onclick={() => showCookieSettings.set(true)}>Cookie Settings</button></li>
 				</ul>
 			</div>
 		</div>
@@ -51,3 +54,21 @@
 		</div>
 	</div>
 </footer>
+
+<style>
+	.footer-link-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+		text-align: left;
+		opacity: 0.7;
+		transition: opacity 0.15s;
+	}
+	.footer-link-btn:hover {
+		opacity: 1;
+		color: var(--accent);
+	}
+</style>
