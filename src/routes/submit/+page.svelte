@@ -3,7 +3,6 @@
 	import { PUBLIC_WORKER_URL, PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
 
 	let { data } = $props();
-	const { games, runners } = data;
 
 	// ── Form State ────────────────────────────────────────────────────────────
 	let gameId = $state('');
@@ -23,7 +22,7 @@
 	let turnstileWidgetId = $state<string | null>(null);
 
 	// ── Derived Data ──────────────────────────────────────────────────────────
-	let selectedGame = $derived(games.find((g: any) => g.game_id === gameId));
+	let selectedGame = $derived(data.games.find((g: any) => g.game_id === gameId));
 
 	let filteredCategories = $derived.by(() => {
 		if (!selectedGame) return { full_runs: [], mini_challenges: [], player_made: [] };
@@ -135,11 +134,11 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)
 			});
-			const data = await res.json();
-			if (res.ok && data.ok) {
-				result = { ok: true, message: `Run submitted! Submission ID: ${data.submission_id}`, id: data.submission_id };
+			const json = await res.json();
+			if (res.ok && json.ok) {
+				result = { ok: true, message: `Run submitted! Submission ID: ${json.submission_id}`, id: json.submission_id };
 			} else {
-				result = { ok: false, message: data.error || 'Submission failed. Please try again.' };
+				result = { ok: false, message: json.error || 'Submission failed. Please try again.' };
 			}
 		} catch {
 			result = { ok: false, message: 'Network error. Please check your connection and try again.' };
@@ -180,7 +179,7 @@
 					<label for="game">Game <span class="req">*</span></label>
 					<select id="game" bind:value={gameId}>
 						<option value="">Select a game...</option>
-						{#each games as game}
+						{#each data.games as game}
 							<option value={game.game_id}>{game.game_name}</option>
 						{/each}
 					</select>
@@ -237,7 +236,7 @@
 					<label for="runner">Runner <span class="req">*</span></label>
 					<select id="runner" bind:value={runnerId}>
 						<option value="">Select your runner profile...</option>
-						{#each runners as runner}
+						{#each data.runners as runner}
 							<option value={runner.runner_id}>{runner.name}</option>
 						{/each}
 						<option value="__new__">+ New Runner (not listed)</option>

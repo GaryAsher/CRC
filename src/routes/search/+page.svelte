@@ -2,7 +2,6 @@
 	import { page } from '$app/stores';
 
 	let { data } = $props();
-	const { games, runners } = data;
 
 	let query = $state('');
 	let filter = $state<'all' | 'games' | 'runners'>('all');
@@ -14,7 +13,7 @@
 		let items: any[] = [];
 
 		if (filter === 'all' || filter === 'games') {
-			items.push(...games.filter((g: any) =>
+			items.push(...data.games.filter((g: any) =>
 				g.name.toLowerCase().includes(q) ||
 				g.id.toLowerCase().includes(q) ||
 				g.aliases?.some((a: string) => a.toLowerCase().includes(q)) ||
@@ -23,7 +22,7 @@
 		}
 
 		if (filter === 'all' || filter === 'runners') {
-			items.push(...runners.filter((r: any) =>
+			items.push(...data.runners.filter((r: any) =>
 				r.name.toLowerCase().includes(q) ||
 				r.id.toLowerCase().includes(q)
 			));
@@ -46,7 +45,6 @@
 				type="search"
 				bind:value={query}
 				placeholder="Search games, runners..."
-				autofocus
 			/>
 		</div>
 
