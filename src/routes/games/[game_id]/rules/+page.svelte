@@ -140,8 +140,8 @@
 					<!-- Run Type -->
 					{#if runTypes().length > 1}
 						<div class="rb-group">
-							<label class="rb-label">Run Type</label>
-							<select class="rb-select" bind:value={selectedRunType} onchange={() => { selectedCategory = null; }}>
+							<label class="rb-label" for="rb-run-type">Run Type</label>
+							<select class="rb-select" id="rb-run-type" bind:value={selectedRunType} onchange={() => { selectedCategory = null; }}>
 								{#each runTypes() as rt}
 									<option value={rt.id}>{rt.label}</option>
 								{/each}
@@ -151,8 +151,8 @@
 
 					<!-- Category -->
 					<div class="rb-group">
-						<label class="rb-label">Category</label>
-						<select class="rb-select" bind:value={selectedCategory}>
+						<label class="rb-label" for="rb-category">Category</label>
+						<select class="rb-select" id="rb-category" bind:value={selectedCategory}>
 							<option value={null}>— Select category —</option>
 							{#each filteredCategories as cat}
 								<option value={cat.slug}>{cat.label}</option>
@@ -163,8 +163,8 @@
 					<!-- Character -->
 					{#if hasCharacter && game.characters_data?.length}
 						<div class="rb-group">
-							<label class="rb-label">{characterLabel}</label>
-							<select class="rb-select" bind:value={selectedCharacter}>
+							<label class="rb-label" for="rb-character">{characterLabel}</label>
+							<select class="rb-select" id="rb-character" bind:value={selectedCharacter}>
 								<option value={null}>— Any —</option>
 								{#each game.characters_data as c}
 									<option value={c.slug}>{c.label}</option>
@@ -176,7 +176,7 @@
 					<!-- Challenges (multi-select toggles) -->
 					{#if hasChallenges}
 						<div class="rb-group">
-							<label class="rb-label">Challenges</label>
+							<span class="rb-label">Challenges</span>
 							<div class="rb-toggles">
 								{#each game.challenges_data as ch}
 									<button
@@ -192,7 +192,7 @@
 					<!-- Restrictions (multi-select toggles) -->
 					{#if hasRestrictions}
 						<div class="rb-group">
-							<label class="rb-label">Restrictions</label>
+							<span class="rb-label">Restrictions</span>
 							<div class="rb-toggles">
 								{#each game.restrictions_data as r}
 									<button
@@ -208,8 +208,8 @@
 					<!-- Glitches -->
 					{#if hasGlitches}
 						<div class="rb-group">
-							<label class="rb-label">Glitch Category</label>
-							<select class="rb-select" bind:value={selectedGlitch}>
+							<label class="rb-label" for="rb-glitch">Glitch Category</label>
+							<select class="rb-select" id="rb-glitch" bind:value={selectedGlitch}>
 								<option value={null}>— Any —</option>
 								{#each game.glitches_data as g}
 									<option value={g.slug}>{g.label}</option>
