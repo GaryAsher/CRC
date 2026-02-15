@@ -8,8 +8,8 @@
 // Replaces: Jekyll's collection system + all generate-*.js scripts
 // =============================================================================
 
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import type {
