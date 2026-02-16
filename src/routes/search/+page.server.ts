@@ -1,7 +1,5 @@
-import { getActiveGames, getRunners, getRuns } from '$lib/server/data';
+import { getActiveGames, getRunners, getRuns, getPosts } from '$lib/server/data';
 import type { PageServerLoad } from './$types';
-
-export const prerender = true;
 
 export const load: PageServerLoad = async () => {
 	const games = getActiveGames().map((g) => ({
@@ -22,5 +20,25 @@ export const load: PageServerLoad = async () => {
 			url: `/runners/${r.runner_id}`
 		}));
 
-	return { games, runners };
+	const runs = getRuns()
+		.filter((r) => r.status === 'approved')
+		.map((r) => ({
+			type: 'run' as const,
+			runner: r.runner_id || r.runner || '',
+			game: r.game_id || '',
+			challenge: r.challenge_id || '',
+			category: r.category_slug || r.category || '',
+			date: r.date_completed || '',
+			url: `/games/${r.game_id}/runs/`
+		}));
+
+	const news = getPosts().map((p) => ({
+		type: 'news' as const,
+		title: p.title || '',
+		url: p.url || `/news/${p.slug}`,
+		date: p.date || '',
+		excerpt: p.excerpt || ''
+	}));
+
+	return { games, runners, runs, news };
 };

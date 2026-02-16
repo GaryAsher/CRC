@@ -8,12 +8,20 @@
 
 	let signingIn = $state(false);
 	let errorMessage = $state('');
+	let loading = $state(true);
+	let userMeta = $state<{ avatar?: string; name?: string; provider?: string } | null>(null);
 
-	// If already signed in, redirect
 	onMount(() => {
+		// Check if already signed in
 		if ($session) {
-			goto('/profile');
+			const meta = $session.user?.user_metadata;
+			userMeta = {
+				avatar: meta?.avatar_url || meta?.picture,
+				name: meta?.full_name || meta?.name || meta?.user_name || 'User',
+				provider: $session.user?.app_metadata?.provider || 'OAuth'
+			};
 		}
+		loading = false;
 	});
 
 	async function signInWith(provider: 'discord' | 'twitch') {
@@ -34,114 +42,205 @@
 			signingIn = false;
 		}
 	}
+
+	async function signOut() {
+		await supabase.auth.signOut();
+		userMeta = null;
+	}
 </script>
 
 <svelte:head><title>Sign In | Challenge Run Community</title></svelte:head>
 
 <div class="page-width">
 	<div class="sign-in-page">
-		<div class="sign-in-card">
-			<h1>Sign In</h1>
-			<p class="muted">Sign in to submit runs, manage your profile, and track your achievements.</p>
+		<div class="sign-in-card card">
+			<h1>Sign In to Challenge Run Community</h1>
+			<p class="muted sign-in-intro">
+				Sign in with your Discord or Twitch account to create a runner profile, submit runs, and track your achievements.
+			</p>
 
-			{#if errorMessage}
-				<div class="alert alert--error">{errorMessage}</div>
+			<!-- Loading state -->
+			{#if loading}
+				<div class="sign-in-loading">
+					<div class="spinner"></div>
+					<p class="muted">Loading...</p>
+				</div>
+
+			<!-- Already signed in -->
+			{:else if $session && userMeta}
+				<div class="sign-in-state">
+					<div class="sign-in-user">
+						<img
+							src={userMeta.avatar || '/assets/img/site/default-runner.png'}
+							alt=""
+							class="sign-in-user__avatar"
+						/>
+						<div class="sign-in-user__info">
+							<p class="sign-in-user__name">{userMeta.name}</p>
+							<p class="sign-in-user__provider muted">via {userMeta.provider?.charAt(0).toUpperCase()}{userMeta.provider?.slice(1)}</p>
+						</div>
+					</div>
+					<p class="muted">You're already signed in!</p>
+					<div class="sign-in-actions">
+						<a href="/profile" class="btn btn--primary">Go to Profile</a>
+						<a href="/profile/settings" class="btn">Settings</a>
+						<button type="button" class="btn" onclick={signOut}>Sign Out</button>
+					</div>
+				</div>
+
+			<!-- Sign in options -->
+			{:else}
+				{#if errorMessage}
+					<div class="sign-in-error">
+						<p class="sign-in-error__message">{errorMessage}</p>
+						<button type="button" class="btn" onclick={() => errorMessage = ''}>Try Again</button>
+					</div>
+				{/if}
+
+				<div class="sign-in-options">
+					<button
+						type="button"
+						class="sign-in-btn sign-in-btn--discord"
+						onclick={() => signInWith('discord')}
+						disabled={signingIn}
+					>
+						<svg class="sign-in-btn__icon" viewBox="0 0 24 24" fill="currentColor">
+							<path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+						</svg>
+						<span>{signingIn ? 'Redirecting...' : 'Sign in with Discord'}</span>
+					</button>
+
+					<button
+						type="button"
+						class="sign-in-btn sign-in-btn--twitch"
+						onclick={() => signInWith('twitch')}
+						disabled={signingIn}
+					>
+						<svg class="sign-in-btn__icon" viewBox="0 0 24 24" fill="currentColor">
+							<path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/>
+						</svg>
+						<span>{signingIn ? 'Redirecting...' : 'Sign in with Twitch'}</span>
+					</button>
+				</div>
 			{/if}
 
-			<div class="sign-in-buttons">
-				<button
-					class="btn btn--discord"
-					onclick={() => signInWith('discord')}
-					disabled={signingIn}
-				>
-					{signingIn ? 'Redirecting...' : 'Sign in with Discord'}
-				</button>
-				<button
-					class="btn btn--twitch"
-					onclick={() => signInWith('twitch')}
-					disabled={signingIn}
-				>
-					{signingIn ? 'Redirecting...' : 'Sign in with Twitch'}
-				</button>
-			</div>
+			<hr class="sign-in-divider" />
 
-			<div class="sign-in-footer">
-				<p class="muted">By signing in, you agree to our <a href="/legal/terms">Terms of Service</a> and <a href="/legal/privacy">Privacy Policy</a>.</p>
+			<div class="sign-in-info">
+				<h3>Why sign in?</h3>
+				<ul>
+					<li><strong>Create a runner profile</strong> — Showcase your achievements and connect with the community</li>
+					<li><strong>Submit runs</strong> — Your submissions are linked to your profile automatically</li>
+					<li><strong>Track your progress</strong> — See all your verified runs in one place</li>
+					<li><strong>Earn badges</strong> — Unlock achievements as you complete challenges</li>
+				</ul>
+
+				<h3>Account Requirements</h3>
+				<p class="muted">
+					To prevent spam and fake accounts, your Discord or Twitch account must be at least <strong>30 days old</strong> to create a runner profile.
+				</p>
+
+				<h3>Privacy</h3>
+				<p class="muted">
+					We only request basic profile information (username, avatar). We never post on your behalf or access private data.
+				</p>
 			</div>
 		</div>
 	</div>
 </div>
 
 <style>
+	/* sign-in-page and sign-in-card use global SCSS from Jekyll inline pattern */
 	.sign-in-page {
-		display: flex;
-		justify-content: center;
-		padding: 3rem 0;
+		max-width: 500px;
+		margin: 2rem auto;
 	}
-	.sign-in-card {
-		max-width: 420px;
-		width: 100%;
-		text-align: center;
-		padding: 2.5rem;
-		background: var(--surface);
-		border: 1px solid var(--border);
-		border-radius: 12px;
-	}
+	.sign-in-card { padding: 2rem; }
 	.sign-in-card h1 {
-		margin: 0 0 0.5rem;
-		font-size: 1.5rem;
+		text-align: center;
+		margin-bottom: 0.5rem;
 	}
-	.sign-in-card > .muted {
-		margin-bottom: 1.5rem;
+	.sign-in-intro {
+		text-align: center;
+		margin-bottom: 2rem;
 	}
-	.sign-in-buttons {
+	.sign-in-options {
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
+		gap: 1rem;
 	}
-	.btn {
-		display: inline-flex;
+	.sign-in-btn {
+		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 0.6rem;
-		padding: 0.75rem 1.5rem;
+		gap: 0.75rem;
+		width: 100%;
+		padding: 0.875rem 1.5rem;
 		border: none;
 		border-radius: 8px;
 		font-size: 1rem;
 		font-weight: 600;
 		cursor: pointer;
-		transition: background 0.15s, opacity 0.15s;
+		transition: transform 0.15s ease, box-shadow 0.15s ease;
 	}
-	.btn:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
+	.sign-in-btn:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 	}
-	.btn--discord {
-		background: #5865F2;
-		color: #fff;
+	.sign-in-btn:active { transform: translateY(0); }
+	.sign-in-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+	.sign-in-btn__icon { width: 24px; height: 24px; }
+	.sign-in-btn--discord { background: #5865F2; color: white; }
+	.sign-in-btn--discord:hover:not(:disabled) { background: #4752C4; }
+	.sign-in-btn--twitch { background: #9146FF; color: white; }
+	.sign-in-btn--twitch:hover:not(:disabled) { background: #7B2FE0; }
+	.sign-in-loading { text-align: center; padding: 2rem; }
+	.sign-in-loading .spinner { margin: 0 auto 1rem; }
+	.sign-in-error {
+		text-align: center;
+		padding: 1rem;
+		background: var(--danger-bg, rgba(220, 53, 69, 0.1));
+		border-radius: 8px;
+		margin-bottom: 1rem;
 	}
-	.btn--discord:hover:not(:disabled) { background: #4752C4; }
-	.btn--twitch {
-		background: #9146FF;
-		color: #fff;
+	.sign-in-error__message {
+		color: var(--danger, #dc3545);
+		margin-bottom: 1rem;
 	}
-	.btn--twitch:hover:not(:disabled) { background: #772CE8; }
-	.sign-in-footer {
-		margin-top: 1.5rem;
-		padding-top: 1rem;
+	.sign-in-state { text-align: center; padding: 1rem 0; }
+	.sign-in-user {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 1rem;
+		margin-bottom: 1rem;
+	}
+	.sign-in-user__avatar {
+		width: 64px; height: 64px;
+		border-radius: 50%;
+		background: var(--bg-secondary);
+	}
+	.sign-in-user__info { text-align: left; }
+	.sign-in-user__name { font-weight: 600; font-size: 1.125rem; margin: 0; }
+	.sign-in-user__provider { margin: 0; font-size: 0.875rem; }
+	.sign-in-actions {
+		display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem;
+	}
+	.sign-in-divider {
+		margin: 2rem 0;
+		border: none;
 		border-top: 1px solid var(--border);
 	}
-	.sign-in-footer .muted { font-size: 0.8rem; }
-	.sign-in-footer a { color: var(--accent); text-decoration: none; }
-	.sign-in-footer a:hover { text-decoration: underline; }
-	.alert--error {
-		padding: 0.75rem 1rem;
-		border-radius: 6px;
-		margin-bottom: 1rem;
-		font-size: 0.9rem;
-		background: rgba(239, 68, 68, 0.1);
-		border: 1px solid rgba(239, 68, 68, 0.3);
-		color: #ef4444;
-		text-align: left;
+	.sign-in-info h3 {
+		font-size: 1rem;
+		margin: 1.5rem 0 0.5rem;
+	}
+	.sign-in-info h3:first-child { margin-top: 0; }
+	.sign-in-info ul { margin: 0; padding-left: 1.25rem; }
+	.sign-in-info li { margin-bottom: 0.5rem; }
+
+	@media (max-width: 480px) {
+		.sign-in-card { padding: 1.5rem; }
+		.sign-in-actions { flex-direction: column; }
 	}
 </style>
