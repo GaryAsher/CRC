@@ -6,6 +6,7 @@
 	const cat = $derived(data.category);
 	const tier = $derived(data.tier);
 	const parentSlug = $derived(data.parentSlug || cat.slug);
+	const fm = $derived(data.filterMeta);
 
 	// ── Filter state ────────────────────────────────────────────
 	let searchQuery = $state('');
