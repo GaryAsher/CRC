@@ -13,7 +13,10 @@ const config = {
 				exclude: ['<all>']
 			}
 		}),
-
+		prerender: {
+			handleHttpError: 'warn',
+			handleUnseenRoutes: 'warn'
+		},
 		alias: {
 			$data: 'src/data',
 			$components: 'src/lib/components',
