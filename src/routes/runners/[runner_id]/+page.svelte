@@ -69,8 +69,8 @@
 					{#if data.teams.length > 0}
 						<span class="runner-team-badges">
 							{#each data.teams as team}
-								<a href="/teams/{team.team_id}" class="team-badge" title={team.name}>
-									{#if team.logo}<img src={team.logo} alt="" class="team-badge__logo" />{/if}
+								<a href="/teams/{team.team_id}" class="runner-team-badge" title={team.name}>
+									{#if team.logo}<img src={team.logo} alt="" class="runner-team-badge__logo" />{/if}
 									<span>{team.name}</span>
 								</a>
 							{/each}
@@ -82,14 +82,14 @@
 
 		<!-- Social Links -->
 		{#if Object.values(socials).some(Boolean)}
-			<div class="runner-socials">
-				{#if socials.twitch}<a href={socials.twitch} target="_blank" rel="noopener" class="social-btn" title="Twitch">Twitch</a>{/if}
-				{#if socials.youtube}<a href={socials.youtube} target="_blank" rel="noopener" class="social-btn" title="YouTube">YouTube</a>{/if}
-				{#if socials.twitter}<a href={socials.twitter} target="_blank" rel="noopener" class="social-btn" title="X">X</a>{/if}
-				{#if socials.bluesky}<a href={socials.bluesky} target="_blank" rel="noopener" class="social-btn" title="Bluesky">Bluesky</a>{/if}
-				{#if socials.discord}<span class="social-btn" title="Discord">Discord: {socials.discord}</span>{/if}
-				{#if socials.steam}<a href={socials.steam} target="_blank" rel="noopener" class="social-btn" title="Steam">Steam</a>{/if}
-				{#if socials.speedruncom}<a href={socials.speedruncom} target="_blank" rel="noopener" class="social-btn" title="SRC">SRC</a>{/if}
+			<div class="runner-links">
+				{#if socials.twitch}<a href={socials.twitch} target="_blank" rel="noopener" class="runner-link" title="Twitch">Twitch</a>{/if}
+				{#if socials.youtube}<a href={socials.youtube} target="_blank" rel="noopener" class="runner-link" title="YouTube">YouTube</a>{/if}
+				{#if socials.twitter}<a href={socials.twitter} target="_blank" rel="noopener" class="runner-link" title="X">X</a>{/if}
+				{#if socials.bluesky}<a href={socials.bluesky} target="_blank" rel="noopener" class="runner-link" title="Bluesky">Bluesky</a>{/if}
+				{#if socials.discord}<span class="runner-link" title="Discord">Discord: {socials.discord}</span>{/if}
+				{#if socials.steam}<a href={socials.steam} target="_blank" rel="noopener" class="runner-link" title="Steam">Steam</a>{/if}
+				{#if socials.speedruncom}<a href={socials.speedruncom} target="_blank" rel="noopener" class="runner-link" title="SRC">SRC</a>{/if}
 			</div>
 		{/if}
 	</section>
@@ -113,28 +113,28 @@
 	<!-- ═══ RUNS TAB ════════════════════════════════════════ -->
 	{#if activeTab === 'runs'}
 		<!-- Stats Card -->
-		<div class="stats-card">
-			<div class="stat">
-				<span class="stat__value">{data.stats.gamesCount}</span>
-				<span class="stat__label">Game{data.stats.gamesCount === 1 ? '' : 's'}</span>
+		<div class="runner-stats-card">
+			<div class="runner-stat">
+				<span class="runner-stat__value">{data.stats.gamesCount}</span>
+				<span class="runner-stat__label">Game{data.stats.gamesCount === 1 ? '' : 's'}</span>
 			</div>
-			<div class="stat">
-				<span class="stat__value">{data.stats.fullRunCount}</span>
-				<span class="stat__label">Full Run{data.stats.fullRunCount === 1 ? '' : 's'}</span>
+			<div class="runner-stat">
+				<span class="runner-stat__value">{data.stats.fullRunCount}</span>
+				<span class="runner-stat__label">Full Run{data.stats.fullRunCount === 1 ? '' : 's'}</span>
 			</div>
-			<div class="stat">
-				<span class="stat__value">{data.stats.miniRunCount}</span>
-				<span class="stat__label">Mini{data.stats.miniRunCount === 1 ? '' : 's'}</span>
+			<div class="runner-stat">
+				<span class="runner-stat__value">{data.stats.miniRunCount}</span>
+				<span class="runner-stat__label">Mini{data.stats.miniRunCount === 1 ? '' : 's'}</span>
 			</div>
-			<div class="stat stat--total">
-				<span class="stat__value">{data.stats.totalRuns}</span>
-				<span class="stat__label">Total</span>
+			<div class="runner-stat runner-stat--total">
+				<span class="runner-stat__value">{data.stats.totalRuns}</span>
+				<span class="runner-stat__label">Total</span>
 			</div>
 		</div>
 
 		<!-- Fun Stats -->
 		{#if data.stats.totalRuns > 0}
-			<div class="fun-stats">
+			<div class="runner-fun-stats">
 				{#if data.stats.mostPlayedGame}
 					<div class="fun-stat">
 						<span class="fun-stat__icon">🎮</span>
@@ -217,20 +217,20 @@
 			</div>
 		{:else}
 			<!-- Games grid -->
-			<div class="games-grid">
+			<div class="runner-games-grid">
 				{#each data.gameGroups as { game, runs: gameRuns }}
 					{@const bestRun = gameRuns.reduce((best, r) => {
 						if (!best || (r.time_primary && r.time_primary < (best.time_primary || 'zzz'))) return r;
 						return best;
 					}, null as (typeof gameRuns)[0] | null)}
-					<button class="game-card" onclick={() => selectedGameId = game.game_id}>
-						<div class="game-card__bg" style="background-image: url('{game.cover || '/assets/img/site/default-game.jpg'}')"></div>
-						<div class="game-card__overlay">
-							<div class="game-card__title">{game.game_name}</div>
-							<div class="game-card__stats">
-								<span class="game-card__count">{gameRuns.length} run{gameRuns.length === 1 ? '' : 's'}</span>
+					<button class="runner-game-card card-lift" onclick={() => selectedGameId = game.game_id}>
+						<div class="runner-game-card__bg" style="background-image: url('{game.cover || '/assets/img/site/default-game.jpg'}')"></div>
+						<div class="runner-game-card__overlay">
+							<div class="runner-game-card__title">{game.game_name}</div>
+							<div class="runner-game-card__stats">
+								<span class="runner-game-card__count">{gameRuns.length} run{gameRuns.length === 1 ? '' : 's'}</span>
 								{#if bestRun?.time_primary}
-									<span class="game-card__best">Best: {bestRun.time_primary}</span>
+									<span class="runner-game-card__best">Best: {bestRun.time_primary}</span>
 								{/if}
 							</div>
 						</div>
@@ -247,19 +247,19 @@
 			<p class="muted mb-1">Verified achievements from game communities.</p>
 
 			{#if data.achievements.length > 0}
-				<div class="achievements-list">
+				<div class="community-achievements-list">
 					{#each data.achievements as ach}
-						<div class="achievement-item">
-							<div class="achievement-item__icon">{ach.icon}</div>
-							<div class="achievement-item__content">
-								<div class="achievement-item__header">
+						<div class="community-achievement-item">
+							<div class="community-achievement-item__icon">{ach.icon}</div>
+							<div class="community-achievement-item__content">
+								<div class="community-achievement-item__header">
 									<h4>{ach.title}</h4>
 									{#if ach.difficulty}
 										<span class="difficulty difficulty--{ach.difficulty}">{ach.difficulty}</span>
 									{/if}
 								</div>
 								{#if ach.description}<p class="muted">{ach.description}</p>{/if}
-								<div class="achievement-item__meta">
+								<div class="community-achievement-item__meta">
 									<a href="/games/{ach.gameId}">{ach.gameName}</a>
 									<span class="muted">•</span>
 									<span class="muted">{formatDate(ach.date_completed)}</span>
@@ -288,11 +288,11 @@
 				<p class="muted mb-1">Games where this runner is credited.</p>
 				<div class="credits-grid">
 					{#each data.credits as credit}
-						<a href="/games/{credit.gameId}" class="credit-card">
-							<div class="credit-card__bg" style="background-image: url('{credit.cover || '/assets/img/site/default-game.jpg'}')"></div>
-							<div class="credit-card__overlay">
-								<span class="credit-card__name">{credit.gameName}</span>
-								<span class="credit-card__role">{credit.role}</span>
+						<a href="/games/{credit.gameId}" class="credit-game-card">
+							<div class="credit-game-card__bg" style="background-image: url('{credit.cover || '/assets/img/site/default-game.jpg'}')"></div>
+							<div class="credit-game-card__overlay">
+								<span class="credit-game-card__name">{credit.gameName}</span>
+								<span class="credit-game-card__role">{credit.role}</span>
 							</div>
 						</a>
 					{/each}
@@ -340,21 +340,21 @@
 		</div>
 
 		{#if data.timeline.length > 0}
-			<div class="timeline">
-				{#each data.timeline as item}
+			<div class="activity-timeline">
+				{#each data.activity-timeline as item}
 					<div class="timeline-item">
-						<div class="timeline-dot" class:timeline-dot--achievement={item.type === 'achievement'}></div>
-						<div class="timeline-content">
-							<div class="timeline-header">
-								<span class="timeline-icon">{item.type === 'run' ? '🏃' : '🏅'}</span>
+						<div class="timeline-item__dot" class:timeline-item__dot--achievement={item.type === 'achievement'}></div>
+						<div class="timeline-item__content">
+							<div class="timeline-item__header">
+								<span class="timeline-item__icon">{item.type === 'run' ? '🏃' : '🏅'}</span>
 								{#if item.type === 'run'}
 									<span>Completed <strong>{item.detail}</strong> in <a href="/games/{item.gameId}">{item.gameName}</a></span>
-									{#if item.extra}<span class="timeline-time">{item.extra}</span>{/if}
+									{#if item.extra}<span class="timeline-item__time">{item.extra}</span>{/if}
 								{:else}
 									<span>Earned <strong>{item.detail}</strong> in <a href="/games/{item.gameId}">{item.gameName}</a></span>
 								{/if}
 							</div>
-							<span class="timeline-date muted">{formatDate(item.date)}</span>
+							<span class="timeline-item__date muted">{formatDate(item.date)}</span>
 						</div>
 					</div>
 				{/each}
@@ -389,22 +389,22 @@
 	.runner-meta-line { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.35rem; }
 	.runner-joined { font-size: 0.8rem; }
 	.runner-team-badges { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-	.team-badge {
+	.runner-team-badge {
 		display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.6rem;
 		background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
 		font-size: 0.75rem; color: var(--fg); text-decoration: none; transition: border-color 0.15s;
 	}
-	.team-badge:hover { border-color: var(--accent); color: var(--accent); }
-	.team-badge__logo { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; }
+	.runner-team-badge:hover { border-color: var(--accent); color: var(--accent); }
+	.runner-team-badge__logo { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; }
 
 	/* ── Socials ──────────────────────────────────────────── */
-	.runner-socials { display: flex; flex-wrap: wrap; gap: 0.4rem; align-self: flex-end; margin-top: 0.5rem; }
-	.social-btn {
+	.runner-links { display: flex; flex-wrap: wrap; gap: 0.4rem; align-self: flex-end; margin-top: 0.5rem; }
+	.runner-link {
 		display: inline-flex; align-items: center; gap: 0.3rem;
 		padding: 0.3rem 0.65rem; border: 1px solid var(--border); border-radius: 6px;
 		font-size: 0.8rem; color: var(--muted); text-decoration: none; transition: all 0.12s;
 	}
-	.social-btn:hover { border-color: var(--accent); color: var(--accent); }
+	.runner-link:hover { border-color: var(--accent); color: var(--accent); }
 
 	/* ── Bio ──────────────────────────────────────────────── */
 	.runner-bio { margin: 1.5rem 0; }
@@ -426,18 +426,18 @@
 	.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
 
 	/* ── Stats Card ───────────────────────────────────────── */
-	.stats-card {
+	.runner-stats-card {
 		display: flex; gap: 1rem; margin-bottom: 1rem; padding: 1rem 1.25rem;
 		background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
 	}
-	.stat { display: flex; flex-direction: column; align-items: center; padding: 0 1rem; border-right: 1px solid var(--border); }
-	.stat:last-child { border-right: none; }
-	.stat--total { margin-left: auto; padding-left: 1.5rem; border-left: 2px solid var(--accent); border-right: none; }
-	.stat__value { font-size: 1.75rem; font-weight: 700; color: var(--accent); line-height: 1; }
-	.stat__label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.25rem; }
+	.runner-stat { display: flex; flex-direction: column; align-items: center; padding: 0 1rem; border-right: 1px solid var(--border); }
+	.runner-stat:last-child { border-right: none; }
+	.runner-stat--total { margin-left: auto; padding-left: 1.5rem; border-left: 2px solid var(--accent); border-right: none; }
+	.runner-stat__value { font-size: 1.75rem; font-weight: 700; color: var(--accent); line-height: 1; }
+	.runner-stat__label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.25rem; }
 
 	/* ── Fun Stats ────────────────────────────────────────── */
-	.fun-stats { display: flex; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+	.runner-fun-stats { display: flex; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
 	.fun-stat {
 		display: flex; align-items: flex-start; gap: 0.75rem; flex: 1; min-width: 180px;
 		padding: 0.85rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
@@ -452,22 +452,22 @@
 	.genre-pill { padding: 0.15rem 0.5rem; background: rgba(99,102,241,0.1); color: var(--accent); border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
 
 	/* ── Games Grid ───────────────────────────────────────── */
-	.games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
-	.game-card {
+	.runner-games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+	.runner-game-card {
 		position: relative; display: block; aspect-ratio: 16/10; border-radius: 8px;
 		overflow: hidden; border: none; padding: 0; cursor: pointer; color: #fff;
 		background: var(--surface); font-family: inherit; text-align: left;
 	}
-	.game-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform 0.3s; }
-	.game-card:hover .game-card__bg { transform: scale(1.05); }
-	.game-card__overlay {
+	.runner-game-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform 0.3s; }
+	.runner-game-card:hover .runner-game-card__bg { transform: scale(1.05); }
+	.runner-game-card__overlay {
 		position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 1rem;
 		background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.2) 100%);
 	}
-	.game-card__title { font-weight: 700; font-size: 1rem; line-height: 1.2; }
-	.game-card__stats { display: flex; gap: 0.75rem; margin-top: 0.35rem; font-size: 0.8rem; color: rgba(255,255,255,0.8); }
-	.game-card__count { background: rgba(255,255,255,0.15); padding: 0.15rem 0.5rem; border-radius: 4px; }
-	.game-card__best { color: var(--accent); font-weight: 600; }
+	.runner-game-card__title { font-weight: 700; font-size: 1rem; line-height: 1.2; }
+	.runner-game-card__stats { display: flex; gap: 0.75rem; margin-top: 0.35rem; font-size: 0.8rem; color: rgba(255,255,255,0.8); }
+	.runner-game-card__count { background: rgba(255,255,255,0.15); padding: 0.15rem 0.5rem; border-radius: 4px; }
+	.runner-game-card__best { color: var(--accent); font-weight: 600; }
 
 	/* ── Runs Detail ──────────────────────────────────────── */
 	.runs-detail-header { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
@@ -489,18 +489,18 @@
 	.tag { display: inline-block; padding: 0.1rem 0.4rem; border: 1px solid var(--border); border-radius: 3px; font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
 
 	/* ── Achievements ─────────────────────────────────────── */
-	.achievements-list { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.75rem; }
-	.achievement-item {
+	.community-achievements-list { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.75rem; }
+	.community-achievement-item {
 		display: flex; align-items: flex-start; gap: 1rem; padding: 1rem;
 		background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
 	}
-	.achievement-item__icon { font-size: 1.75rem; line-height: 1; }
-	.achievement-item__content { flex: 1; min-width: 0; }
-	.achievement-item__header { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.25rem; }
-	.achievement-item__header h4 { margin: 0; font-size: 1rem; }
-	.achievement-item__meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.8rem; }
-	.achievement-item__meta a { color: var(--accent); text-decoration: none; }
-	.achievement-item__meta a:hover { text-decoration: underline; }
+	.community-achievement-item__icon { font-size: 1.75rem; line-height: 1; }
+	.community-achievement-item__content { flex: 1; min-width: 0; }
+	.community-achievement-item__header { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.25rem; }
+	.community-achievement-item__header h4 { margin: 0; font-size: 1rem; }
+	.community-achievement-item__meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.8rem; }
+	.community-achievement-item__meta a { color: var(--accent); text-decoration: none; }
+	.community-achievement-item__meta a:hover { text-decoration: underline; }
 	.verified-badge { color: #10b981; font-weight: 500; }
 	.difficulty { font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.4rem; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
 	.difficulty--easy { background: #22c55e; color: #fff; }
@@ -510,14 +510,14 @@
 
 	/* ── Credits Grid ────────────────────────────────────── */
 	.credits-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
-	.credit-card { position: relative; display: block; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; text-decoration: none; color: #fff; }
-	.credit-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
-	.credit-card__overlay {
+	.credit-game-card { position: relative; display: block; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; text-decoration: none; color: #fff; }
+	.credit-game-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+	.credit-game-card__overlay {
 		position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 0.5rem;
 		background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 100%);
 	}
-	.credit-card__name { font-weight: 600; font-size: 0.85rem; line-height: 1.2; }
-	.credit-card__role { font-size: 0.7rem; color: var(--accent); }
+	.credit-game-card__name { font-weight: 600; font-size: 0.85rem; line-height: 1.2; }
+	.credit-game-card__role { font-size: 0.7rem; color: var(--accent); }
 
 	/* ── Player-Made ─────────────────────────────────────── */
 	.player-made-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
@@ -528,19 +528,19 @@
 	.player-made-item a:hover { text-decoration: underline; }
 
 	/* ── Timeline ────────────────────────────────────────── */
-	.timeline { position: relative; padding-left: 2rem; margin-top: 1rem; }
-	.timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+	.activity-timeline { position: relative; padding-left: 2rem; margin-top: 1rem; }
+	.activity-timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--border); }
 	.timeline-item { position: relative; padding-bottom: 1.25rem; }
 	.timeline-item:last-child { padding-bottom: 0; }
-	.timeline-dot { position: absolute; left: -2rem; top: 0.35rem; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 2px solid var(--border); z-index: 1; }
-	.timeline-dot--achievement { border-color: var(--accent); background: var(--accent); }
-	.timeline-content { padding: 0.5rem 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
-	.timeline-header { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.9rem; }
-	.timeline-header a { color: var(--accent); text-decoration: none; }
-	.timeline-header a:hover { text-decoration: underline; }
-	.timeline-icon { flex-shrink: 0; }
-	.timeline-time { font-family: monospace; font-size: 0.8rem; color: var(--accent); font-weight: 600; margin-left: auto; }
-	.timeline-date { display: block; font-size: 0.75rem; margin-top: 0.25rem; }
+	.timeline-item__dot { position: absolute; left: -2rem; top: 0.35rem; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 2px solid var(--border); z-index: 1; }
+	.timeline-item__dot--achievement { border-color: var(--accent); background: var(--accent); }
+	.timeline-item__content { padding: 0.5rem 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+	.timeline-item__header { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.9rem; }
+	.timeline-item__header a { color: var(--accent); text-decoration: none; }
+	.timeline-item__header a:hover { text-decoration: underline; }
+	.timeline-item__icon { flex-shrink: 0; }
+	.timeline-item__time { font-family: monospace; font-size: 0.8rem; color: var(--accent); font-weight: 600; margin-left: auto; }
+	.timeline-item__date { display: block; font-size: 0.75rem; margin-top: 0.25rem; }
 
 	/* ── Utility ──────────────────────────────────────────── */
 	.card { margin-bottom: 1rem; }
@@ -550,20 +550,20 @@
 	@media (max-width: 640px) {
 		.runner-banner { height: 120px; }
 		.runner-top { flex-direction: column; }
-		.runner-socials { width: 100%; }
-		.stats-card { flex-wrap: wrap; justify-content: center; }
-		.stat { padding: 0 0.75rem; min-width: 70px; }
-		.stat--total { margin-left: 0; border-left: none; border-top: 1px solid var(--border); padding-top: 0.75rem; margin-top: 0.5rem; width: 100%; flex-direction: row; justify-content: center; gap: 0.5rem; }
-		.fun-stats { flex-direction: column; }
-		.games-grid { grid-template-columns: 1fr; }
+		.runner-links { width: 100%; }
+		.runner-stats-card { flex-wrap: wrap; justify-content: center; }
+		.runner-stat { padding: 0 0.75rem; min-width: 70px; }
+		.runner-stat--total { margin-left: 0; border-left: none; border-top: 1px solid var(--border); padding-top: 0.75rem; margin-top: 0.5rem; width: 100%; flex-direction: row; justify-content: center; gap: 0.5rem; }
+		.runner-fun-stats { flex-direction: column; }
+		.runner-games-grid { grid-template-columns: 1fr; }
 		.credits-grid { grid-template-columns: repeat(2, 1fr); }
 		.runs-detail-header { flex-direction: column; align-items: flex-start; }
 		.runs-table thead { display: none; }
 		.runs-table tr { display: block; margin-bottom: 0.75rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
 		.runs-table td { display: flex; justify-content: space-between; padding: 0.3rem 0; border: none; }
 		.runs-table td::before { content: attr(data-label); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-right: 1rem; }
-		.timeline { padding-left: 1.5rem; }
-		.timeline-dot { left: -1.5rem; }
-		.timeline-header { font-size: 0.85rem; }
+		.activity-timeline { padding-left: 1.5rem; }
+		.timeline-item__dot { left: -1.5rem; }
+		.timeline-item__header { font-size: 0.85rem; }
 	}
 </style>

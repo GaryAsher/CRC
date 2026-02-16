@@ -153,8 +153,8 @@
 			{@const isActive = sibling.slug === (cat.parentGroup || data.category.slug)}
 			<a
 				href="/games/{game.game_id}/runs/{tier}/{sibling.slug}"
-				class="pill"
-				class:pill--active={isActive}
+				class="category-pill"
+				class:is-active={isActive}
 				aria-current={isActive ? 'page' : undefined}
 			>{sibling.label}</a>
 		{/each}
@@ -164,17 +164,17 @@
 <!-- Subcategory Pills (for mini-challenges with children) -->
 {#if data.subcategories.length > 0}
 	<div class="subcategory-pills">
-		<span class="muted sub-label">Browse:</span>
+		<span class="muted subcategory-label">Browse:</span>
 		<a
 			href="/games/{game.game_id}/runs/{tier}/{parentSlug}"
-			class="pill pill--sub"
-			class:pill--active={!cat.parentGroup}
+			class="category-pill category-pill--sub"
+			class:is-active={!cat.parentGroup}
 		>All</a>
 		{#each data.subcategories as sub}
 			<a
 				href="/games/{game.game_id}/runs/{tier}/{sub.slug}"
-				class="pill pill--sub"
-				class:pill--active={cat.slug === sub.slug}
+				class="category-pill category-pill--sub"
+				class:is-active={cat.slug === sub.slug}
 			>{sub.label}</a>
 		{/each}
 	</div>
@@ -206,7 +206,7 @@
 				{#if fm.showCharacter && fm.characters.length > 0}
 					<div class="filter-group">
 						<label class="filter-group__label">{fm.characterLabel}</label>
-						<select class="filter-select" onchange={(e) => selectedCharacter = (e.target as HTMLSelectElement).value || null}>
+						<select class="filter-input__field" onchange={(e) => selectedCharacter = (e.target as HTMLSelectElement).value || null}>
 							<option value="">All</option>
 							{#each fm.characters as c}
 								<option value={c.id} selected={selectedCharacter === c.id}>{c.label}</option>
@@ -218,11 +218,11 @@
 				{#if fm.challenges.length > 0}
 					<div class="filter-group">
 						<label class="filter-group__label">Challenge</label>
-						<div class="filter-options">
+						<div class="filter-input__suggestions">
 							{#each fm.challenges as ch}
 								<button
-									class="filter-opt"
-									class:filter-opt--active={selectedChallenges.has(ch.id)}
+									class="filter-suggestion"
+									class:filter-suggestion--active={selectedChallenges.has(ch.id)}
 									onclick={() => toggleChallenge(ch.id)}
 								>{ch.label}</button>
 							{/each}
@@ -233,11 +233,11 @@
 				{#if fm.restrictions.length > 0}
 					<div class="filter-group">
 						<label class="filter-group__label">Restrictions</label>
-						<div class="filter-options">
+						<div class="filter-input__suggestions">
 							{#each fm.restrictions as r}
 								<button
-									class="filter-opt"
-									class:filter-opt--active={selectedRestrictions.has(r.id)}
+									class="filter-suggestion"
+									class:filter-suggestion--active={selectedRestrictions.has(r.id)}
 									onclick={() => toggleRestriction(r.id)}
 								>{r.label}</button>
 							{/each}
@@ -248,7 +248,7 @@
 				{#if fm.showGlitches && fm.glitches.length > 0}
 					<div class="filter-group">
 						<label class="filter-group__label">Glitch Category</label>
-						<select class="filter-select" onchange={(e) => selectedGlitch = (e.target as HTMLSelectElement).value || null}>
+						<select class="filter-input__field" onchange={(e) => selectedGlitch = (e.target as HTMLSelectElement).value || null}>
 							<option value="">All</option>
 							{#each fm.glitches as g}
 								<option value={g.id} selected={selectedGlitch === g.id}>{g.label}</option>
@@ -262,28 +262,28 @@
 
 	<!-- Active filter chips -->
 	{#if hasActiveFilters}
-		<div class="filter-chips">
+		<div class="filter-selections">
 			{#each [...selectedChallenges] as id}
-				<button class="chip" onclick={() => toggleChallenge(id)}>
-					{resolveLabel(id, fm.challenges)} <span class="chip__x">×</span>
+				<button class="filter-chip__text" onclick={() => toggleChallenge(id)}>
+					{resolveLabel(id, fm.challenges)} <span class="filter-chip__close">×</span>
 				</button>
 			{/each}
 			{#each [...selectedRestrictions] as id}
-				<button class="chip" onclick={() => toggleRestriction(id)}>
-					{resolveLabel(id, fm.restrictions)} <span class="chip__x">×</span>
+				<button class="filter-chip__text" onclick={() => toggleRestriction(id)}>
+					{resolveLabel(id, fm.restrictions)} <span class="filter-chip__close">×</span>
 				</button>
 			{/each}
 			{#if selectedCharacter}
-				<button class="chip" onclick={() => selectedCharacter = null}>
-					{resolveLabel(selectedCharacter, fm.characters)} <span class="chip__x">×</span>
+				<button class="filter-chip__text" onclick={() => selectedCharacter = null}>
+					{resolveLabel(selectedCharacter, fm.characters)} <span class="filter-chip__close">×</span>
 				</button>
 			{/if}
 			{#if selectedGlitch}
-				<button class="chip" onclick={() => selectedGlitch = null}>
-					{resolveLabel(selectedGlitch, fm.glitches)} <span class="chip__x">×</span>
+				<button class="filter-chip__text" onclick={() => selectedGlitch = null}>
+					{resolveLabel(selectedGlitch, fm.glitches)} <span class="filter-chip__close">×</span>
 				</button>
 			{/if}
-			<button class="chip chip--reset" onclick={resetFilters}>Clear all</button>
+			<button class="btn btn--outline btn--reset-accent" onclick={resetFilters}>Clear all</button>
 		</div>
 	{/if}
 
@@ -316,13 +316,13 @@
 					{#if fm.showGlitches}
 						<th>Glitches</th>
 					{/if}
-					<th class="th-sortable" onclick={() => toggleSort('time')}>
+					<th class="th-filter" onclick={() => toggleSort('time')}>
 						Time{#if fm.timingMethod}&nbsp;({fm.timingMethod}){/if}
-						{#if sortKey === 'time'}<span class="sort-arrow">{sortAsc ? '↑' : '↓'}</span>{/if}
+						{#if sortKey === 'time'}<span class="th-caret">{sortAsc ? '↑' : '↓'}</span>{/if}
 					</th>
-					<th class="th-sortable" onclick={() => toggleSort('date')}>
+					<th class="th-filter" onclick={() => toggleSort('date')}>
 						Date
-						{#if sortKey === 'date'}<span class="sort-arrow">{sortAsc ? '↑' : '↓'}</span>{/if}
+						{#if sortKey === 'date'}<span class="th-caret">{sortAsc ? '↑' : '↓'}</span>{/if}
 					</th>
 					<th>Video</th>
 				</tr>
@@ -400,8 +400,8 @@
 		gap: 0.35rem;
 		margin-bottom: 1rem;
 	}
-	.sub-label { font-size: 0.8rem; margin-right: 0.25rem; }
-	.pill {
+	.subcategory-label { font-size: 0.8rem; margin-right: 0.25rem; }
+	.category-pill {
 		padding: 0.3rem 0.75rem;
 		border: 1px solid var(--border);
 		border-radius: 20px;
@@ -411,9 +411,9 @@
 		transition: border-color 0.15s, color 0.15s, background 0.15s;
 		white-space: nowrap;
 	}
-	.pill:hover { border-color: var(--accent); color: var(--accent); }
-	.pill--active { border-color: var(--accent); color: var(--accent); background: rgba(99, 102, 241, 0.08); font-weight: 600; }
-	.pill--sub { font-size: 0.75rem; padding: 0.2rem 0.6rem; }
+	.category-pill:hover { border-color: var(--accent); color: var(--accent); }
+	.category-pill.is-active { border-color: var(--accent); color: var(--accent); background: rgba(99, 102, 241, 0.08); font-weight: 600; }
+	.category-pill--sub { font-size: 0.75rem; padding: 0.2rem 0.6rem; }
 
 	/* ── Filters ──────────────────────────────────────────────── */
 	.filters-wrap { margin-bottom: 1rem; }
@@ -457,7 +457,7 @@
 	}
 	.filter-groups { display: flex; flex-direction: column; gap: 0.75rem; }
 	.filter-group__label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; }
-	.filter-select {
+	.filter-input__field {
 		width: 100%;
 		padding: 0.4rem 0.6rem;
 		border: 1px solid var(--border);
@@ -467,9 +467,9 @@
 		font-size: 0.85rem;
 		font-family: inherit;
 	}
-	.filter-select:focus { outline: none; border-color: var(--accent); }
-	.filter-options { display: flex; flex-wrap: wrap; gap: 0.3rem; }
-	.filter-opt {
+	.filter-input__field:focus { outline: none; border-color: var(--accent); }
+	.filter-input__suggestions { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+	.filter-suggestion {
 		padding: 0.25rem 0.6rem;
 		border: 1px solid var(--border);
 		border-radius: 4px;
@@ -479,17 +479,17 @@
 		cursor: pointer;
 		transition: all 0.12s;
 	}
-	.filter-opt:hover { border-color: var(--accent); color: var(--fg); }
-	.filter-opt--active { border-color: var(--accent); color: var(--accent); background: rgba(99, 102, 241, 0.08); }
+	.filter-suggestion:hover { border-color: var(--accent); color: var(--fg); }
+	.filter-suggestion--active { border-color: var(--accent); color: var(--accent); background: rgba(99, 102, 241, 0.08); }
 
 	/* ── Filter chips ────────────────────────────────────────── */
-	.filter-chips {
+	.filter-selections {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.35rem;
 		margin-bottom: 0.5rem;
 	}
-	.chip {
+	.filter-chip__text {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.3rem;
@@ -503,9 +503,9 @@
 		transition: background 0.12s;
 	}
 	.chip:hover { background: rgba(99, 102, 241, 0.15); }
-	.chip__x { font-size: 0.85rem; line-height: 1; }
-	.chip--reset { border-color: var(--border); color: var(--muted); background: transparent; }
-	.chip--reset:hover { border-color: var(--muted); color: var(--fg); }
+	.filter-chip__close { font-size: 0.85rem; line-height: 1; }
+	.btn--reset-accent { border-color: var(--border); color: var(--muted); background: transparent; }
+	.btn--reset-accent:hover { border-color: var(--muted); color: var(--fg); }
 
 	.results-status { font-size: 0.8rem; margin-bottom: 0.5rem; }
 
@@ -526,9 +526,9 @@
 		color: var(--muted);
 		white-space: nowrap;
 	}
-	.th-sortable { cursor: pointer; user-select: none; }
-	.th-sortable:hover { color: var(--accent); }
-	.sort-arrow { font-size: 0.85rem; margin-left: 0.25rem; }
+	.th-filter { cursor: pointer; user-select: none; }
+	.th-filter:hover { color: var(--accent); }
+	.th-caret { font-size: 0.85rem; margin-left: 0.25rem; }
 	.runs-table td a { color: var(--accent); text-decoration: none; }
 	.runs-table td a:hover { text-decoration: underline; }
 
@@ -543,7 +543,7 @@
 		white-space: nowrap;
 	}
 
-	.video-link { white-space: nowrap; }
+	.run-row a { white-space: nowrap; }
 
 	.empty-state { padding: 2rem; text-align: center; margin-top: 1rem; }
 	.empty-state p { margin: 0 0 0.75rem; }
