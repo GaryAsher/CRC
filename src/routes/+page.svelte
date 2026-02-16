@@ -172,7 +172,7 @@
 				</div>
 			</div>
 		{/if}
-		<p class="muted" style="margin-top: 0.75rem;" style="font-size: 0.9rem;">
+		<p class="muted" style="margin-top: 0.75rem; font-size: 0.9rem;">
 			Interested in partnering? <a href="/support">Contact us!</a>
 		</p>
 	</div>
