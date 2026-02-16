@@ -168,14 +168,8 @@ community_achievements: []
 # =============================================================================
 # CREDITS
 # =============================================================================
-credits:
-  - name: "personname1"
-    runner_id: person-name-1
-    role: "ex: Category definitions"
-    url: "website or something here"
-  - name: "personname2"
-    runner_id: person-name-2
-    role: "ex: Rule clarifications"
+credits: []
+
 ---
 
 Celeste is a critically acclaimed precision platformer developed by Maddy Makes Games. Players guide Madeline as she climbs Celeste Mountain, facing challenging obstacles and her inner demons. The game features tight controls, a heartfelt story about mental health, and an incredible soundtrack by Lena Raine.
