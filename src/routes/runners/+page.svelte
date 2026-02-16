@@ -25,61 +25,28 @@
 			placeholder="Search runners..."
 			bind:value={search}
 			autocomplete="off"
+			inputmode="search"
+			aria-label="Search runners"
 		/>
 	</div>
 
-	<p class="muted">{filtered.length} of {data.runners.length} runners</p>
+	<div class="results-bar">
+		<div class="results-bar__center">
+			<p class="muted">{filtered.length} of {data.runners.length} runners</p>
+		</div>
+	</div>
 
-	<div class="runners-grid">
+	<div class="grid">
 		{#each filtered as runner (runner.runner_id)}
-			<a href="/runners/{runner.runner_id}" class="runner-card card card-lift">
-				<img
-					class="runner-card__avatar"
-					src={runner.avatar || '/img/site/default-runner.png'}
-					alt=""
-				/>
-				<div class="runner-card__info">
-					<strong class="runner-card__name">{runner.runner_name}</strong>
-					{#if runner.pronouns}
-						<span class="runner-card__pronouns muted">{runner.pronouns}</span>
-					{/if}
-					<span class="runner-card__meta muted">{runner.runCount} runs</span>
+			<a href="/runners/{runner.runner_id}" class="runner-card card-lift">
+				<div
+					class="runner-card__bg"
+					style="background-image: url('{runner.avatar || '/img/site/default-runner.png'}');"
+				></div>
+				<div class="runner-card__overlay">
+					<div class="runner-card__title">{runner.runner_name}</div>
 				</div>
 			</a>
 		{/each}
 	</div>
 </div>
-
-<style>
-	.runners-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-		gap: 0.75rem;
-		margin-top: 1rem;
-	}
-	.runner-card {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		padding: 0.75rem 1rem;
-		text-decoration: none;
-		color: var(--fg);
-	}
-	.runner-card__avatar {
-		width: 48px;
-		height: 48px;
-		border-radius: 50%;
-		object-fit: cover;
-	}
-	.runner-card__info {
-		display: flex;
-		flex-direction: column;
-	}
-	.runner-card__name {
-		font-size: 1rem;
-	}
-	.runner-card__pronouns,
-	.runner-card__meta {
-		font-size: 0.8rem;
-	}
-</style>
