@@ -155,183 +155,147 @@
 <svelte:head><title>Submit a Run | Challenge Run Community</title></svelte:head>
 
 <div class="page-width">
-	<div class="submit-page">
+	<div class="submit-run-page">
 		<h1>Submit a Run</h1>
-		<p class="muted">Submit your challenge run for review. All submissions require video proof.</p>
+		<p class="muted submit-lead">Submit your challenge run for review. All submissions require video proof.</p>
 
 		{#if result}
-			<div class="alert alert--{result.ok ? 'success' : 'error'}">
+			<div class="submit-message submit-message--{result.ok ? 'success' : 'error'}">
 				{result.message}
 				{#if result.ok}
 					<p style="margin-top: 0.5rem;"><a href="/games/{gameId}/runs">View runs for this game →</a></p>
 				{/if}
 			</div>
 			{#if result.ok}
-				<button class="btn btn--outline" onclick={() => { result = null; gameId = ''; categorySlug = ''; runnerId = ''; videoUrl = ''; }}>
+				<button class="btn btn--primary" style="margin-top: 1rem;" onclick={() => { result = null; gameId = ''; categorySlug = ''; runnerId = ''; videoUrl = ''; }}>
 					Submit Another Run
 				</button>
 			{/if}
 		{/if}
 
 		{#if !result?.ok}
-			<div class="form">
-				<div class="form-group">
-					<label for="game">Game <span class="req">*</span></label>
-					<select id="game" bind:value={gameId}>
-						<option value="">Select a game...</option>
-						{#each data.games as game}
-							<option value={game.game_id}>{game.game_name}</option>
-						{/each}
-					</select>
-				</div>
+			<div class="submit-form">
+				<div class="submit-grid">
+					<div class="submit-section">
+						<div class="submit-section__title">Game & Category</div>
 
-				{#if gameId && selectedGame}
-					<div class="form-group">
-						<label for="category">Category <span class="req">*</span></label>
-						<select id="category" bind:value={categorySlug} onchange={(e) => {
-							const opt = (e.target as HTMLSelectElement).selectedOptions[0];
-							categoryTier = opt?.dataset.tier || '';
-						}}>
-							<option value="">Select a category...</option>
-							{#if filteredCategories.full_runs.length}
-								<optgroup label="Full Runs">
-									{#each filteredCategories.full_runs as cat}
-										<option value={cat.slug} data-tier="full-runs">{cat.label}</option>
-									{/each}
-								</optgroup>
-							{/if}
-							{#if filteredCategories.mini_challenges.length}
-								<optgroup label="Mini-Challenges">
-									{#each filteredCategories.mini_challenges as cat}
-										<option value={cat.slug} data-tier="mini-challenges">
-											{cat.parentGroupLabel ? `${cat.parentGroupLabel} → ` : ''}{cat.label}
-										</option>
-									{/each}
-								</optgroup>
-							{/if}
-							{#if filteredCategories.player_made.length}
-								<optgroup label="Player-Made">
-									{#each filteredCategories.player_made as cat}
-										<option value={cat.slug} data-tier="player-made">{cat.label}</option>
-									{/each}
-								</optgroup>
-							{/if}
-						</select>
-					</div>
-
-					{#if characters.length}
 						<div class="form-group">
-							<label for="character">Character / Weapon</label>
-							<select id="character" bind:value={character}>
-								<option value="">Any / Not Applicable</option>
-								{#each characters as char}
-									<option value={char.slug}>{char.label}</option>
+							<label class="submit-label" for="game">Game <span class="required-marker">*</span></label>
+							<select id="game" bind:value={gameId}>
+								<option value="">Select a game...</option>
+								{#each data.games as game}
+									<option value={game.game_id}>{game.game_name}</option>
 								{/each}
 							</select>
 						</div>
-					{/if}
-				{/if}
 
-				<div class="form-group">
-					<label for="runner">Runner <span class="req">*</span></label>
-					<select id="runner" bind:value={runnerId}>
-						<option value="">Select your runner profile...</option>
-						{#each data.runners as runner}
-							<option value={runner.runner_id}>{runner.name}</option>
-						{/each}
-						<option value="__new__">+ New Runner (not listed)</option>
-					</select>
-				</div>
+						{#if gameId && selectedGame}
+							<div class="form-group">
+								<label class="submit-label" for="category">Category <span class="required-marker">*</span></label>
+								<select id="category" bind:value={categorySlug} onchange={(e) => {
+									const opt = (e.target as HTMLSelectElement).selectedOptions[0];
+									categoryTier = opt?.dataset.tier || '';
+								}}>
+									<option value="">Select a category...</option>
+									{#if filteredCategories.full_runs.length}
+										<optgroup label="Full Runs">
+											{#each filteredCategories.full_runs as cat}
+												<option value={cat.slug} data-tier="full-runs">{cat.label}</option>
+											{/each}
+										</optgroup>
+									{/if}
+									{#if filteredCategories.mini_challenges.length}
+										<optgroup label="Mini-Challenges">
+											{#each filteredCategories.mini_challenges as cat}
+												<option value={cat.slug} data-tier="mini-challenges">
+													{cat.parentGroupLabel ? `${cat.parentGroupLabel} → ` : ''}{cat.label}
+												</option>
+											{/each}
+										</optgroup>
+									{/if}
+									{#if filteredCategories.player_made.length}
+										<optgroup label="Player-Made">
+											{#each filteredCategories.player_made as cat}
+												<option value={cat.slug} data-tier="player-made">{cat.label}</option>
+											{/each}
+										</optgroup>
+									{/if}
+								</select>
+							</div>
 
-				{#if isNewRunner}
-					<div class="form-group">
-						<label for="newRunner">Runner Name <span class="req">*</span></label>
-						<input id="newRunner" type="text" bind:value={newRunnerName} placeholder="Your runner name" maxlength="50" />
-						<span class="hint">A runner profile will be created during review.</span>
+							{#if characters.length}
+								<div class="form-group">
+									<label class="submit-label" for="character">Character / Weapon</label>
+									<select id="character" bind:value={character}>
+										<option value="">Any / Not Applicable</option>
+										{#each characters as char}
+											<option value={char.slug}>{char.label}</option>
+										{/each}
+									</select>
+								</div>
+							{/if}
+						{/if}
 					</div>
-				{/if}
 
-				<div class="form-group">
-					<label for="video">Video URL <span class="req">*</span></label>
-					<input id="video" type="url" bind:value={videoUrl} placeholder="https://youtube.com/watch?v=... or https://twitch.tv/videos/..." />
-					<span class="hint">YouTube, Twitch, Bilibili, or Nicovideo links accepted.</span>
-				</div>
+					<div class="submit-section">
+						<div class="submit-section__title">Runner & Proof</div>
 
-				<details class="optional-section">
-					<summary>Optional Details</summary>
-					<div class="optional-fields">
 						<div class="form-group">
-							<label for="dateCompleted">Date Completed</label>
-							<input id="dateCompleted" type="date" bind:value={dateCompleted} />
+							<label class="submit-label" for="runner">Runner <span class="required-marker">*</span></label>
+							<select id="runner" bind:value={runnerId}>
+								<option value="">Select your runner profile...</option>
+								{#each data.runners as runner}
+									<option value={runner.runner_id}>{runner.name}</option>
+								{/each}
+								<option value="__new__">+ New Runner (not listed)</option>
+							</select>
 						</div>
+
+						{#if isNewRunner}
+							<div class="form-group">
+								<label class="submit-label" for="newRunner">Runner Name <span class="required-marker">*</span></label>
+								<input id="newRunner" type="text" bind:value={newRunnerName} placeholder="Your runner name" maxlength="50" />
+								<span class="submit-hint">A runner profile will be created during review.</span>
+							</div>
+						{/if}
+
 						<div class="form-group">
-							<label for="runTime">Run Time</label>
-							<input id="runTime" type="text" bind:value={runTime} placeholder="e.g. 1:23:45" />
+							<label class="submit-label" for="video">Video URL <span class="required-marker">*</span></label>
+							<input id="video" type="url" bind:value={videoUrl} placeholder="https://youtube.com/watch?v=... or https://twitch.tv/videos/..." />
+							<span class="submit-hint">YouTube, Twitch, Bilibili, or Nicovideo links accepted.</span>
 						</div>
 					</div>
-				</details>
 
-				<div class="form-group turnstile-group">
-					<div id="turnstile-container"></div>
-					{#if !turnstileReady}<p class="hint">Loading verification...</p>{/if}
-				</div>
+					<details class="submit-section">
+						<summary class="submit-section__title" style="cursor: pointer;">Optional Details</summary>
+						<div class="submit-row-2">
+							<div class="form-group">
+								<label class="submit-label" for="dateCompleted">Date Completed</label>
+								<input id="dateCompleted" type="date" bind:value={dateCompleted} />
+							</div>
+							<div class="form-group">
+								<label class="submit-label" for="runTime">Run Time</label>
+								<input id="runTime" type="text" bind:value={runTime} placeholder="e.g. 1:23:45" />
+							</div>
+						</div>
+					</details>
 
-				<div class="form-actions">
-					<button class="btn btn--submit" onclick={handleSubmit} disabled={!canSubmit}>
-						{submitting ? 'Submitting...' : 'Submit Run'}
-					</button>
+					<div class="turnstile-field">
+						<div id="turnstile-container"></div>
+						{#if !turnstileReady}<p class="submit-hint">Loading verification...</p>{/if}
+					</div>
+
+					<div class="submit-actions">
+						<button class="btn btn--primary" onclick={handleSubmit} disabled={!canSubmit}>
+							{submitting ? 'Submitting...' : 'Submit Run'}
+						</button>
+					</div>
 				</div>
 			</div>
 		{/if}
 
-		<div class="submit-links">
-			<p>Looking to submit a new game instead? <a href="/submit-game">Request a Game</a></p>
+		<div class="required-hint" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem;">
+			<p>Looking to submit a new game instead? <a href="/submit-game" style="color: var(--accent);">Request a Game</a></p>
 		</div>
 	</div>
 </div>
-
-<style>
-	.submit-page { max-width: 640px; margin: 2rem auto; }
-	.form { margin-top: 1.5rem; }
-	.form-group { margin-bottom: 1.25rem; }
-	.form-group label { display: block; margin-bottom: 0.35rem; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
-	.req { color: #ef4444; }
-	.form-group select,
-	.form-group input[type="text"],
-	.form-group input[type="url"],
-	.form-group input[type="date"] {
-		width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--border);
-		border-radius: 6px; background: var(--surface); color: var(--fg);
-		font-size: 0.95rem; font-family: inherit;
-	}
-	.form-group select:focus, .form-group input:focus {
-		outline: none; border-color: var(--accent);
-		box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
-	}
-	.hint { display: block; margin-top: 0.3rem; font-size: 0.8rem; color: var(--muted); }
-	.optional-section { margin: 1.5rem 0; border: 1px solid var(--border); border-radius: 8px; }
-	.optional-section summary { padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; font-size: 0.9rem; color: var(--muted); }
-	.optional-section summary:hover { color: var(--fg); }
-	.optional-fields { padding: 0 1rem 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-	.turnstile-group { margin-top: 1.5rem; }
-	.form-actions { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
-	.btn--submit {
-		background: var(--accent); color: #fff; border: none; padding: 0.75rem 2rem;
-		border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%;
-	}
-	.btn--submit:hover:not(:disabled) { opacity: 0.9; }
-	.btn--submit:disabled { opacity: 0.4; cursor: not-allowed; }
-	.btn--outline {
-		display: inline-block; margin-top: 1rem; padding: 0.5rem 1.25rem;
-		border: 1px solid var(--border); border-radius: 6px; background: none;
-		color: var(--fg); cursor: pointer; font-size: 0.9rem;
-	}
-	.btn--outline:hover { border-color: var(--accent); color: var(--accent); }
-	.alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.5rem; }
-	.alert a { color: inherit; text-decoration: underline; }
-	.alert--success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #22c55e; }
-	.alert--error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; }
-	.submit-links { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
-	.submit-links a { color: var(--accent); }
-	@media (max-width: 500px) { .optional-fields { grid-template-columns: 1fr; } }
-</style>
