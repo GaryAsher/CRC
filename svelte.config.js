@@ -15,7 +15,8 @@ const config = {
 		}),
 		prerender: {
 			handleHttpError: 'warn',
-			handleUnseenRoutes: 'warn'
+			handleUnseenRoutes: 'warn',
+			handleMissingId: 'warn'
 		},
 		alias: {
 			$data: 'src/data',

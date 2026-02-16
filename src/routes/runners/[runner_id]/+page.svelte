@@ -102,6 +102,28 @@
 		</section>
 	{/if}
 
+	<!-- ═══ Highlights / Pinned Runs ═════════════════════════ -->
+	{#if data.featuredRuns.length > 0}
+		<section class="runner-highlights">
+			<h2>📌 Highlights</h2>
+			<div class="highlights-grid">
+				{#each data.featuredRuns as fr}
+					<div class="highlight-card">
+						<div class="highlight-card__bg" style="background-image: url('{fr.cover}')"></div>
+						<div class="highlight-card__overlay">
+							<div class="highlight-card__game">{fr.game_name}</div>
+							<div class="highlight-card__category">{fr.category}</div>
+							{#if fr.achievement}<div class="highlight-card__note">{fr.achievement}</div>{/if}
+							{#if fr.video_url && fr.video_approved}
+								<a href={fr.video_url} target="_blank" rel="noopener" class="highlight-card__video">▶ Watch</a>
+							{/if}
+						</div>
+					</div>
+				{/each}
+			</div>
+		</section>
+	{/if}
+
 	<!-- ═══ Tabs Navigation ═════════════════════════════════ -->
 	<nav class="runner-tabs">
 		<button class="tab" class:active={activeTab === 'runs'} onclick={() => activeTab = 'runs'}>Run Statistics</button>
@@ -163,7 +185,10 @@
 
 		<!-- Game Cards Grid / Detail View -->
 		{#if data.runs.length === 0}
-			<div class="card"><p class="muted">No runs have been added yet.</p></div>
+			<div class="empty-state">
+				<span class="empty-icon">🎮</span>
+				<p>No runs have been added yet.</p>
+			</div>
 		{:else if selectedGroup}
 			<!-- Single game detail view -->
 			<div class="card runs-detail-header">
@@ -274,7 +299,54 @@
 					{/each}
 				</div>
 			{:else}
-				<p class="muted">No community achievements completed yet.</p>
+				<div class="empty-state-inline">
+					<p class="muted">No community achievements completed yet.</p>
+				</div>
+			{/if}
+		</div>
+
+		<!-- ── Personal Goals ──────────────────────────────── -->
+		<div class="card mt-3">
+			<h2>🎯 Personal Goals</h2>
+			<p class="muted mb-3">Self-set challenges and personal milestones.</p>
+
+			{#if data.personalGoals.length > 0}
+				<div class="personal-goals-list">
+					{#each data.personalGoals as goal}
+						<div class="personal-goal-item">
+							<div class="personal-goal-item__icon">{goal.icon}</div>
+							<div class="personal-goal-item__content">
+								<div class="personal-goal-item__header">
+									<h4>{goal.title}</h4>
+									{#if goal.completed}
+										<span class="goal-status goal-status--completed">✓ Completed</span>
+									{:else}
+										<span class="goal-status goal-status--progress">In Progress</span>
+									{/if}
+								</div>
+								{#if goal.description}<p class="muted">{goal.description}</p>{/if}
+								{#if goal.game}<span class="personal-goal-item__game">{goal.game}</span>{/if}
+
+								{#if goal.total > 0}
+									<div class="personal-goal-item__progress">
+										<div class="progress-bar">
+											<div class="progress-bar__fill" style="width: {Math.round((goal.current / goal.total) * 100)}%"></div>
+										</div>
+										<span class="progress-bar__text">{goal.current} / {goal.total}</span>
+									</div>
+								{/if}
+
+								{#if goal.date_completed}
+									<span class="muted personal-goal-item__date">Completed: {goal.date_completed}</span>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<div class="empty-state-inline">
+					<p class="muted">No personal goals set yet.</p>
+				</div>
 			{/if}
 		</div>
 	{/if}
@@ -306,7 +378,9 @@
 			{#if data.verifiedCount > 0}
 				<p>Verified <strong>{data.verifiedCount}</strong> run{data.verifiedCount === 1 ? '' : 's'}</p>
 			{:else}
-				<p class="muted">No verifications yet.</p>
+				<div class="empty-state-inline">
+					<p class="muted">No verifications yet.</p>
+				</div>
 			{/if}
 		</div>
 
@@ -327,7 +401,9 @@
 					{/each}
 				</div>
 			{:else}
-				<p class="muted">No player-made challenges yet.</p>
+				<div class="empty-state-inline">
+					<p class="muted">No player-made challenges yet.</p>
+				</div>
 			{/if}
 		</div>
 	{/if}
@@ -341,7 +417,7 @@
 
 		{#if data.timeline.length > 0}
 			<div class="activity-timeline">
-				{#each data.activity-timeline as item}
+				{#each data.timeline as item}
 					<div class="timeline-item">
 						<div class="timeline-item__dot" class:timeline-item__dot--achievement={item.type === 'achievement'}></div>
 						<div class="timeline-item__content">
@@ -360,7 +436,10 @@
 				{/each}
 			</div>
 		{:else}
-			<div class="card"><p class="muted">No activity recorded yet.</p></div>
+			<div class="empty-state">
+				<span class="empty-icon">📅</span>
+				<p>No activity recorded yet.</p>
+			</div>
 		{/if}
 	{/if}
 </div>
@@ -411,6 +490,22 @@
 	.runner-bio h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 	.bio-content { line-height: 1.6; white-space: pre-wrap; }
 	.bio-content :global(p) { margin: 0 0 0.5rem; }
+
+	/* ── Highlights / Pinned Runs ────────────────────────── */
+	.runner-highlights { margin-bottom: 1.5rem; }
+	.runner-highlights h2 { font-size: 1.1rem; margin: 0 0 0.75rem 0; }
+	.highlights-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
+	.highlight-card { position: relative; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; border: 2px solid var(--accent); }
+	.highlight-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+	.highlight-card__overlay {
+		position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 0.75rem;
+		background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 100%);
+	}
+	.highlight-card__game { font-size: 0.75rem; color: rgba(255,255,255,0.7); }
+	.highlight-card__category { font-weight: 700; font-size: 0.95rem; color: #fff; }
+	.highlight-card__note { font-size: 0.75rem; color: var(--accent); margin-top: 0.15rem; font-style: italic; }
+	.highlight-card__video { font-size: 0.75rem; color: #fff; margin-top: 0.25rem; text-decoration: none; opacity: 0.8; transition: opacity 0.15s; }
+	.highlight-card__video:hover { opacity: 1; text-decoration: underline; }
 
 	/* ── Tabs ─────────────────────────────────────────────── */
 	.runner-tabs {
@@ -508,6 +603,30 @@
 	.difficulty--hard { background: #f97316; color: #fff; }
 	.difficulty--legendary { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: #fff; }
 
+	/* ── Personal Goals ──────────────────────────────────── */
+	.personal-goals-list { display: flex; flex-direction: column; gap: 0.75rem; }
+	.personal-goal-item {
+		display: flex; align-items: flex-start; gap: 1rem; padding: 1rem;
+		background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+	}
+	.personal-goal-item__icon { font-size: 1.75rem; line-height: 1; }
+	.personal-goal-item__content { flex: 1; min-width: 0; }
+	.personal-goal-item__header { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.25rem; }
+	.personal-goal-item__header h4 { margin: 0; font-size: 1rem; }
+	.personal-goal-item__game { display: inline-block; margin-top: 0.5rem; font-size: 0.75rem; background: var(--bg); padding: 0.2rem 0.5rem; border-radius: 4px; color: var(--text-muted); }
+	.personal-goal-item__progress { margin-top: 0.75rem; }
+	.personal-goal-item__date { display: block; margin-top: 0.5rem; font-size: 0.8rem; }
+
+	/* ── Goal Status ─────────────────────────────────────── */
+	.goal-status { font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+	.goal-status--completed { background: #10b981; color: #fff; }
+	.goal-status--progress { background: #3b82f6; color: #fff; }
+
+	/* ── Progress Bar ────────────────────────────────────── */
+	.progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+	.progress-bar__fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s ease; }
+	.progress-bar__text { display: block; margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-muted); }
+
 	/* ── Credits Grid ────────────────────────────────────── */
 	.credits-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
 	.credit-game-card { position: relative; display: block; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; text-decoration: none; color: #fff; }
@@ -542,9 +661,17 @@
 	.timeline-item__time { font-family: monospace; font-size: 0.8rem; color: var(--accent); font-weight: 600; margin-left: auto; }
 	.timeline-item__date { display: block; font-size: 0.75rem; margin-top: 0.25rem; }
 
+	/* ── Empty States ────────────────────────────────────── */
+	.empty-state { text-align: center; padding: 2rem; }
+	.empty-icon { display: block; font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+	.empty-state-inline { padding: 1rem 0; }
+	.empty-state-inline p { margin: 0; }
+
 	/* ── Utility ──────────────────────────────────────────── */
 	.card { margin-bottom: 1rem; }
 	.mb-1 { margin-bottom: 0.5rem; }
+	.mb-3 { margin-bottom: 1rem; }
+	.mt-3 { margin-top: 1rem; }
 
 	/* ── Responsive ──────────────────────────────────────── */
 	@media (max-width: 640px) {
@@ -565,5 +692,6 @@
 		.activity-timeline { padding-left: 1.5rem; }
 		.timeline-item__dot { left: -1.5rem; }
 		.timeline-item__header { font-size: 0.85rem; }
+		.highlights-grid { grid-template-columns: repeat(2, 1fr); }
 	}
 </style>

@@ -10,8 +10,6 @@ import {
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const prerender = true;
-
 export function entries() {
 	return getRunners()
 		.filter((r) => !r.runner_id.startsWith('_'))
@@ -107,10 +105,36 @@ export const load: PageServerLoad = async ({ params }) => {
 			};
 		});
 
+	// ── Featured Runs (Highlights) ───────────────────────────
+	const rawFeatured = (runner as any).featured_runs || [];
+	const featuredRuns = rawFeatured.map((fr: any) => {
+		const game = allGames.find((g) => g.game_id === fr.game_id);
+		return {
+			game_id: fr.game_id,
+			game_name: game?.game_name || fr.game_id,
+			cover: game?.cover || '/img/site/default-game.jpg',
+			category: fr.category || '',
+			achievement: fr.achievement || '',
+			video_url: fr.video_url || '',
+			video_approved: fr.video_approved !== false
+		};
+	});
+
+	// ── Personal Goals ───────────────────────────────────────
+	const personalGoals = ((runner as any).personal_goals || []).map((g: any) => ({
+		title: g.title || '',
+		description: g.description || '',
+		icon: g.icon || '🎯',
+		game: g.game || '',
+		completed: !!g.completed,
+		current: g.current || 0,
+		total: g.total || 0,
+		date_completed: g.date_completed || ''
+	}));
+
 	// ── Credits (games where this runner is listed) ─────────
 	const credits: { gameId: string; gameName: string; cover?: string; role: string }[] = [];
 	for (const game of allGames) {
-		// Check maintainers (if stored as array of runner_ids in game data)
 		const isMaintainer = (game as any).maintainers?.includes(params.runner_id);
 		const creditEntry = (game as any).credits?.find(
 			(c: any) => c.runner_id === params.runner_id
@@ -199,6 +223,8 @@ export const load: PageServerLoad = async ({ params }) => {
 				: null,
 			topGenres
 		},
+		featuredRuns,
+		personalGoals,
 		credits,
 		verifiedCount,
 		playerMadeChallenges,
