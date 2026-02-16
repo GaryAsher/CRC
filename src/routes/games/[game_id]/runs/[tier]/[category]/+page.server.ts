@@ -2,6 +2,8 @@ import { getGame, getGames, findCategory, getRunsForCategory, getAllCategories }
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
+export const prerender = true;
+
 export function entries() {
 	const entries: { game_id: string; tier: string; category: string }[] = [];
 	for (const game of getGames().filter((g) => !g.game_id.startsWith('_'))) {

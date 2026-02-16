@@ -40,7 +40,7 @@
 	<div class="search-page">
 		<h1>Search</h1>
 
-		<div class="search-bar">
+		<div class="search-input-wrap">
 			<input
 				type="search"
 				bind:value={query}
@@ -49,25 +49,25 @@
 		</div>
 
 		<div class="search-filters">
-			<button class="filter" class:filter--active={filter === 'all'} onclick={() => filter = 'all'}>All</button>
-			<button class="filter" class:filter--active={filter === 'games'} onclick={() => filter = 'games'}>Games</button>
-			<button class="filter" class:filter--active={filter === 'runners'} onclick={() => filter = 'runners'}>Runners</button>
+			<button class="search-filter-btn" class:is-active={filter === 'all'} onclick={() => filter = 'all'}>All</button>
+			<button class="search-filter-btn" class:is-active={filter === 'games'} onclick={() => filter = 'games'}>Games</button>
+			<button class="search-filter-btn" class:is-active={filter === 'runners'} onclick={() => filter = 'runners'}>Runners</button>
 		</div>
 
 		{#if hasQuery}
-			<p class="result-count">{results.length} result{results.length !== 1 ? 's' : ''}</p>
+			<p class="muted search-result-count">{results.length} result{results.length !== 1 ? 's' : ''}</p>
 
 			{#if results.length === 0}
-				<p class="empty">No results found for "{query}"</p>
+				<p class="search-no-results">No results found for "{query}"</p>
 			{:else}
-				<div class="results">
+				<div class="search-results">
 					{#each results as item}
-						<a href={item.url} class="result-item">
-							<span class="result-type">{item.type === 'game' ? '🎮' : '🏃'}</span>
-							<div class="result-info">
-								<span class="result-name">{item.name}</span>
+						<a href={item.url} class="search-result">
+							<span class="search-result__icon">{item.type === 'game' ? '🎮' : '🏃'}</span>
+							<div class="search-result__body">
+								<span class="search-result__title">{item.name}</span>
 								{#if item.type === 'game' && item.genres?.length}
-									<span class="result-meta">{item.genres.slice(0, 3).join(', ')}</span>
+									<span class="search-result__meta">{item.genres.slice(0, 3).join(', ')}</span>
 								{/if}
 							</div>
 						</a>
@@ -82,30 +82,30 @@
 
 <style>
 	.search-page { max-width: 640px; margin: 2rem auto; }
-	.search-bar { margin: 1.5rem 0 1rem; }
-	.search-bar input {
+	.search-input-wrap { margin: 1.5rem 0 1rem; }
+	.search-input {
 		width: 100%; padding: 0.75rem 1rem; border: 2px solid var(--border);
 		border-radius: 10px; background: var(--surface); color: var(--fg);
 		font-size: 1.1rem; font-family: inherit;
 	}
-	.search-bar input:focus { outline: none; border-color: var(--accent); }
+	.search-input:focus { outline: none; border-color: var(--accent); }
 	.search-filters { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; }
-	.filter {
+	.search-filter-btn {
 		padding: 0.35rem 0.9rem; border: 1px solid var(--border); border-radius: 20px;
 		background: none; color: var(--muted); cursor: pointer; font-size: 0.85rem;
 	}
-	.filter:hover { border-color: var(--accent); color: var(--accent); }
-	.filter--active { background: var(--accent); color: #fff; border-color: var(--accent); }
-	.result-count { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.75rem; }
-	.empty { text-align: center; padding: 2rem 0; color: var(--muted); }
-	.results { display: flex; flex-direction: column; gap: 0.5rem; }
-	.result-item {
+	.search-filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+	.search-filter-btn.is-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+	.search-result-count { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.75rem; }
+	.search-no-results { text-align: center; padding: 2rem 0; color: var(--muted); }
+	.search-results { display: flex; flex-direction: column; gap: 0.5rem; }
+	.search-result {
 		display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem;
 		border: 1px solid var(--border); border-radius: 8px; text-decoration: none; color: var(--fg);
 		transition: border-color 0.15s;
 	}
-	.result-item:hover { border-color: var(--accent); }
-	.result-type { font-size: 1.25rem; }
-	.result-name { font-weight: 600; }
-	.result-meta { display: block; font-size: 0.8rem; color: var(--muted); }
+	.search-result:hover { border-color: var(--accent); }
+	.search-result__icon { font-size: 1.25rem; }
+	.search-result__title { font-weight: 600; }
+	.search-result__meta { display: block; font-size: 0.8rem; color: var(--muted); }
 </style>

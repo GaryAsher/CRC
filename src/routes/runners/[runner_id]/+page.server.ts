@@ -10,6 +10,8 @@ import {
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
+export const prerender = true;
+
 export function entries() {
 	return getRunners()
 		.filter((r) => !r.runner_id.startsWith('_'))

@@ -1,6 +1,8 @@
 import { getGames, getGameHistory } from '$lib/server/data';
 import type { PageServerLoad, EntryGenerator } from './$types';
 
+export const prerender = true;
+
 export const entries: EntryGenerator = () => {
 	return getGames()
 		.filter((g) => !g.game_id.startsWith('_'))

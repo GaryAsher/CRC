@@ -1,6 +1,8 @@
 import { getActiveGames, getRunners, getRuns } from '$lib/server/data';
 import type { PageServerLoad } from './$types';
 
+export const prerender = true;
+
 export const load: PageServerLoad = async () => {
 	const games = getActiveGames().map((g) => ({
 		type: 'game' as const,
