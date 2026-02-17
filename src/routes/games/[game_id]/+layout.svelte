@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { beforeNavigate, afterNavigate } from '$app/navigation';
+	import { saveScroll, restoreScroll } from '$lib/stores/scroll';
 
 	let { data, children } = $props();
 	const game = $derived(data.game);
@@ -21,6 +23,22 @@
 		}
 		return path.startsWith(href);
 	}
+
+	// Save scroll position before navigating away
+	beforeNavigate(({ from }) => {
+		if (from?.url) saveScroll(from.url.pathname);
+	});
+
+	// Restore scroll position after navigating within the same game
+	afterNavigate(({ from, to }) => {
+		if (!from?.url || !to?.url) return;
+		const gamePrefix = `/games/${game.game_id}/`;
+		const fromInGame = from.url.pathname.startsWith(gamePrefix) || from.url.pathname === `/games/${game.game_id}`;
+		const toInGame = to.url.pathname.startsWith(gamePrefix) || to.url.pathname === `/games/${game.game_id}`;
+		if (fromInGame && toInGame) {
+			restoreScroll(to.url.pathname);
+		}
+	});
 </script>
 
 <svelte:head>

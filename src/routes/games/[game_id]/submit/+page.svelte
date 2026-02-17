@@ -113,7 +113,7 @@
 				source: 'site_form'
 			};
 
-			const { error } = await supabase.from('run_submissions').insert(payload);
+			const { error } = await supabase.from('pending_runs').insert(payload);
 			if (error) throw error;
 
 			successMsg = 'Run submitted successfully! A verifier will review it shortly.';
