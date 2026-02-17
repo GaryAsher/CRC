@@ -65,7 +65,7 @@
 	{/if}
 
 	{#if hasMini}
-		<a href="/games/{game.game_id}/runs/mini-challenges/{game.mini_challenges[0].slug}" class="tier-card tier-card--mini">
+		<a href="/games/{game.game_id}/runs/mini-challenges/{game.mini_challenges[0].slug}" class="tier-card tier-card--mini-challenges">
 			<h3 class="tier-card__title">⚡ Mini-Challenges</h3>
 			<p class="tier-card__desc muted">In-game challenges without requiring an ending</p>
 			<div class="tier-card__meta">
@@ -78,7 +78,7 @@
 	{/if}
 
 	{#if hasPlayer}
-		<a href="/games/{game.game_id}/runs/player-made/{game.player_made[0].slug}" class="tier-card tier-card--player">
+		<a href="/games/{game.game_id}/runs/player-made/{game.player_made[0].slug}" class="tier-card tier-card--player-made">
 			<h3 class="tier-card__title">🎨 Player-Made</h3>
 			<p class="tier-card__desc muted">Community-created challenges with arbitrary goals</p>
 			<div class="tier-card__meta">
