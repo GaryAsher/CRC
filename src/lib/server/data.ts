@@ -223,6 +223,28 @@ export function getPosts(): Post[] {
 		});
 }
 
+// ─── History ────────────────────────────────────────────────────────────────
+
+export interface HistoryEntry {
+	date: string;
+	action: string;
+	target?: string;
+	note?: string;
+	by?: {
+		discord?: string;
+		github?: string;
+	};
+}
+
+/** Get history log for a specific game. */
+export function getHistory(gameId: string): HistoryEntry[] {
+	const filePath = path.join(DATA_DIR, 'config', 'history', `${gameId}.yml`);
+	if (!fs.existsSync(filePath)) return [];
+	const raw = fs.readFileSync(filePath, 'utf-8');
+	const data = yaml.load(raw) as HistoryEntry[] | null;
+	return (data || []).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
 // ─── Config Data ────────────────────────────────────────────────────────────
 // Replaces site.data.* in Jekyll/Liquid templates
 

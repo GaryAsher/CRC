@@ -163,6 +163,37 @@ export interface Runner {
 	// Social links
 	socials: RunnerSocials;
 
+	// Banner & customization
+	banner?: string;
+
+	// Profile sections
+	featured_runs?: {
+		game_id: string;
+		category: string;
+		achievement?: string;
+		video_url?: string;
+		video_approved?: boolean;
+	}[];
+
+	personal_goals?: {
+		icon?: string;
+		title: string;
+		description?: string;
+		game?: string;
+		completed?: boolean;
+		current?: number;
+		total?: number;
+		date_completed?: string;
+	}[];
+
+	contributions?: {
+		icon?: string;
+		title: string;
+		description?: string;
+		url?: string;
+		type?: string;
+	}[];
+
 	// Markdown body content
 	content?: string;
 }
