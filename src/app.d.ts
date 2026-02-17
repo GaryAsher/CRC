@@ -11,7 +11,17 @@ declare global {
 		}
 		// interface PageData {}
 		// interface PageState {}
-		// interface Platform {}
+		interface Platform {
+			env?: {
+				// Add any Cloudflare Worker bindings here as needed, e.g.:
+				// MY_KV: KVNamespace;
+				// MY_D1: D1Database;
+			};
+			context?: {
+				waitUntil(promise: Promise<unknown>): void;
+			};
+			caches?: CacheStorage;
+		}
 	}
 }
 
