@@ -1,43 +1,21 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { PUBLIC_WORKER_URL, PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
-	import { user, session } from '$stores/auth';
+	import { user } from '$stores/auth';
 
 	let { data } = $props();
 
-	// ── Auth State ─────────────────────────────────────────────────────────
-	let authChecked = $state(false);
-
-	onMount(() => {
-		// Give auth store a moment to initialize
-		const timer = setTimeout(() => { authChecked = true; }, 500);
-		return () => clearTimeout(timer);
-	});
-
-	let isSignedIn = $derived(authChecked && !!$session);
-	let showForm = $derived(authChecked && isSignedIn);
-
-	// ── Form State ─────────────────────────────────────────────────────────
+	// ── Form State ────────────────────────────────────────────────────────────
 	let gameName = $state('');
 	let gameId = $state('');
 	let gameIdManual = $state(false);
 	let aliases = $state('');
+	let description = $state('');
 	let selectedGenres = $state<string[]>([]);
 	let selectedPlatforms = $state<string[]>([]);
-	let platformFilter = $state<'all' | 'console' | 'handheld' | 'pc' | 'mobile'>('all');
-	let fullRunCategories = $state<string[]>(['']);
-	let miniChallenges = $state<string[]>([]);
-	let selectedChallenges = $state<string[]>([]);
-	let customChallenges = $state('');
-	let selectedGlitches = $state<string[]>(['unrestricted']);
-	let timingMethod = $state('RTA');
-	let charEnabled = $state(false);
-	let charLabel = $state('Character');
-	let charList = $state('');
-	let isModded = $state(false);
-	let baseGame = $state('');
+	let timingMethod = $state('');
+	let categories = $state('');
 	let generalRules = $state('');
-	let gameDescription = $state('');
 	let submitterHandle = $state('');
 	let turnstileToken = $state('');
 
@@ -45,62 +23,72 @@
 	let result = $state<{ ok: boolean; message: string } | null>(null);
 	let turnstileReady = $state(false);
 	let turnstileWidgetId = $state<string | null>(null);
-	let errors = $state<Record<string, string>>({});
 
-	// ── Auto-generate game ID ──────────────────────────────────────────────
-	function slugify(s: string): string {
-		return (s || '').toLowerCase()
-			.replace(/['']/g, '')
-			.replace(/%/g, '-percent')
-			.replace(/[^a-z0-9]+/g, '-')
-			.replace(/-{2,}/g, '-')
-			.replace(/^-|-$/g, '');
-	}
-
+	// ── Auto-generate game ID from name ───────────────────────────────────────
 	$effect(() => {
-		if (!gameIdManual) {
-			gameId = slugify(gameName);
+		if (!gameIdManual && gameName) {
+			gameId = gameName.toLowerCase()
+				.replace(/[\s_]+/g, '-')
+				.replace(/[^a-z0-9-]/g, '')
+				.replace(/-{2,}/g, '-')
+				.replace(/^-|-$/g, '');
 		}
 	});
 
-	function onGameIdInput() {
-		gameIdManual = gameId !== slugify(gameName);
+	// ── Genre filter ──────────────────────────────────────────────────────────
+	let genreSearch = $state('');
+	let filteredGenres = $derived.by(() => {
+		const q = genreSearch.toLowerCase();
+		return data.genres.filter((g: any) =>
+			!selectedGenres.includes(g.slug) &&
+			(!q || g.label.toLowerCase().includes(q))
+		);
+	});
+
+	function toggleGenre(slug: string) {
+		if (selectedGenres.includes(slug)) {
+			selectedGenres = selectedGenres.filter(s => s !== slug);
+		} else {
+			selectedGenres = [...selectedGenres, slug];
+		}
 	}
 
-	// ── Pre-fill submitter ─────────────────────────────────────────────────
+	// ── Platform filter ───────────────────────────────────────────────────────
+	let platformSearch = $state('');
+	let filteredPlatforms = $derived.by(() => {
+		const q = platformSearch.toLowerCase();
+		return data.platforms.filter((p: any) =>
+			(!q || p.label.toLowerCase().includes(q))
+		);
+	});
+
+	function togglePlatform(slug: string) {
+		if (selectedPlatforms.includes(slug)) {
+			selectedPlatforms = selectedPlatforms.filter(s => s !== slug);
+		} else {
+			selectedPlatforms = [...selectedPlatforms, slug];
+		}
+	}
+
+	// ── Turnstile ─────────────────────────────────────────────────────────────
 	onMount(() => {
 		if ($user?.user_metadata?.full_name) {
 			submitterHandle = $user.user_metadata.full_name;
 		}
-	});
-
-	// ── Turnstile ──────────────────────────────────────────────────────────
-	onMount(() => {
 		if (!document.querySelector('script[src*="turnstile"]')) {
 			const script = document.createElement('script');
 			script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&render=explicit';
 			script.async = true;
 			document.head.appendChild(script);
 		}
-
-		(window as any).onTurnstileLoad = () => {
-			turnstileReady = true;
-			renderTurnstile();
-		};
-
-		if ((window as any).turnstile) {
-			turnstileReady = true;
-			renderTurnstile();
-		}
+		(window as any).onTurnstileLoad = () => { turnstileReady = true; renderTurnstile(); };
+		if ((window as any).turnstile) { turnstileReady = true; renderTurnstile(); }
 	});
 
 	function renderTurnstile() {
 		const container = document.getElementById('turnstile-container-game');
 		if (!container || !(window as any).turnstile) return;
-		if (turnstileWidgetId !== null) {
-			(window as any).turnstile.reset(turnstileWidgetId);
-			return;
-		}
+		if (turnstileWidgetId !== null) { (window as any).turnstile.reset(turnstileWidgetId); return; }
 		turnstileWidgetId = (window as any).turnstile.render('#turnstile-container-game', {
 			sitekey: PUBLIC_TURNSTILE_SITE_KEY,
 			callback: (token: string) => { turnstileToken = token; },
@@ -109,62 +97,25 @@
 		});
 	}
 
-	// ── Chip Toggles ───────────────────────────────────────────────────────
-	function toggleChip(arr: string[], value: string): string[] {
-		return arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value];
-	}
-
-	// ── Dynamic Lists ──────────────────────────────────────────────────────
-	function addCategory(list: string[]): string[] { return [...list, '']; }
-	function removeCategory(list: string[], idx: number): string[] { return list.filter((_, i) => i !== idx); }
-
-	// ── Filtered Platforms ─────────────────────────────────────────────────
-	let filteredPlatforms = $derived(
-		platformFilter === 'all'
-			? data.platforms
-			: data.platforms.filter((p: any) => p.cat === platformFilter)
-	);
-
-	// ── Validation & Submit ────────────────────────────────────────────────
 	let canSubmit = $derived(gameName.trim() && turnstileToken && !submitting);
 
-	function validate(): boolean {
-		errors = {};
-		if (!gameName.trim()) errors.gameName = 'Game name is required.';
-		if (!gameId.trim()) errors.gameId = 'Could not generate a valid game ID.';
-		const runs = fullRunCategories.filter(c => c.trim());
-		if (runs.length === 0) errors.fullRuns = 'At least one full run category is required.';
-		if (isModded && !baseGame) errors.baseGame = 'Please select the base game for this mod.';
-		return Object.keys(errors).length === 0;
-	}
-
 	async function handleSubmit() {
-		if (!validate()) return;
+		if (!canSubmit) return;
 		submitting = true;
 		result = null;
 
 		const parseCsv = (s: string) => s.split(',').map(x => x.trim()).filter(Boolean);
-		const characters = charList.split('\n').map(s => s.trim()).filter(Boolean);
 
 		const payload = {
 			game_name: gameName.trim(),
-			game_id: gameId.trim(),
+			game_id: gameId.trim() || null,
 			aliases: parseCsv(aliases),
+			description: description.trim() || null,
 			genres: selectedGenres,
 			platforms: selectedPlatforms,
-			timing_method: timingMethod,
-			full_run_categories: fullRunCategories.filter(c => c.trim()),
-			mini_challenges: miniChallenges.filter(c => c.trim()),
-			challenges: [...selectedChallenges, ...parseCsv(customChallenges)],
-			glitches: selectedGlitches,
-			restrictions: [],
-			character_enabled: charEnabled,
-			character_label: charLabel.trim() || 'Character',
-			characters,
-			is_modded: isModded,
-			base_game: isModded ? baseGame : null,
+			timing_method: timingMethod.trim() || null,
+			full_run_categories: parseCsv(categories),
 			general_rules: generalRules.trim() || null,
-			description: gameDescription.trim() || null,
 			submitter_handle: submitterHandle.trim() || null,
 			submitter_user_id: $user?.id || null,
 			turnstile_token: turnstileToken
@@ -176,11 +127,11 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload)
 			});
-			const data = await res.json();
-			if (res.ok && data.ok) {
+			const json = await res.json();
+			if (res.ok && json.ok) {
 				result = { ok: true, message: 'Game submitted for review! Our team will review your request.' };
 			} else {
-				result = { ok: false, message: data.error || 'Submission failed. Please try again.' };
+				result = { ok: false, message: json.error || 'Submission failed. Please try again.' };
 			}
 		} catch {
 			result = { ok: false, message: 'Network error. Please check your connection.' };
@@ -192,539 +143,249 @@
 			}
 		}
 	}
+
+	function getGenreLabel(slug: string) {
+		return data.genres.find((g: any) => g.slug === slug)?.label || slug;
+	}
+	function getPlatformLabel(slug: string) {
+		return data.platforms.find((p: any) => p.slug === slug)?.label || slug;
+	}
 </script>
 
-<svelte:head><title>Submit a Game | Challenge Run Community</title></svelte:head>
+<svelte:head><title>Request a Game | Challenge Run Community</title></svelte:head>
 
-<div class="page-width submit-game-page">
-	<h1>Submit a Game</h1>
-	<p class="muted mb-4">Request a new game to be tracked on CRC. Our team will review your submission.</p>
+<div class="page-width">
+	<div class="submit-page">
+		<h1>Request a Game</h1>
+		<p class="muted">Suggest a new game for the Challenge Run Community. Fill in as much detail as you can — our team will review and set it up if approved.</p>
 
-	<!-- Auth gate -->
-	{#if !authChecked}
-		<div class="card">
-			<div class="auth-loading">
-				<div class="spinner"></div>
-				<p class="muted">Checking sign-in status...</p>
-			</div>
-		</div>
-	{:else if !isSignedIn}
-		<div class="card">
-			<h2>Sign In Required</h2>
-			<p class="muted mb-2">You need to be signed in to submit a game.</p>
-			<a href="/sign-in/?redirect=/submit-game/" class="btn btn--primary">Sign In</a>
-		</div>
-	{:else}
-		<!-- Result message -->
 		{#if result}
-			<div class="sg-msg sg-msg--{result.ok ? 'success' : 'error'}">{result.message}</div>
+			<div class="alert alert--{result.ok ? 'success' : 'error'}">{result.message}</div>
 			{#if result.ok}
 				<a href="/games" class="btn btn--outline">Browse Games</a>
 			{/if}
 		{/if}
 
 		{#if !result?.ok}
-			<div class="card">
-				<!-- GAME INFO -->
+			<div class="form">
+				<!-- Game Info -->
 				<fieldset class="sg-section">
 					<legend class="sg-section__title">Game Info</legend>
 
-					<div class="sg-field">
-						<label for="gameName" class="sg-label">Game Name <span class="req">*</span></label>
-						<input
-							id="gameName"
-							type="text"
-							class="sg-input"
-							class:has-error={errors.gameName}
-							bind:value={gameName}
-							placeholder="e.g. Hollow Knight"
-						/>
-						<p class="sg-hint">The official name of the game.</p>
-						{#if errors.gameName}<p class="sg-error">{errors.gameName}</p>{/if}
+					<div class="form-group">
+						<label for="gameName">Game Name <span class="req">*</span></label>
+						<input id="gameName" type="text" bind:value={gameName} placeholder="e.g. Hollow Knight" maxlength="200" />
+						<span class="hint">The official name of the game.</span>
 					</div>
 
-					<div class="sg-field">
-						<label for="gameId" class="sg-label">Game ID</label>
-						<input
-							id="gameId"
-							type="text"
-							class="sg-input sg-input--mono"
-							class:has-error={errors.gameId}
-							bind:value={gameId}
-							oninput={onGameIdInput}
-							placeholder="auto-generated"
-							pattern="[a-z0-9\-]+"
-						/>
-						<p class="sg-hint">URL-safe slug. Auto-generated from name — edit only if needed.</p>
-						{#if errors.gameId}<p class="sg-error">{errors.gameId}</p>{/if}
-					</div>
-
-					<div class="sg-field">
-						<label for="gameAliases" class="sg-label">Aliases</label>
-						<input
-							id="gameAliases"
-							type="text"
-							class="sg-input"
-							bind:value={aliases}
-							placeholder="HK, Hollow Knight: Voidheart Edition"
-						/>
-						<p class="sg-hint">Comma-separated alternate names.</p>
-					</div>
-
-					<div class="sg-field">
-						<label class="sg-label">Genres</label>
-						<div class="sg-chip-grid">
-							{#each data.genres as genre}
-								<label class="sg-chip-toggle">
-									<input
-										type="checkbox"
-										checked={selectedGenres.includes(genre.id)}
-										onchange={() => selectedGenres = toggleChip(selectedGenres, genre.id)}
-									/>
-									<span>{genre.label}</span>
-								</label>
-							{/each}
+					<div class="form-group">
+						<label for="gameId">Game ID</label>
+						<div class="id-field">
+							<input
+								id="gameId" type="text" class="mono"
+								bind:value={gameId}
+								oninput={() => gameIdManual = true}
+								placeholder="auto-generated"
+								pattern="[a-z0-9\-]+"
+							/>
 						</div>
+						<span class="hint">URL-safe slug (auto-generated from name). Edit only if needed.</span>
 					</div>
 
-					<div class="sg-field">
-						<label class="sg-label">Platforms</label>
-						<div class="sg-filter-bar">
-							{#each ['all', 'console', 'handheld', 'pc', 'mobile'] as cat}
-								<button
-									type="button"
-									class="sg-filter-btn"
-									class:active={platformFilter === cat}
-									onclick={() => platformFilter = cat as any}
-								>{cat.charAt(0).toUpperCase() + cat.slice(1)}</button>
-							{/each}
-						</div>
-						<div class="sg-chip-grid">
-							{#each filteredPlatforms as platform}
-								<label class="sg-chip-toggle">
-									<input
-										type="checkbox"
-										checked={selectedPlatforms.includes(platform.id)}
-										onchange={() => selectedPlatforms = toggleChip(selectedPlatforms, platform.id)}
-									/>
-									<span>{platform.label}</span>
-								</label>
-							{/each}
-						</div>
+					<div class="form-group">
+						<label for="aliases">Aliases</label>
+						<input id="aliases" type="text" bind:value={aliases} placeholder="HK, Hollow Knight: Voidheart Edition" />
+						<span class="hint">Comma-separated alternate names for search.</span>
+					</div>
+
+					<div class="form-group">
+						<label for="description">Description</label>
+						<textarea id="description" bind:value={description} placeholder="Brief description of the game and why it fits CRC..." rows="3" maxlength="1000"></textarea>
 					</div>
 				</fieldset>
 
-				<!-- CATEGORIES -->
+				<!-- Genres -->
 				<fieldset class="sg-section">
-					<legend class="sg-section__title">Run Categories</legend>
+					<legend class="sg-section__title">Genres</legend>
+					<p class="muted mb-1">Select all genres that apply.</p>
 
-					<div class="sg-field">
-						<label class="sg-label">Full Run Categories <span class="req">*</span></label>
-						<p class="sg-hint mb-1">Categories that require completing the game (e.g. Any%, All Bosses). Add at least one.</p>
-						<div class="sg-dynamic-list">
-							{#each fullRunCategories as cat, i}
-								<div class="sg-dynamic-row">
-									<input
-										type="text"
-										bind:value={fullRunCategories[i]}
-										placeholder="Category name (e.g. Any%)"
-									/>
-									{#if fullRunCategories.length > 1}
-										<button type="button" class="sg-remove-btn" onclick={() => fullRunCategories = removeCategory(fullRunCategories, i)}>✕</button>
-									{/if}
-								</div>
+					{#if selectedGenres.length > 0}
+						<div class="chip-row mb-1">
+							{#each selectedGenres as slug}
+								<button type="button" class="chip chip--selected" onclick={() => toggleGenre(slug)}>
+									{getGenreLabel(slug)} ✕
+								</button>
 							{/each}
 						</div>
-						<button type="button" class="sg-add-btn" onclick={() => fullRunCategories = addCategory(fullRunCategories)}>+ Add Category</button>
-						{#if errors.fullRuns}<p class="sg-error">{errors.fullRuns}</p>{/if}
-					</div>
+					{/if}
 
-					<div class="sg-field">
-						<label class="sg-label">Mini-Challenges</label>
-						<p class="sg-hint mb-1">In-game challenges that don't require an ending (e.g. Boss Rush). Optional.</p>
-						<div class="sg-dynamic-list">
-							{#each miniChallenges as cat, i}
-								<div class="sg-dynamic-row">
-									<input
-										type="text"
-										bind:value={miniChallenges[i]}
-										placeholder="Challenge name (e.g. Boss Rush)"
-									/>
-									<button type="button" class="sg-remove-btn" onclick={() => miniChallenges = removeCategory(miniChallenges, i)}>✕</button>
-								</div>
-							{/each}
-						</div>
-						<button type="button" class="sg-add-btn" onclick={() => miniChallenges = addCategory(miniChallenges)}>+ Add Mini-Challenge</button>
-					</div>
-				</fieldset>
-
-				<!-- CHALLENGE TYPES -->
-				<fieldset class="sg-section">
-					<legend class="sg-section__title">Challenge Types</legend>
-					<p class="sg-hint mb-2">Select which challenge modifiers apply to this game.</p>
-					<div class="sg-chip-grid">
-						{#each data.challenges as challenge}
-							<label class="sg-chip-toggle">
-								<input
-									type="checkbox"
-									checked={selectedChallenges.includes(challenge.id)}
-									onchange={() => selectedChallenges = toggleChip(selectedChallenges, challenge.id)}
-								/>
-								<span>{challenge.label}</span>
-							</label>
+					<input type="text" class="filter-search" bind:value={genreSearch} placeholder="Filter genres..." />
+					<div class="chip-grid">
+						{#each filteredGenres as genre}
+							<button
+								type="button"
+								class="chip-toggle"
+								class:is-selected={selectedGenres.includes(genre.slug)}
+								onclick={() => toggleGenre(genre.slug)}
+							>{genre.label}</button>
 						{/each}
 					</div>
-					<div class="sg-field mt-2">
-						<label for="customChallenges" class="sg-label">Custom Challenges</label>
-						<input id="customChallenges" type="text" class="sg-input" bind:value={customChallenges} placeholder="e.g. Pacifist, No Shield" />
-						<p class="sg-hint">Comma-separated game-specific challenge types not in the list above.</p>
-					</div>
 				</fieldset>
 
-				<!-- GLITCH & TIMING -->
+				<!-- Platforms -->
 				<fieldset class="sg-section">
-					<legend class="sg-section__title">Glitch Rules & Timing</legend>
+					<legend class="sg-section__title">Platforms</legend>
+					<p class="muted mb-1">Select platforms this game is available on.</p>
 
-					<div class="sg-field">
-						<label class="sg-label">Glitch Categories</label>
-						<p class="sg-hint mb-1">Which glitch rule sets apply to this game?</p>
-						<div class="sg-chip-grid">
-							{#each [{ id: 'unrestricted', label: 'Unrestricted' }, { id: 'nmg', label: 'No Major Glitches' }, { id: 'glitchless', label: 'Glitchless' }] as g}
-								<label class="sg-chip-toggle">
-									<input
-										type="checkbox"
-										checked={selectedGlitches.includes(g.id)}
-										onchange={() => selectedGlitches = toggleChip(selectedGlitches, g.id)}
-									/>
-									<span>{g.label}</span>
-								</label>
+					{#if selectedPlatforms.length > 0}
+						<div class="chip-row mb-1">
+							{#each selectedPlatforms as slug}
+								<button type="button" class="chip chip--selected" onclick={() => togglePlatform(slug)}>
+									{getPlatformLabel(slug)} ✕
+								</button>
 							{/each}
 						</div>
-					</div>
+					{/if}
 
-					<div class="sg-field">
-						<label for="timingMethod" class="sg-label">Primary Timing Method</label>
-						<select id="timingMethod" class="sg-select" bind:value={timingMethod}>
-							<option value="RTA">RTA (Real Time Attack)</option>
+					<input type="text" class="filter-search" bind:value={platformSearch} placeholder="Filter platforms..." />
+					<div class="chip-grid">
+						{#each filteredPlatforms as platform}
+							<button
+								type="button"
+								class="chip-toggle"
+								class:is-selected={selectedPlatforms.includes(platform.slug)}
+								onclick={() => togglePlatform(platform.slug)}
+							>{platform.label}</button>
+						{/each}
+					</div>
+				</fieldset>
+
+				<!-- Challenge Categories & Rules -->
+				<fieldset class="sg-section">
+					<legend class="sg-section__title">Challenges & Rules</legend>
+
+					<div class="form-group">
+						<label for="timingMethod">Timing Method</label>
+						<select id="timingMethod" bind:value={timingMethod}>
+							<option value="">Select...</option>
+							<option value="RTA">RTA (Real-Time Attack)</option>
 							<option value="IGT">IGT (In-Game Time)</option>
-							<option value="LRT">LRT (Load-Removed Time)</option>
+							<option value="RTA + IGT">RTA + IGT</option>
+							<option value="N/A">N/A (No timer)</option>
 						</select>
 					</div>
-				</fieldset>
 
-				<!-- CHARACTER / WEAPON -->
-				<fieldset class="sg-section">
-					<legend class="sg-section__title">Character / Weapon Selection</legend>
-
-					<div class="sg-field">
-						<label class="sg-toggle-row">
-							<input type="checkbox" bind:checked={charEnabled} />
-							<span>This game has character/weapon selection relevant to runs</span>
-						</label>
+					<div class="form-group">
+						<label for="categories">Suggested Categories</label>
+						<input id="categories" type="text" bind:value={categories} placeholder="e.g. Any%, No Hit, All Bosses" />
+						<span class="hint">Comma-separated list of challenge categories.</span>
 					</div>
 
-					{#if charEnabled}
-						<div class="sg-field">
-							<label for="charLabel" class="sg-label">Column Label</label>
-							<input id="charLabel" type="text" class="sg-input" bind:value={charLabel} placeholder="Character / Weapon / Aspect" />
-							<p class="sg-hint">What to call the selection (e.g. "Character", "Weapon / Aspect").</p>
-						</div>
-						<div class="sg-field">
-							<label for="charList" class="sg-label">Options</label>
-							<textarea id="charList" class="sg-textarea" rows="4" bind:value={charList} placeholder={"One per line:\nWarrior\nMage\nRogue"}></textarea>
-							<p class="sg-hint">One character/weapon per line.</p>
-						</div>
-					{/if}
-				</fieldset>
-
-				<!-- MODDED -->
-				<fieldset class="sg-section">
-					<legend class="sg-section__title">Modded Game</legend>
-
-					<div class="sg-field">
-						<label class="sg-toggle-row">
-							<input type="checkbox" bind:checked={isModded} />
-							<span>This is a modded version of an existing game</span>
-						</label>
-					</div>
-
-					{#if isModded}
-						<div class="sg-field">
-							<label for="baseGame" class="sg-label">Base Game <span class="req">*</span></label>
-							<select id="baseGame" class="sg-select" bind:value={baseGame}>
-								<option value="">Select the base game...</option>
-								{#each data.baseGames as g}
-									<option value={g.id}>{g.name}</option>
-								{/each}
-							</select>
-							<p class="sg-hint">Which game is this a mod of?</p>
-							{#if errors.baseGame}<p class="sg-error">{errors.baseGame}</p>{/if}
-						</div>
-					{/if}
-				</fieldset>
-
-				<!-- RULES & DESCRIPTION -->
-				<fieldset class="sg-section">
-					<legend class="sg-section__title">Rules & Description</legend>
-
-					<div class="sg-field">
-						<label for="generalRules" class="sg-label">General Rules</label>
-						<textarea id="generalRules" class="sg-textarea" rows="5" bind:value={generalRules} placeholder={"- Video Required: All submissions must include video proof.\n- No Cheats/Mods: ..."}></textarea>
-						<p class="sg-hint">Game-specific rules. Leave blank to use site defaults.</p>
-					</div>
-
-					<div class="sg-field">
-						<label for="gameDescription" class="sg-label">Description</label>
-						<textarea id="gameDescription" class="sg-textarea" rows="3" bind:value={gameDescription} placeholder="Brief description of the game and its challenge run scene."></textarea>
+					<div class="form-group">
+						<label for="rules">Suggested General Rules</label>
+						<textarea id="rules" bind:value={generalRules} placeholder="Any rules or requirements for challenge runs in this game..." rows="4" maxlength="2000"></textarea>
 					</div>
 				</fieldset>
 
-				<!-- SUBMITTER INFO -->
+				<!-- Submitter -->
 				<fieldset class="sg-section">
 					<legend class="sg-section__title">Your Info</legend>
-					<div class="sg-field">
-						<label for="submitterHandle" class="sg-label">Your Name / Handle</label>
-						<input id="submitterHandle" type="text" class="sg-input" bind:value={submitterHandle} placeholder="e.g. Gary Asher" />
-						<p class="sg-hint">So we can credit you if this game gets added.</p>
+
+					<div class="form-group">
+						<label for="handle">Your Name</label>
+						<input id="handle" type="text" bind:value={submitterHandle} placeholder="Your display name (optional)" maxlength="100" />
 					</div>
 				</fieldset>
 
-				<!-- CAPTCHA -->
-				<div class="sg-field turnstile-field">
+				<!-- Turnstile + Submit -->
+				<div class="form-group turnstile-group">
 					<div id="turnstile-container-game"></div>
-					{#if !turnstileReady}<p class="sg-hint">Loading verification...</p>{/if}
+					{#if !turnstileReady}<p class="hint">Loading verification...</p>{/if}
 				</div>
 
-				<!-- SUBMIT -->
-				<div class="sg-submit-area">
-					<button
-						type="button"
-						class="btn btn--primary btn--large"
-						onclick={handleSubmit}
-						disabled={!canSubmit}
-					>
-						{submitting ? 'Submitting...' : 'Submit Game for Review'}
+				<div class="form-actions">
+					<button class="btn btn--submit" onclick={handleSubmit} disabled={!canSubmit}>
+						{submitting ? '⏳ Submitting...' : 'Submit Game Request'}
 					</button>
 				</div>
 			</div>
-
-			<!-- What happens next -->
-			<div class="card mt-4">
-				<h3 style="margin-top:0">What Happens Next?</h3>
-				<p class="muted">Our team will review your submission and may reach out for clarifications. Once approved, the game page goes live and runners can start submitting runs. You'll see updates on the status in your dashboard.</p>
-			</div>
 		{/if}
-	{/if}
+
+		<div class="submit-links">
+			<p>Want to submit a run instead? <a href="/submit">Submit a Run</a></p>
+		</div>
+	</div>
 </div>
 
 <style>
-.submit-game-page h1 { margin-bottom: 0.5rem; }
+	.submit-page { max-width: 700px; margin: 2rem auto; }
+	.form { margin-top: 1.5rem; }
+	.mb-1 { margin-bottom: 0.5rem; }
 
-/* Sections */
-.sg-section {
-	border: none;
-	padding: 0;
-	margin: 0 0 2rem 0;
-}
-.sg-section__title {
-	font-size: 1.1rem;
-	font-weight: 700;
-	color: var(--accent, #6366f1);
-	margin-bottom: 1rem;
-	padding-bottom: 0.5rem;
-	border-bottom: 1px solid var(--border);
-}
+	/* Sections */
+	.sg-section {
+		border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem;
+		margin-bottom: 1.5rem; background: none;
+	}
+	.sg-section__title {
+		font-weight: 700; font-size: 1rem; padding: 0 0.5rem; color: var(--fg);
+	}
 
-/* Fields */
-.sg-field { margin-bottom: 1.25rem; }
-.sg-label {
-	display: block;
-	font-weight: 600;
-	font-size: 0.9rem;
-	margin-bottom: 0.35rem;
-}
-.sg-hint {
-	font-size: 0.8rem;
-	color: var(--text-muted, var(--muted));
-	margin: 0.25rem 0 0 0;
-}
-.req { color: #dc3545; }
+	/* Form groups */
+	.form-group { margin-bottom: 1.25rem; }
+	.form-group:last-child { margin-bottom: 0; }
+	.form-group label { display: block; margin-bottom: 0.35rem; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+	.req { color: #ef4444; }
+	input[type="text"], input[type="url"], textarea, select {
+		width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--border);
+		border-radius: 8px; background: var(--surface); color: var(--fg);
+		font-size: 0.9rem; font-family: inherit;
+	}
+	input:focus, textarea:focus, select:focus {
+		outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+	}
+	.mono { font-family: 'SF Mono', Monaco, Consolas, monospace; }
+	.hint { display: block; margin-top: 0.3rem; font-size: 0.8rem; color: var(--muted); }
 
-.sg-input, .sg-select, .sg-textarea {
-	width: 100%;
-	padding: 0.6rem 0.75rem;
-	background: var(--bg);
-	border: 1px solid var(--border);
-	border-radius: 8px;
-	color: var(--fg);
-	font-size: 0.9rem;
-	font-family: inherit;
-}
-.sg-input:focus, .sg-select:focus, .sg-textarea:focus {
-	outline: none;
-	border-color: var(--accent, #6366f1);
-	box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
-}
-.sg-input--mono { font-family: monospace; }
-.sg-textarea { resize: vertical; }
+	/* Chip Grid */
+	.chip-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; max-height: 160px; overflow-y: auto; padding: 0.25rem; }
+	.chip-toggle {
+		padding: 0.3rem 0.65rem; border-radius: 16px; font-size: 0.8rem;
+		border: 1px solid var(--border); background: none; color: var(--muted);
+		cursor: pointer; transition: all 0.15s;
+	}
+	.chip-toggle:hover { border-color: var(--accent); color: var(--accent); }
+	.chip-toggle.is-selected { background: var(--accent); color: white; border-color: var(--accent); }
+	.chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+	.chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.3rem 0.65rem; border-radius: 16px; font-size: 0.8rem; border: none; cursor: pointer; }
+	.chip--selected { background: var(--accent); color: white; }
+	.chip--selected:hover { opacity: 0.85; }
+	.filter-search {
+		width: 100%; padding: 0.45rem 0.75rem; border: 1px solid var(--border);
+		border-radius: 8px; background: var(--bg); color: var(--fg);
+		font-size: 0.85rem; margin-bottom: 0.5rem;
+	}
 
-.sg-error {
-	font-size: 0.8rem;
-	color: #dc3545;
-	margin: 0.25rem 0 0 0;
-}
-.has-error { border-color: #dc3545 !important; }
+	/* Turnstile */
+	.turnstile-group { margin-top: 1.5rem; }
+	.form-actions { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+	.btn--submit {
+		background: var(--accent); color: #fff; border: none; padding: 0.75rem 2rem;
+		border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%;
+	}
+	.btn--submit:hover:not(:disabled) { opacity: 0.9; }
+	.btn--submit:disabled { opacity: 0.4; cursor: not-allowed; }
+	.btn--outline {
+		display: inline-block; margin-top: 1rem; padding: 0.5rem 1.25rem;
+		border: 1px solid var(--border); border-radius: 8px; background: none;
+		color: var(--fg); cursor: pointer; font-size: 0.9rem; text-decoration: none;
+	}
+	.btn--outline:hover { border-color: var(--accent); color: var(--accent); }
 
-/* Chip grid (genre/platform/challenge selection) */
-.sg-chip-grid {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.35rem;
-}
-.sg-chip-toggle {
-	display: inline-flex;
-	cursor: pointer;
-}
-.sg-chip-toggle input { display: none; }
-.sg-chip-toggle span {
-	display: inline-block;
-	padding: 0.3rem 0.7rem;
-	border: 1px solid var(--border);
-	border-radius: 6px;
-	font-size: 0.8rem;
-	color: var(--text-muted, var(--muted));
-	background: var(--bg);
-	transition: all 0.12s;
-	user-select: none;
-}
-.sg-chip-toggle:hover span {
-	border-color: var(--fg);
-	color: var(--fg);
-}
-.sg-chip-toggle input:checked + span {
-	background: var(--accent, #6366f1);
-	color: white;
-	border-color: var(--accent, #6366f1);
-}
-
-/* Platform filter bar */
-.sg-filter-bar {
-	display: flex;
-	gap: 0.25rem;
-	margin-bottom: 0.75rem;
-}
-.sg-filter-btn {
-	padding: 0.3rem 0.65rem;
-	border: 1px solid var(--border);
-	border-radius: 6px;
-	background: transparent;
-	color: var(--text-muted, var(--muted));
-	font-size: 0.8rem;
-	cursor: pointer;
-	transition: all 0.12s;
-}
-.sg-filter-btn:hover { border-color: var(--fg); color: var(--fg); }
-.sg-filter-btn.active {
-	background: var(--accent, #6366f1);
-	color: white;
-	border-color: var(--accent, #6366f1);
-}
-
-/* Dynamic list (categories) */
-.sg-dynamic-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.5rem; }
-.sg-dynamic-row {
-	display: flex;
-	gap: 0.5rem;
-	align-items: center;
-}
-.sg-dynamic-row input {
-	flex: 1;
-	padding: 0.5rem 0.65rem;
-	background: var(--bg);
-	border: 1px solid var(--border);
-	border-radius: 6px;
-	color: var(--fg);
-	font-size: 0.85rem;
-	font-family: inherit;
-}
-.sg-dynamic-row input:focus {
-	outline: none;
-	border-color: var(--accent, #6366f1);
-}
-.sg-remove-btn {
-	width: 28px;
-	height: 28px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	border: 1px solid var(--border);
-	border-radius: 6px;
-	background: transparent;
-	color: var(--text-muted, var(--muted));
-	cursor: pointer;
-	flex-shrink: 0;
-	font-size: 0.9rem;
-}
-.sg-remove-btn:hover { border-color: #dc3545; color: #dc3545; }
-.sg-add-btn {
-	display: inline-block;
-	padding: 0.4rem 0.75rem;
-	border: 1px dashed var(--border);
-	border-radius: 6px;
-	background: transparent;
-	color: var(--text-muted, var(--muted));
-	font-size: 0.85rem;
-	cursor: pointer;
-	transition: all 0.12s;
-}
-.sg-add-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-/* Toggle row */
-.sg-toggle-row {
-	display: flex;
-	align-items: center;
-	gap: 0.6rem;
-	cursor: pointer;
-	font-size: 0.9rem;
-}
-.sg-toggle-row input[type="checkbox"] {
-	width: 18px;
-	height: 18px;
-	accent-color: var(--accent, #6366f1);
-}
-
-/* Submit area */
-.sg-submit-area {
-	text-align: center;
-	padding-top: 1rem;
-	border-top: 1px solid var(--border);
-	margin-top: 1rem;
-}
-.sg-msg {
-	padding: 0.6rem 1rem;
-	border-radius: 6px;
-	font-size: 0.9rem;
-	margin-bottom: 1rem;
-}
-.sg-msg--error { background: rgba(220, 53, 69, 0.1); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.2); }
-.sg-msg--success { background: rgba(40, 167, 69, 0.1); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.2); }
-
-.btn--large { padding: 0.85rem 2rem; font-size: 1rem; }
-
-/* Auth loading */
-.auth-loading { text-align: center; padding: 2rem; }
-
-/* Utilities */
-.mb-1 { margin-bottom: 0.5rem; }
-.mb-2 { margin-bottom: 1rem; }
-.mb-4 { margin-bottom: 2rem; }
-.mt-2 { margin-top: 1rem; }
-.mt-4 { margin-top: 2rem; }
-.turnstile-field { margin-top: 1.5rem; }
-
-/* Responsive */
-@media (max-width: 640px) {
-	.sg-chip-grid { gap: 0.25rem; }
-	.sg-chip-toggle span { font-size: 0.75rem; padding: 0.25rem 0.5rem; }
-}
+	/* Alerts */
+	.alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.5rem; }
+	.alert--success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #22c55e; }
+	.alert--error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; }
+	.submit-links { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
+	.submit-links a { color: var(--accent); }
 </style>
