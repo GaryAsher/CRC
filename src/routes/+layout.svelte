@@ -5,6 +5,7 @@
 	import { initAuth } from '$stores/auth';
 	import Header from '$components/layout/Header.svelte';
 	import Footer from '$components/layout/Footer.svelte';
+	import BackToTop from '$components/BackToTop.svelte';
 
 	let { data, children } = $props();
 
@@ -24,6 +25,7 @@
 		{@render children()}
 	</main>
 	<Footer />
+	<BackToTop />
 </div>
 
 <style>

@@ -5,6 +5,26 @@
 	let { data } = $props();
 	const runner = $derived(data.runner);
 	const socials = $derived(runner.socials || {});
+
+	// Tab state
+	let activeTab = $state<'runs' | 'achievements' | 'contributions' | 'activity'>('runs');
+
+	// Game detail view within runs tab
+	let selectedGameId = $state<string | null>(null);
+	const selectedGame = $derived(
+		selectedGameId
+			? data.gameGroups.find((g) => g.game.game_id === selectedGameId) || null
+			: null
+	);
+
+	// Run type counts
+	const fullRunCount = $derived(
+		data.runs.filter((r) => {
+			const game = data.allGames.find((g) => g.game_id === r.game_id);
+			return game?.full_runs?.some((fr) => fr.slug === r.category_slug);
+		}).length
+	);
+	const miniRunCount = $derived(data.runs.length - fullRunCount);
 </script>
 
 <svelte:head>
@@ -14,167 +34,626 @@
 <div class="page-width">
 	<p class="muted page-back"><a href="/runners">← Runners</a></p>
 
-	<!-- Profile Header -->
-	<div class="profile-header" style={runner.accent_color ? `--runner-accent: ${runner.accent_color}` : ''}>
-		<img
-			class="profile-header__avatar"
-			src={runner.avatar || '/img/site/default-runner.png'}
-			alt={runner.runner_name}
-		/>
-		<div class="profile-header__info">
-			<h1>{runner.runner_name}</h1>
-			{#if runner.pronouns}
-				<span class="profile-header__pronouns muted">{runner.pronouns}</span>
-			{/if}
-			{#if runner.location}
-				<span class="muted">📍 {runner.location}</span>
-			{/if}
-			<span class="muted">Joined {formatDate(runner.joined_date)}</span>
+	<!-- Banner -->
+	{#if runner.banner}
+		<div class="runner-banner">
+			<div class="runner-banner__img" style="background-image: url('{runner.banner}');{runner.accent_color ? `background-color:${runner.accent_color}` : ''}"></div>
+			<div class="runner-banner__fade"></div>
 		</div>
-	</div>
-
-	<!-- Social Links -->
-	{#if Object.values(socials).some(Boolean)}
-		<div class="profile-socials">
-			{#if socials.twitch}<a href="https://twitch.tv/{socials.twitch}" target="_blank" rel="noopener" class="btn btn--small btn--outline">Twitch</a>{/if}
-			{#if socials.youtube}<a href="https://youtube.com/@{socials.youtube}" target="_blank" rel="noopener" class="btn btn--small btn--outline">YouTube</a>{/if}
-			{#if socials.twitter}<a href="https://twitter.com/{socials.twitter}" target="_blank" rel="noopener" class="btn btn--small btn--outline">Twitter</a>{/if}
-			{#if socials.discord}<span class="btn btn--small btn--outline">Discord: {socials.discord}</span>{/if}
-			{#if socials.speedruncom}<a href="https://speedrun.com/user/{socials.speedruncom}" target="_blank" rel="noopener" class="btn btn--small btn--outline">Speedrun.com</a>{/if}
+	{:else if runner.accent_color}
+		<div class="runner-banner">
+			<div class="runner-banner__img" style="background-color: {runner.accent_color};"></div>
+			<div class="runner-banner__fade"></div>
 		</div>
 	{/if}
+
+	<!-- Profile Header -->
+	<section class="runner-top" style={runner.accent_color ? `--runner-accent: ${runner.accent_color}` : ''}>
+		<div class="runner-left">
+			<img
+				class="runner-avatar"
+				src={runner.avatar || '/img/site/default-runner.png'}
+				alt={runner.runner_name}
+			/>
+			<div class="runner-name">
+				<h1>
+					{runner.runner_name}
+					{#if runner.pronouns}<span class="runner-pronouns">({runner.pronouns})</span>{/if}
+				</h1>
+				{#if runner.location}
+					<p class="muted runner-location">📍 {runner.location}</p>
+				{/if}
+				{#if runner.status}
+					<p class="muted runner-status">{runner.status}</p>
+				{/if}
+				<div class="runner-meta-line">
+					{#if runner.joined_date}
+						<span class="runner-joined">🗓️ Member since {formatDate(runner.joined_date)}</span>
+					{/if}
+					{#if data.teams.length > 0}
+						<span class="runner-team-badges">
+							{#each data.teams as team}
+								<a href="/teams/{team.team_id}" class="runner-team-badge">{team.name}</a>
+							{/each}
+						</span>
+					{/if}
+				</div>
+			</div>
+		</div>
+
+		<!-- Social Links -->
+		{#if Object.values(socials).some(Boolean)}
+			<div class="runner-socials">
+				{#if socials.twitch}<a href={socials.twitch} target="_blank" rel="noopener" class="runner-link" title="Twitch">Twitch</a>{/if}
+				{#if socials.youtube}<a href={socials.youtube} target="_blank" rel="noopener" class="runner-link" title="YouTube">YouTube</a>{/if}
+				{#if socials.twitter}<a href={socials.twitter} target="_blank" rel="noopener" class="runner-link" title="X">X</a>{/if}
+				{#if socials.bluesky}<a href={socials.bluesky} target="_blank" rel="noopener" class="runner-link" title="Bluesky">Bluesky</a>{/if}
+				{#if socials.discord}<span class="runner-link" title="Discord">Discord: {socials.discord}</span>{/if}
+				{#if socials.speedruncom}<a href={socials.speedruncom} target="_blank" rel="noopener" class="runner-link" title="SRC">SRC</a>{/if}
+				{#if socials.steam}<a href={socials.steam} target="_blank" rel="noopener" class="runner-link" title="Steam">Steam</a>{/if}
+			</div>
+		{/if}
+	</section>
 
 	<!-- Bio -->
 	{#if runner.bio || runner.content}
-		<section class="profile-bio">
-			{@html renderMarkdown(runner.content || runner.bio || '')}
+		<section class="runner-bio card">
+			<h2>About</h2>
+			{#if runner.content}
+				<div class="md">{@html renderMarkdown(runner.content)}</div>
+			{:else}
+				<p>{runner.bio}</p>
+			{/if}
 		</section>
 	{/if}
 
-	<!-- Stats Summary -->
-	<div class="profile-stats">
-		<div class="stat-card">
-			<span class="stat-card__number">{data.runs.length}</span>
-			<span class="stat-card__label">Runs</span>
-		</div>
-		<div class="stat-card">
-			<span class="stat-card__number">{data.gameGroups.length}</span>
-			<span class="stat-card__label">Games</span>
-		</div>
-		<div class="stat-card">
-			<span class="stat-card__number">{data.achievements.length}</span>
-			<span class="stat-card__label">Achievements</span>
-		</div>
-	</div>
-
-	<!-- Runs by Game -->
-	{#each data.gameGroups as { game, runs }}
-		<section class="profile-game-section">
-			<h2>
-				<a href="/games/{game.game_id}">{game.game_name}</a>
-				<span class="muted">({runs.length} runs)</span>
-			</h2>
-			<table class="runs-table">
-				<thead>
-					<tr>
-						<th>Category</th>
-						<th>Challenges</th>
-						<th>Time</th>
-						<th>Date</th>
-						<th>Video</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each runs as run}
-						<tr>
-							<td>{run.category}</td>
-							<td>
-								{#each run.standard_challenges || [] as ch}
-									<span class="tag tag--small">{ch}</span>
-								{/each}
-							</td>
-							<td>{formatTime(run.time_primary)}</td>
-							<td>{formatDate(run.date_completed)}</td>
-							<td>
-								{#if run.video_url}
-									<a href={run.video_url} target="_blank" rel="noopener">Watch</a>
-								{/if}
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
+	<!-- Highlights -->
+	{#if runner.featured_runs?.length}
+		<section class="runner-highlights">
+			<h2>📌 Highlights</h2>
+			<div class="highlights-grid">
+				{#each runner.featured_runs as fr}
+					{@const frGame = data.allGames.find(g => g.game_id === fr.game_id)}
+					<div class="highlight-card">
+						{#if frGame?.cover}
+							<div class="highlight-card__bg" style="background-image: url('{frGame.cover}')"></div>
+						{/if}
+						<div class="highlight-card__overlay">
+							<div class="highlight-card__game">{frGame?.game_name || fr.game_id}</div>
+							<div class="highlight-card__category">{fr.category}</div>
+							{#if fr.achievement}<div class="highlight-card__note">{fr.achievement}</div>{/if}
+							{#if fr.video_url && fr.video_approved}
+								<a href={fr.video_url} target="_blank" rel="noopener" class="highlight-card__video">▶ Watch</a>
+							{/if}
+						</div>
+					</div>
+				{/each}
+			</div>
 		</section>
-	{/each}
+	{/if}
 
-	{#if data.runs.length === 0}
-		<div class="card" style="margin-top: 1rem;">
-			<p class="muted">No approved runs yet.</p>
+	<!-- Tabs Navigation -->
+	<nav class="runner-tabs">
+		<button class="tab" class:active={activeTab === 'runs'} onclick={() => activeTab = 'runs'}>Run Statistics</button>
+		<button class="tab" class:active={activeTab === 'achievements'} onclick={() => activeTab = 'achievements'}>Achievements</button>
+		<button class="tab" class:active={activeTab === 'contributions'} onclick={() => activeTab = 'contributions'}>Contributions</button>
+		<button class="tab" class:active={activeTab === 'activity'} onclick={() => activeTab = 'activity'}>Activity</button>
+	</nav>
+
+	<!-- RUNS TAB -->
+	{#if activeTab === 'runs'}
+		<!-- Stats Summary -->
+		<div class="runner-stats-card">
+			<div class="runner-stat">
+				<span class="runner-stat__value">{data.gameGroups.length}</span>
+				<span class="runner-stat__label">Game{data.gameGroups.length !== 1 ? 's' : ''}</span>
+			</div>
+			<div class="runner-stat">
+				<span class="runner-stat__value">{fullRunCount}</span>
+				<span class="runner-stat__label">Full Run{fullRunCount !== 1 ? 's' : ''}</span>
+			</div>
+			<div class="runner-stat">
+				<span class="runner-stat__value">{miniRunCount}</span>
+				<span class="runner-stat__label">Mini-Challenge{miniRunCount !== 1 ? 's' : ''}</span>
+			</div>
+			<div class="runner-stat runner-stat--total">
+				<span class="runner-stat__value">{data.runs.length}</span>
+				<span class="runner-stat__label">Total</span>
+			</div>
 		</div>
+
+		<!-- Fun Stats -->
+		{#if data.runs.length > 0}
+			<div class="runner-fun-stats">
+				{#if data.stats.mostPlayed}
+					<div class="fun-stat">
+						<span class="fun-stat__icon">🎮</span>
+						<div class="fun-stat__content">
+							<span class="fun-stat__label">Most Played</span>
+							<a href="/games/{data.stats.mostPlayed.id}" class="fun-stat__value">{data.stats.mostPlayed.name}</a>
+							<span class="fun-stat__detail">{data.stats.mostPlayed.count} run{data.stats.mostPlayed.count !== 1 ? 's' : ''}</span>
+						</div>
+					</div>
+				{/if}
+				<div class="fun-stat">
+					<span class="fun-stat__icon">🏆</span>
+					<div class="fun-stat__content">
+						<span class="fun-stat__label">Games Completed</span>
+						<span class="fun-stat__value">{data.gameGroups.length}</span>
+					</div>
+				</div>
+				{#if data.stats.topGenres.length > 0}
+					<div class="fun-stat">
+						<span class="fun-stat__icon">🏷️</span>
+						<div class="fun-stat__content">
+							<span class="fun-stat__label">Top Genres</span>
+							<span class="fun-stat__value fun-stat__genres">
+								{#each data.stats.topGenres as genre}
+									<span class="genre-pill">{genre.replace(/-/g, ' ')}</span>
+								{/each}
+							</span>
+						</div>
+					</div>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Games Grid / Detail View -->
+		{#if selectedGame}
+			<div class="card">
+				<div class="runs-detail-header">
+					<button class="btn btn--small btn--outline" onclick={() => selectedGameId = null}>← All Games</button>
+					<div class="runs-detail-game">
+						{#if selectedGame.game.cover}
+							<div class="runs-detail-game__cover" style="background-image: url('{selectedGame.game.cover}')"></div>
+						{/if}
+						<div>
+							<h2><a href="/games/{selectedGame.game.game_id}">{selectedGame.game.game_name}</a></h2>
+							<p class="muted">{selectedGame.runs.length} run{selectedGame.runs.length !== 1 ? 's' : ''}</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			{@const byCategory = Object.groupBy
+				? Object.groupBy(selectedGame.runs, (r) => r.category || r.category_slug)
+				: selectedGame.runs.reduce((acc, r) => {
+					const key = r.category || r.category_slug;
+					(acc[key] ||= []).push(r);
+					return acc;
+				}, {} as Record<string, typeof selectedGame.runs>)
+			}
+			{#each Object.entries(byCategory) as [category, catRuns]}
+				<div class="card runs-category">
+					<h3 class="runs-category__title">{category}</h3>
+					<div class="runs-list">
+						{#each catRuns as run}
+							<article class="run-row">
+								<div class="run-row__time">{formatTime(run.time_primary)}</div>
+								<div class="run-row__info">
+									<div class="run-row__meta">
+										{#each run.standard_challenges || [] as ch}
+											<span class="tag tag--small">{ch}</span>
+										{/each}
+										<span>{formatDate(run.date_completed)}</span>
+										{#if run.verified}<span class="run-row__verified">✓ Verified</span>{/if}
+									</div>
+								</div>
+								<div class="run-row__actions">
+									{#if run.video_url}
+										<a href={run.video_url} target="_blank" rel="noopener" class="btn btn--small">▶ Watch</a>
+									{/if}
+								</div>
+							</article>
+						{/each}
+					</div>
+				</div>
+			{/each}
+		{:else if data.gameGroups.length > 0}
+			<div class="runner-games-grid">
+				{#each data.gameGroups as { game, runs }}
+					{@const bestRun = runs.sort((a, b) => (a.time_primary || '').localeCompare(b.time_primary || ''))[0]}
+					<button class="runner-game-card card-lift" onclick={() => selectedGameId = game.game_id}>
+						{#if game.cover}
+							<div class="runner-game-card__bg" style="background-image: url('{game.cover}')"></div>
+						{/if}
+						<div class="runner-game-card__overlay">
+							<div class="runner-game-card__title">{game.game_name}</div>
+							<div class="runner-game-card__stats">
+								<span class="runner-game-card__count">{runs.length} run{runs.length !== 1 ? 's' : ''}</span>
+								{#if bestRun?.time_primary}
+									<span class="runner-game-card__best">Best: {bestRun.time_primary}</span>
+								{/if}
+							</div>
+						</div>
+					</button>
+				{/each}
+			</div>
+		{:else}
+			<div class="card"><p class="muted">No runs have been added yet.</p></div>
+		{/if}
+	{/if}
+
+	<!-- ACHIEVEMENTS TAB -->
+	{#if activeTab === 'achievements'}
+		<div class="card">
+			<h2>🏅 Community Achievements</h2>
+			<p class="muted mb-2">Verified achievements from game communities.</p>
+
+			{#if data.achievements.length > 0}
+				<div class="community-achievements-list">
+					{#each data.achievements as comp}
+						{@const compGame = data.allGames.find(g => g.game_id === comp.game_id)}
+						{@const compAch = compGame?.community_achievements?.find(ca => ca.slug === comp.achievement_slug)}
+						<div class="community-achievement-item">
+							<div class="community-achievement-item__icon">{compAch?.icon || '🏆'}</div>
+							<div class="community-achievement-item__content">
+								<div class="community-achievement-item__header">
+									<h4>{compAch?.title || comp.achievement_slug}</h4>
+									{#if compAch?.difficulty}
+										<span class="difficulty difficulty--{compAch.difficulty}">{compAch.difficulty}</span>
+									{/if}
+								</div>
+								{#if compAch?.description}<p class="muted">{compAch.description}</p>{/if}
+								<div class="community-achievement-item__meta">
+									{#if compGame}
+										<a href="/games/{compGame.game_id}" class="community-achievement-item__game">{compGame.game_name}</a>
+										<span class="muted">·</span>
+									{/if}
+									<span class="muted">{formatDate(comp.date_completed)}</span>
+									<span class="muted">·</span>
+									<span class="verified-text">✓ Verified</span>
+								</div>
+							</div>
+							{#if comp.proof_url}
+								<a href={comp.proof_url} target="_blank" rel="noopener" class="btn btn--small">▶ Proof</a>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<p class="muted">No community achievements completed yet.</p>
+			{/if}
+		</div>
+
+		<!-- Personal Goals -->
+		<div class="card mt-section">
+			<h2>🎯 Personal Goals</h2>
+			<p class="muted mb-2">Self-set challenges and personal milestones.</p>
+
+			{#if runner.personal_goals?.length}
+				<div class="personal-goals-list">
+					{#each runner.personal_goals as goal}
+						<div class="personal-goal-item">
+							<div class="personal-goal-item__icon">{goal.icon || '🎯'}</div>
+							<div class="personal-goal-item__content">
+								<div class="personal-goal-item__header">
+									<h4>{goal.title}</h4>
+									{#if goal.completed}
+										<span class="goal-status goal-status--completed">✓ Completed</span>
+									{:else}
+										<span class="goal-status goal-status--progress">In Progress</span>
+									{/if}
+								</div>
+								{#if goal.description}<p class="muted">{goal.description}</p>{/if}
+								{#if goal.game}<span class="personal-goal-item__game">{goal.game}</span>{/if}
+								{#if goal.total && goal.total > 0}
+									{@const pct = Math.round(((goal.current || 0) / goal.total) * 100)}
+									<div class="personal-goal-item__progress">
+										<div class="progress-bar"><div class="progress-bar__fill" style="width: {pct}%"></div></div>
+										<span class="progress-bar__text">{goal.current || 0} / {goal.total}</span>
+									</div>
+								{/if}
+								{#if goal.date_completed}<span class="muted personal-goal-item__date">Completed: {goal.date_completed}</span>{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<p class="muted">No personal goals set yet.</p>
+			{/if}
+		</div>
+	{/if}
+
+	<!-- CONTRIBUTIONS TAB -->
+	{#if activeTab === 'contributions'}
+		<div class="card">
+			<h2>🛠️ Community Contributions</h2>
+			<p class="muted mb-2">Tools, guides, and resources.</p>
+
+			{#if runner.contributions?.length}
+				<div class="contributions-list">
+					{#each runner.contributions as c}
+						<div class="contribution-item">
+							<div class="contribution-icon">{c.icon || '📄'}</div>
+							<div class="contribution-info">
+								<h4>{c.title}</h4>
+								{#if c.description}<p class="muted">{c.description}</p>{/if}
+								{#if c.url}<a href={c.url} target="_blank" class="contribution-link">View →</a>{/if}
+							</div>
+							<span class="contribution-type">{c.type || 'Resource'}</span>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<p class="muted">No contributions listed yet.</p>
+			{/if}
+		</div>
+
+		<!-- Game Page Credits -->
+		{@const creditedGames = data.allGames.filter(g =>
+			(g as any).credits?.some((c: any) => c.runner_id === runner.runner_id)
+		)}
+		<div class="card mt-section">
+			<h3>📋 Game Page Credits</h3>
+			<p class="muted mb-2">Games where this runner is credited:</p>
+			{#if creditedGames.length > 0}
+				<div class="credits-grid">
+					{#each creditedGames as cg}
+						{@const credit = (cg as any).credits?.find((c: any) => c.runner_id === runner.runner_id)}
+						<a href="/games/{cg.game_id}" class="credit-game-card">
+							{#if cg.cover}
+								<div class="credit-game-card__bg" style="background-image: url('{cg.cover}')"></div>
+							{/if}
+							<div class="credit-game-card__overlay">
+								<span class="credit-game-card__name">{cg.game_name}</span>
+								<span class="credit-game-card__role">{credit?.role || 'Contributor'}</span>
+							</div>
+						</a>
+					{/each}
+				</div>
+			{:else}
+				<p class="muted">No credits found.</p>
+			{/if}
+		</div>
+	{/if}
+
+	<!-- ACTIVITY TAB -->
+	{#if activeTab === 'activity'}
+		<div class="card">
+			<h2>📅 Activity Timeline</h2>
+			<p class="muted mb-2">Recent challenge run activity.</p>
+		</div>
+
+		{#if data.timeline.length > 0}
+			<div class="activity-timeline">
+				{#each data.timeline as item}
+					{@const game = data.allGames.find(g => g.game_id === item.gameId)}
+					<div class="timeline-item">
+						<div class="timeline-item__dot" class:timeline-item__dot--achievement={item.type === 'achievement'}></div>
+						<div class="timeline-item__content">
+							<div class="timeline-item__header">
+								{#if item.type === 'run'}
+									<span class="timeline-item__icon">🏃</span>
+									<span>Completed <strong>{item.detail}</strong> in <a href="/games/{item.gameId}">{game?.game_name || item.gameId}</a></span>
+									{#if item.extra}<span class="timeline-item__time">{item.extra}</span>{/if}
+								{:else}
+									<span class="timeline-item__icon">🏅</span>
+									<span>Earned <strong>{item.detail.replace(/-/g, ' ')}</strong> in <a href="/games/{item.gameId}">{game?.game_name || item.gameId}</a></span>
+								{/if}
+							</div>
+							<span class="timeline-item__date">{formatDate(item.date)}</span>
+						</div>
+					</div>
+				{/each}
+				{#if data.timeline.length >= 20}
+					<p class="muted" style="text-align:center;padding:1rem 0;">Showing latest 20 events</p>
+				{/if}
+			</div>
+		{:else}
+			<div class="empty-state"><span class="empty-icon">📅</span><p>No activity recorded yet.</p></div>
+		{/if}
 	{/if}
 </div>
 
 <style>
+	/* Layout */
 	.page-back { margin: 1rem 0 0.5rem; }
 	.page-back a { color: var(--text-muted); text-decoration: none; }
 	.page-back a:hover { color: var(--fg); }
-	.profile-header {
-		display: flex;
-		align-items: center;
-		gap: 1.25rem;
-		margin-bottom: 1.5rem;
+	.mb-2 { margin-bottom: 0.75rem; }
+	.mt-section { margin-top: 1.5rem; }
+
+	/* Banner */
+	.runner-banner { position: relative; height: 180px; border-radius: 12px 12px 0 0; overflow: hidden; margin-bottom: 0; }
+	.runner-banner__img { position: absolute; inset: 0; background-size: cover; background-position: center; }
+	.runner-banner__fade { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 30%, var(--bg) 100%); }
+
+	/* Profile Top */
+	.runner-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+	.runner-left { display: flex; align-items: center; gap: 1.25rem; }
+	.runner-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--runner-accent, var(--accent)); flex-shrink: 0; }
+	.runner-name h1 { margin: 0; }
+	.runner-pronouns { font-size: 0.8em; font-weight: 400; color: var(--text-muted); }
+	.runner-location, .runner-status { margin: 0.15rem 0 0; font-size: 0.85rem; }
+	.runner-meta-line { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.35rem; }
+	.runner-joined { font-size: 0.8rem; color: var(--text-muted); }
+	.runner-team-badges { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+	.runner-team-badge {
+		display: inline-flex; align-items: center; padding: 0.2rem 0.6rem;
+		background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+		font-size: 0.75rem; color: var(--fg); text-decoration: none;
 	}
-	.profile-header__avatar {
-		width: 80px;
-		height: 80px;
-		border-radius: 50%;
-		object-fit: cover;
-		border: 3px solid var(--runner-accent, var(--accent));
+	.runner-team-badge:hover { border-color: var(--accent); color: var(--accent); }
+	.runner-socials { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+	.runner-link {
+		display: inline-block; padding: 0.3rem 0.65rem; background: var(--surface);
+		border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem;
+		color: var(--fg); text-decoration: none;
 	}
-	.profile-header__info {
-		display: flex;
-		flex-direction: column;
-		gap: 0.2rem;
+	.runner-link:hover { border-color: var(--accent); color: var(--accent); }
+
+	/* Bio */
+	.runner-bio { margin-bottom: 1.5rem; }
+	.runner-bio h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+	.runner-bio p { margin: 0; line-height: 1.6; white-space: pre-wrap; }
+
+	/* Highlights */
+	.runner-highlights { margin-bottom: 1.5rem; }
+	.runner-highlights h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
+	.highlights-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
+	.highlight-card { position: relative; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; border: 2px solid var(--accent); background: var(--surface); }
+	.highlight-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+	.highlight-card__overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 100%); display: flex; flex-direction: column; justify-content: flex-end; padding: 0.75rem; }
+	.highlight-card__game { font-size: 0.75rem; color: rgba(255,255,255,0.7); }
+	.highlight-card__category { font-weight: 700; font-size: 0.95rem; color: #fff; }
+	.highlight-card__note { font-size: 0.75rem; color: var(--accent); font-style: italic; }
+	.highlight-card__video { font-size: 0.75rem; color: #fff; text-decoration: none; opacity: 0.8; margin-top: 0.25rem; }
+	.highlight-card__video:hover { text-decoration: underline; opacity: 1; }
+
+	/* Tabs */
+	.runner-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; gap: 0; }
+	.tab {
+		padding: 0.75rem 1.25rem; background: none; border: none; border-bottom: 2px solid transparent;
+		color: var(--text-muted); cursor: pointer; font-size: 0.9rem; font-family: inherit; white-space: nowrap;
 	}
-	.profile-header__info h1 { margin: 0; }
-	.profile-socials {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		margin-bottom: 1.5rem;
+	.tab:hover { color: var(--fg); }
+	.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+	/* Stats Card */
+	.runner-stats-card { display: flex; gap: 1rem; margin-bottom: 1rem; padding: 1rem 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; flex-wrap: wrap; }
+	.runner-stat { display: flex; flex-direction: column; align-items: center; padding: 0 1rem; border-right: 1px solid var(--border); }
+	.runner-stat:last-child { border-right: none; }
+	.runner-stat--total { margin-left: auto; padding-left: 1.5rem; border-left: 2px solid var(--accent); border-right: none; }
+	.runner-stat__value { font-size: 1.75rem; font-weight: 700; color: var(--accent); line-height: 1; }
+	.runner-stat__label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.25rem; }
+
+	/* Fun Stats */
+	.runner-fun-stats { display: flex; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+	.fun-stat { display: flex; align-items: flex-start; gap: 0.75rem; flex: 1; min-width: 180px; padding: 0.85rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+	.fun-stat__icon { font-size: 1.25rem; }
+	.fun-stat__content { display: flex; flex-direction: column; gap: 0.1rem; }
+	.fun-stat__label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+	.fun-stat__value { font-weight: 700; font-size: 0.95rem; color: var(--fg); text-decoration: none; }
+	a.fun-stat__value:hover { color: var(--accent); }
+	.fun-stat__detail { font-size: 0.75rem; color: var(--text-muted); }
+	.fun-stat__genres { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+	.genre-pill { display: inline-block; padding: 0.15rem 0.5rem; background: rgba(99,102,241,0.12); color: #818cf8; border-radius: 12px; font-size: 0.7rem; font-weight: 600; text-transform: capitalize; }
+
+	/* Games Grid */
+	.runner-games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem; }
+	.runner-game-card {
+		position: relative; display: block; aspect-ratio: 16/10; border-radius: 8px; overflow: hidden;
+		text-decoration: none; color: #fff; background: var(--surface); border: 1px solid var(--border); cursor: pointer; text-align: left;
 	}
-	.profile-bio { margin-bottom: 1.5rem; }
-	.profile-stats {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-		gap: 0.75rem;
-		margin-bottom: 2rem;
+	.runner-game-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform 0.3s ease; }
+	.runner-game-card:hover .runner-game-card__bg { transform: scale(1.05); }
+	.runner-game-card__overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.2) 100%); display: flex; flex-direction: column; justify-content: flex-end; padding: 1rem; }
+	.runner-game-card__title { font-weight: 700; font-size: 1rem; }
+	.runner-game-card__stats { display: flex; gap: 0.75rem; margin-top: 0.35rem; font-size: 0.8rem; color: rgba(255,255,255,0.8); }
+	.runner-game-card__count { background: rgba(255,255,255,0.15); padding: 0.15rem 0.5rem; border-radius: 4px; }
+	.runner-game-card__best { color: var(--accent); font-weight: 600; }
+
+	/* Runs Detail View */
+	.runs-detail-header { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+	.runs-detail-game { display: flex; align-items: center; gap: 1rem; flex: 1; }
+	.runs-detail-game__cover { width: 60px; height: 60px; border-radius: 8px; background-size: cover; background-position: center; flex-shrink: 0; }
+	.runs-detail-game h2 { margin: 0; font-size: 1.25rem; }
+	.runs-detail-game h2 a { color: var(--fg); text-decoration: none; }
+	.runs-detail-game h2 a:hover { color: var(--accent); }
+	.runs-detail-game p { margin: 0; }
+	.runs-category { margin-top: 1rem; }
+	.runs-category__title { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+	.runs-list { display: flex; flex-direction: column; gap: 0.5rem; }
+	.run-row { display: flex; align-items: center; padding: 0.75rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; gap: 1rem; }
+	.run-row__time { font-family: monospace; font-weight: 700; font-size: 1.1rem; min-width: 90px; }
+	.run-row__info { flex: 1; min-width: 0; }
+	.run-row__meta { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.8rem; color: var(--text-muted); align-items: center; }
+	.run-row__verified { color: #10b981; }
+	.run-row__actions { flex-shrink: 0; }
+	.tag--small { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; background: rgba(99,102,241,0.12); color: #818cf8; }
+
+	/* Achievements */
+	.community-achievements-list { display: flex; flex-direction: column; gap: 0.75rem; }
+	.community-achievement-item { display: flex; align-items: flex-start; gap: 1rem; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+	.community-achievement-item__icon { font-size: 1.75rem; }
+	.community-achievement-item__content { flex: 1; min-width: 0; }
+	.community-achievement-item__header { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.25rem; }
+	.community-achievement-item__header h4 { margin: 0; }
+	.community-achievement-item__meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.8rem; }
+	.community-achievement-item__game { color: var(--accent); text-decoration: none; }
+	.community-achievement-item__game:hover { text-decoration: underline; }
+	.verified-text { color: #10b981; font-weight: 500; }
+
+	/* Difficulty */
+	.difficulty { padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-transform: capitalize; }
+	.difficulty--easy { background: rgba(16,185,129,0.15); color: #10b981; }
+	.difficulty--medium { background: rgba(245,158,11,0.15); color: #f59e0b; }
+	.difficulty--hard { background: rgba(239,68,68,0.15); color: #ef4444; }
+	.difficulty--legendary { background: rgba(168,85,247,0.15); color: #a855f7; }
+
+	/* Personal Goals */
+	.personal-goals-list { display: flex; flex-direction: column; gap: 0.75rem; }
+	.personal-goal-item { display: flex; align-items: flex-start; gap: 1rem; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+	.personal-goal-item__icon { font-size: 1.75rem; }
+	.personal-goal-item__content { flex: 1; }
+	.personal-goal-item__header { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.25rem; }
+	.personal-goal-item__header h4 { margin: 0; }
+	.personal-goal-item__game { display: inline-block; margin-top: 0.5rem; font-size: 0.75rem; background: var(--bg); padding: 0.2rem 0.5rem; border-radius: 4px; color: var(--text-muted); }
+	.personal-goal-item__progress { margin-top: 0.75rem; }
+	.personal-goal-item__date { display: block; margin-top: 0.5rem; font-size: 0.8rem; }
+	.goal-status { font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase; }
+	.goal-status--completed { background: #10b981; color: #fff; }
+	.goal-status--progress { background: #3b82f6; color: #fff; }
+
+	/* Progress bar */
+	.progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+	.progress-bar__fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s; }
+	.progress-bar__text { display: block; margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-muted); }
+
+	/* Contributions */
+	.contributions-list { display: flex; flex-direction: column; gap: 0.75rem; }
+	.contribution-item { display: flex; align-items: flex-start; gap: 1rem; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+	.contribution-icon { font-size: 1.5rem; }
+	.contribution-info { flex: 1; }
+	.contribution-info h4 { margin: 0 0 0.25rem; }
+	.contribution-info p { margin: 0; font-size: 0.85rem; }
+	.contribution-link { display: inline-block; margin-top: 0.5rem; font-size: 0.85rem; color: var(--accent); text-decoration: none; }
+	.contribution-link:hover { text-decoration: underline; }
+	.contribution-type { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; background: var(--surface); padding: 0.25rem 0.5rem; border-radius: 4px; color: var(--text-muted); }
+
+	/* Credits Grid */
+	.credits-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; }
+	.credit-game-card { position: relative; display: block; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; text-decoration: none; color: #fff; background: var(--surface); }
+	.credit-game-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+	.credit-game-card__overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 100%); display: flex; flex-direction: column; justify-content: flex-end; padding: 0.5rem; }
+	.credit-game-card__name { font-weight: 600; font-size: 0.85rem; }
+	.credit-game-card__role { font-size: 0.7rem; color: var(--accent); }
+
+	/* Activity Timeline */
+	.activity-timeline { position: relative; padding-left: 2rem; margin-top: 1rem; }
+	.activity-timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+	.timeline-item { position: relative; padding-bottom: 1.25rem; }
+	.timeline-item:last-child { padding-bottom: 0; }
+	.timeline-item__dot { position: absolute; left: -2rem; top: 0.35rem; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 2px solid var(--border); z-index: 1; }
+	.timeline-item__dot--achievement { border-color: var(--accent); background: var(--accent); }
+	.timeline-item__content { padding: 0.5rem 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+	.timeline-item__header { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.9rem; }
+	.timeline-item__header a { color: var(--accent); text-decoration: none; }
+	.timeline-item__header a:hover { text-decoration: underline; }
+	.timeline-item__icon { flex-shrink: 0; }
+	.timeline-item__time { font-family: monospace; font-size: 0.8rem; color: var(--accent); font-weight: 600; margin-left: auto; }
+	.timeline-item__date { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+	/* Empty */
+	.empty-state { text-align: center; padding: 2rem; }
+	.empty-icon { display: block; font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+
+	/* Buttons */
+	.btn--small { padding: 0.35rem 0.7rem; font-size: 0.8rem; }
+	.btn--outline { background: transparent; }
+
+	/* Responsive */
+	@media (max-width: 640px) {
+		.runner-banner { height: 120px; }
+		.runner-top { flex-direction: column; }
+		.runner-stats-card { justify-content: center; }
+		.runner-stat { padding: 0 0.75rem; }
+		.runner-stat--total { margin-left: 0; border-left: none; width: 100%; flex-direction: row; justify-content: center; gap: 0.5rem; border-top: 1px solid var(--border); padding-top: 0.75rem; margin-top: 0.5rem; }
+		.runner-fun-stats { flex-direction: column; }
+		.fun-stat { min-width: auto; }
+		.runner-games-grid { grid-template-columns: 1fr; }
+		.run-row { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+		.run-row__time { min-width: auto; }
 	}
-	.stat-card {
-		background: var(--panel);
-		border: 1px solid var(--border);
-		border-radius: 8px;
-		padding: 1rem;
-		text-align: center;
-	}
-	.stat-card__number {
-		display: block;
-		font-size: 1.5rem;
-		font-weight: 700;
-		color: var(--accent);
-	}
-	.stat-card__label {
-		display: block;
-		font-size: 0.8rem;
-		opacity: 0.6;
-	}
-	.profile-game-section { margin-bottom: 2rem; }
-	.profile-game-section h2 { margin-bottom: 0.75rem; }
-	.profile-game-section h2 a { color: var(--fg); text-decoration: none; }
-	.profile-game-section h2 a:hover { color: var(--accent); }
-	.profile-game-section h2 .muted { font-size: 0.85rem; font-weight: 400; }
-	table { width: 100%; border-collapse: collapse; }
-	th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
-	th { font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; }
-	td a { color: var(--accent); text-decoration: none; }
 </style>

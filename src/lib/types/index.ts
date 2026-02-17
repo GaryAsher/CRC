@@ -84,6 +84,13 @@ export interface CommunityAchievementDef {
 	requirements: string[];
 }
 
+export interface GameCredit {
+	name: string;
+	runner_id?: string;
+	role?: string;
+	url?: string;
+}
+
 export interface Game {
 	// Identity
 	game_id: string;
@@ -126,6 +133,9 @@ export interface Game {
 
 	// Community achievements
 	community_achievements?: CommunityAchievementDef[];
+
+	// Credits
+	credits?: GameCredit[];
 
 	// Markdown body content (below the front matter ---)
 	content?: string;
