@@ -2,7 +2,7 @@ import { getTeam, getTeams, getGames, getRunner } from '$lib/server/data';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const prerender = true;
+export const prerender = false;
 
 export function entries() {
 	return getTeams().map((t) => ({ team_id: t.team_id }));
