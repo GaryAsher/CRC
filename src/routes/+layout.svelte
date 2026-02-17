@@ -5,7 +5,6 @@
 	import { initAuth } from '$stores/auth';
 	import Header from '$components/layout/Header.svelte';
 	import Footer from '$components/layout/Footer.svelte';
-	import CookieConsent from '$components/CookieConsent.svelte';
 
 	let { data, children } = $props();
 
@@ -26,8 +25,6 @@
 	</main>
 	<Footer />
 </div>
-
-<CookieConsent />
 
 <style>
 	.site-wrapper {

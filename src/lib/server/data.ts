@@ -8,8 +8,8 @@
 // Replaces: Jekyll's collection system + all generate-*.js scripts
 // =============================================================================
 
-import fs from 'node:fs';
-import path from 'node:path';
+import fs from 'fs';
+import path from 'path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 import type {
@@ -372,32 +372,4 @@ export function getAllCategories(game: Game): CategoryInfo[] {
 	}
 
 	return categories;
-}
-
-// ─── Game History ───────────────────────────────────────────────────────────
-
-export interface HistoryEntry {
-	date: string;
-	action: string;
-	target?: string;
-	note?: string;
-	by?: { discord?: string; github?: string };
-}
-
-export function getGameHistory(gameId: string): HistoryEntry[] {
-	const historyPath = path.join(DATA_DIR, 'config', 'history', `${gameId}.yml`);
-	try {
-		if (fs.existsSync(historyPath)) {
-			const raw = fs.readFileSync(historyPath, 'utf-8');
-			const parsed = yaml.load(raw);
-			if (Array.isArray(parsed)) {
-				return (parsed as HistoryEntry[]).sort((a, b) =>
-					(b.date || '').localeCompare(a.date || '')
-				);
-			}
-		}
-	} catch {
-		// No history file or parse error
-	}
-	return [];
 }

@@ -1,3 +1,10 @@
+// =============================================================================
+// Homepage Server Load
+// =============================================================================
+// Loads summary data for the homepage. This is the first real test of the
+// data pipeline — if this works, the whole foundation is solid.
+// =============================================================================
+
 import {
 	getActiveGames,
 	getRunners,
@@ -7,8 +14,6 @@ import {
 	getPosts
 } from '$lib/server/data';
 import type { PageServerLoad } from './$types';
-
-export const prerender = true;
 
 export const load: PageServerLoad = async () => {
 	const games = getActiveGames();
@@ -32,7 +37,6 @@ export const load: PageServerLoad = async () => {
 		games,
 		runners,
 		recentRuns,
-		teams,
 		posts: posts.slice(0, 5),
 		stats: {
 			gameCount: games.length,

@@ -2,8 +2,6 @@ import { getGame, getRunsForGame, getGames, getAllCategories } from '$lib/server
 import { error } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 
-export const prerender = true;
-
 export const load: LayoutServerLoad = async ({ params }) => {
 	const game = getGame(params.game_id);
 

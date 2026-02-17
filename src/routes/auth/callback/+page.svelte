@@ -23,7 +23,7 @@
 
 				// Redirect to homepage (or where they came from)
 				const redirectTo = $page.url.searchParams.get('redirect') || '/';
-				setTimeout(() => goto(redirectTo), 1500);
+				setTimeout(() => goto(redirectTo), 500);
 				return;
 			}
 
@@ -39,7 +39,7 @@
 				user.set(data.session?.user ?? null);
 				status = 'success';
 
-				setTimeout(() => goto('/'), 1500);
+				setTimeout(() => goto('/'), 500);
 				return;
 			}
 
@@ -56,75 +56,82 @@
 <svelte:head><title>Signing In... | Challenge Run Community</title></svelte:head>
 
 <div class="page-width">
-	<div class="auth-callback">
-		<div class="auth-callback__content">
-			{#if status === 'loading'}
-				<div class="auth-callback__spinner">
-					<div class="spinner spinner--large"></div>
-				</div>
-				<h1 class="auth-callback__title">Signing you in...</h1>
-				<p class="auth-callback__message muted">Please wait while we complete the sign-in process.</p>
-
-			{:else if status === 'success'}
-				<div class="auth-callback__spinner">
-					<span style="font-size: 3rem;">✓</span>
-				</div>
-				<h1 class="auth-callback__title">Success!</h1>
-				<p class="auth-callback__message muted">Redirecting you now...</p>
-
-			{:else}
-				<h1 class="auth-callback__title">Sign-in Failed</h1>
-				<div class="auth-callback__error">
-					<p>{errorMessage}</p>
-				</div>
-				<div class="auth-callback__actions">
-					<a href="/sign-in" class="btn btn--primary">Try Again</a>
-					<a href="/" class="btn">Go Home</a>
-				</div>
-			{/if}
-		</div>
+	<div class="callback-page">
+		{#if status === 'loading'}
+			<div class="callback-spinner"></div>
+			<h2>Signing you in...</h2>
+			<p class="muted">Please wait while we complete authentication.</p>
+		{:else if status === 'success'}
+			<div class="callback-check">✓</div>
+			<h2>Welcome!</h2>
+			<p class="muted">Redirecting you now...</p>
+		{:else}
+			<div class="callback-error">✕</div>
+			<h2>Sign In Failed</h2>
+			<p class="error-message">{errorMessage}</p>
+			<a href="/sign-in" class="btn btn--primary">Try Again</a>
+		{/if}
 	</div>
 </div>
 
 <style>
-	.auth-callback {
+	.callback-page {
+		max-width: 400px;
+		margin: 4rem auto;
+		text-align: center;
+	}
+	.callback-spinner {
+		width: 48px;
+		height: 48px;
+		border: 4px solid var(--border);
+		border-top-color: var(--accent);
+		border-radius: 50%;
+		margin: 0 auto 1.5rem;
+		animation: spin 0.8s linear infinite;
+	}
+	@keyframes spin {
+		to { transform: rotate(360deg); }
+	}
+	.callback-check {
+		width: 48px;
+		height: 48px;
+		margin: 0 auto 1.5rem;
+		background: #22c55e;
+		color: #fff;
+		border-radius: 50%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		min-height: 60vh;
-		text-align: center;
+		font-size: 1.5rem;
+		font-weight: bold;
 	}
-	.auth-callback__content {
-		max-width: 400px;
-		padding: 2rem;
-	}
-	.auth-callback__spinner {
-		margin-bottom: 1.5rem;
-	}
-	.spinner--large {
+	.callback-error {
 		width: 48px;
 		height: 48px;
-		border-width: 4px;
-	}
-	.auth-callback__title {
-		margin-bottom: 0.5rem;
-	}
-	.auth-callback__message {
-		margin-bottom: 1rem;
-	}
-	.auth-callback__error {
-		color: var(--danger, #dc3545);
-		background: var(--danger-bg, rgba(220, 53, 69, 0.1));
-		padding: 1rem;
-		border-radius: 8px;
-		margin-bottom: 1rem;
-	}
-	.auth-callback__error p { margin: 0; }
-	.auth-callback__actions {
-		margin-top: 1.5rem;
+		margin: 0 auto 1.5rem;
+		background: #ef4444;
+		color: #fff;
+		border-radius: 50%;
 		display: flex;
-		gap: 1rem;
+		align-items: center;
 		justify-content: center;
-		flex-wrap: wrap;
+		font-size: 1.5rem;
+		font-weight: bold;
+	}
+	.error-message {
+		color: var(--danger, #ef4444);
+		margin-bottom: 1.5rem;
+	}
+	.btn--primary {
+		display: inline-block;
+		background: var(--accent);
+		color: #fff;
+		padding: 0.6rem 1.5rem;
+		border-radius: 8px;
+		text-decoration: none;
+		font-weight: 600;
+	}
+	.btn--primary:hover {
+		opacity: 0.9;
 	}
 </style>

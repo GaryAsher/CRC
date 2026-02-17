@@ -1,0 +1,333 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { session, isLoading, user } from '$stores/auth';
+	import { goto } from '$app/navigation';
+	import { checkAdminRole, adminAction } from '$lib/admin';
+	import { supabase } from '$lib/supabase';
+	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+
+	let checking = $state(true);
+	let authorized = $state(false);
+	let loading = $state(false);
+	let processingId = $state<string | null>(null);
+	let actionMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
+
+	type ProfileStatus = 'pending' | 'approved' | 'rejected' | 'needs_changes' | 'all';
+	let profiles = $state<any[]>([]);
+	let statusFilter = $state<ProfileStatus>('pending');
+	let expandedId = $state<string | null>(null);
+
+	// ── Modals ────────────────────────────────────────────────────────────────
+	let rejectModalOpen = $state(false);
+	let changesModalOpen = $state(false);
+	let modalId = $state<string | null>(null);
+	let modalInfo = $state('');
+	let rejectReason = $state('');
+	let rejectNotes = $state('');
+	let changesNotes = $state('');
+
+	const SOCIAL_ICONS: Record<string, string> = {
+		twitch: '📺', youtube: '▶️', discord: '💬', twitter: '🐦',
+		bluesky: '🦋', instagram: '📷', speedruncom: '⏱️', steam: '🎮'
+	};
+
+	let filteredProfiles = $derived.by(() => {
+		if (statusFilter === 'all') return profiles;
+		return profiles.filter(p => p.status === statusFilter);
+	});
+	let pendingCount = $derived(profiles.filter(p => p.status === 'pending').length);
+
+	function formatDate(d: string): string {
+		if (!d) return '—';
+		const dt = new Date(d);
+		const diff = Math.floor((Date.now() - dt.getTime()) / 1000);
+		if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+		if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+		if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+		return dt.toLocaleDateString();
+	}
+
+	async function loadProfiles() {
+		loading = true;
+		try {
+			const token = (await supabase.auth.getSession()).data.session?.access_token;
+			if (!token) { profiles = []; loading = false; return; }
+			const res = await fetch(
+				`${PUBLIC_SUPABASE_URL}/rest/v1/runner_profiles?order=created_at.desc&limit=200`,
+				{ headers: { 'apikey': PUBLIC_SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` } }
+			);
+			if (res.ok) profiles = await res.json();
+		} catch { /* ignore */ }
+		loading = false;
+	}
+
+	async function approveProfile(id: string) {
+		if (!confirm('Approve this profile?')) return;
+		processingId = id;
+		const result = await adminAction('/admin/approve-profile', { profile_id: id });
+		if (result.ok) {
+			profiles = profiles.map(p => p.id === id ? { ...p, status: 'approved' } : p);
+			actionMessage = { type: 'success', text: 'Profile approved!' };
+		} else { actionMessage = { type: 'error', text: result.message }; }
+		processingId = null;
+		setTimeout(() => actionMessage = null, 3000);
+	}
+
+	function openRejectModal(p: any) {
+		modalId = p.id; modalInfo = `${p.display_name || p.runner_id}`;
+		rejectReason = ''; rejectNotes = ''; rejectModalOpen = true;
+	}
+
+	async function confirmReject() {
+		if (!modalId || !rejectReason) return;
+		processingId = modalId;
+		const result = await adminAction('/admin/reject-profile', { profile_id: modalId, reason: rejectReason, notes: rejectNotes.trim() || undefined });
+		if (result.ok) {
+			profiles = profiles.map(p => p.id === modalId ? { ...p, status: 'rejected', rejection_reason: rejectReason } : p);
+			actionMessage = { type: 'success', text: 'Profile rejected.' };
+		} else { actionMessage = { type: 'error', text: result.message }; }
+		rejectModalOpen = false; processingId = null; modalId = null;
+		setTimeout(() => actionMessage = null, 3000);
+	}
+
+	function openChangesModal(p: any) {
+		modalId = p.id; modalInfo = `${p.display_name || p.runner_id}`;
+		changesNotes = ''; changesModalOpen = true;
+	}
+
+	async function confirmChanges() {
+		if (!modalId || !changesNotes.trim()) return;
+		processingId = modalId;
+		const result = await adminAction('/admin/request-profile-changes', { profile_id: modalId, notes: changesNotes.trim() });
+		if (result.ok) {
+			profiles = profiles.map(p => p.id === modalId ? { ...p, status: 'needs_changes' } : p);
+			actionMessage = { type: 'success', text: 'Changes requested.' };
+		} else { actionMessage = { type: 'error', text: result.message }; }
+		changesModalOpen = false; processingId = null; modalId = null;
+		setTimeout(() => actionMessage = null, 3000);
+	}
+
+	onMount(async () => {
+		const unsub = isLoading.subscribe(async (l) => {
+			if (!l) {
+				let sess: any; session.subscribe(s => sess = s)();
+				if (!sess) { goto('/sign-in?redirect=/admin/profiles'); return; }
+				const role = await checkAdminRole();
+				authorized = !!(role?.admin);
+				checking = false;
+				if (authorized) loadProfiles();
+			}
+		});
+		return unsub;
+	});
+</script>
+
+<svelte:head><title>👥 Pending Profiles | Admin | CRC</title></svelte:head>
+
+<div class="page-width">
+	<p class="back"><a href="/admin">← Dashboard</a></p>
+
+	{#if checking || $isLoading}
+		<div class="center"><div class="spinner"></div><p class="muted">Checking access...</p></div>
+	{:else if !authorized}
+		<div class="center"><h2>🔒 Access Denied</h2><p class="muted">Admin access required to review profiles.</p><a href="/" class="btn">Go Home</a></div>
+	{:else}
+		<h1>👥 Pending Profiles</h1>
+		<p class="muted mb-2">Review user profile submissions.</p>
+
+		{#if actionMessage}
+			<div class="toast toast--{actionMessage.type}">{actionMessage.text}</div>
+		{/if}
+
+		<div class="filters card">
+			<div class="filters__row">
+				<div class="filters__tabs">
+					{#each (['pending', 'approved', 'rejected', 'needs_changes', 'all'] as const) as status}
+						<button class="filter-tab" class:active={statusFilter === status} onclick={() => statusFilter = status}>
+							{status === 'needs_changes' ? 'Needs Changes' : status.charAt(0).toUpperCase() + status.slice(1)}
+							{#if status === 'pending'}<span class="filter-tab__count">{pendingCount}</span>{/if}
+						</button>
+					{/each}
+				</div>
+				<button class="btn btn--small" onclick={loadProfiles}>↻ Refresh</button>
+			</div>
+		</div>
+
+		{#if loading}
+			<div class="card"><div class="center-sm"><div class="spinner"></div><p class="muted">Loading profiles...</p></div></div>
+		{:else if filteredProfiles.length === 0}
+			<div class="card"><div class="empty"><span class="empty__icon">🎉</span><h3>No {statusFilter === 'all' ? '' : statusFilter} profiles</h3><p class="muted">All caught up!</p></div></div>
+		{:else}
+			<div class="profiles-list">
+				{#each filteredProfiles as p (p.id)}
+					{@const isExpanded = expandedId === p.id}
+					{@const canAct = p.status === 'pending' || p.status === 'needs_changes'}
+					<div class="profile-card" class:expanded={isExpanded}>
+						<button class="profile-card__header" onclick={() => expandedId = isExpanded ? null : p.id}>
+							<div class="profile-card__info">
+								{#if p.avatar_url}
+									<img src={p.avatar_url} alt="" class="profile-card__avatar" />
+								{:else}
+									<div class="profile-card__avatar profile-card__avatar--placeholder">{(p.display_name || '?').charAt(0)}</div>
+								{/if}
+								<div>
+									<div class="profile-card__name">{p.display_name || '—'}</div>
+									<div class="profile-card__runner muted">@{p.runner_id}</div>
+								</div>
+								<span class="status-badge status-badge--{p.status}">{p.status}</span>
+							</div>
+							<span class="muted" style="font-size:0.85rem;">{formatDate(p.created_at)}</span>
+						</button>
+
+						{#if isExpanded}
+							<div class="profile-card__body">
+								<div class="detail-grid">
+									<div class="detail"><span class="detail__label">User ID</span><code>{p.user_id || '—'}</code></div>
+									<div class="detail"><span class="detail__label">Pronouns</span>{p.pronouns || '—'}</div>
+									<div class="detail"><span class="detail__label">Location</span>{p.location || '—'}</div>
+								</div>
+								{#if p.bio}
+									<div class="detail mt-2"><span class="detail__label">Bio</span><p class="bio-text">{p.bio}</p></div>
+								{/if}
+								{#if p.socials && Object.keys(p.socials).length > 0}
+									<div class="socials mt-2">
+										<span class="detail__label">Socials</span>
+										<div class="socials__list">
+											{#each Object.entries(p.socials) as [platform, url]}
+												{#if url && platform !== 'other'}
+													<a href={String(url)} target="_blank" rel="noopener" class="social-link">
+														{SOCIAL_ICONS[platform] || '🔗'} {platform}
+													</a>
+												{/if}
+											{/each}
+										</div>
+									</div>
+								{/if}
+								{#if p.rejection_reason}
+									<div class="status-bar mt-2">Previous rejection: {p.rejection_reason}</div>
+								{/if}
+								{#if canAct}
+									<div class="actions mt-2">
+										<button class="btn btn--approve" onclick={() => approveProfile(p.id)} disabled={processingId === p.id}>
+											{processingId === p.id ? '...' : '✅ Approve'}
+										</button>
+										<button class="btn btn--changes" onclick={() => openChangesModal(p)} disabled={processingId === p.id}>✏️ Request Changes</button>
+										<button class="btn btn--reject" onclick={() => openRejectModal(p)} disabled={processingId === p.id}>❌ Reject</button>
+									</div>
+								{/if}
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+		{#if rejectModalOpen}
+			<div class="modal-backdrop" onclick={() => rejectModalOpen = false}></div>
+			<div class="modal">
+				<h3>Reject Profile</h3>
+				<p class="muted mb-2">{modalInfo}</p>
+				<div class="form-field">
+					<label>Reason <span class="required">*</span></label>
+					<select bind:value={rejectReason}>
+						<option value="">Select a reason...</option>
+						<option value="inappropriate_content">Inappropriate or offensive content</option>
+						<option value="impersonation">Impersonation of another user</option>
+						<option value="spam">Spam or advertising</option>
+						<option value="invalid_info">Invalid or nonsensical information</option>
+						<option value="other">Other</option>
+					</select>
+				</div>
+				<div class="form-field">
+					<label>Notes (optional)</label>
+					<textarea rows="3" bind:value={rejectNotes} placeholder="Additional details..."></textarea>
+				</div>
+				<div class="modal__actions">
+					<button class="btn btn--reject" onclick={confirmReject} disabled={!rejectReason || processingId !== null}>Reject</button>
+					<button class="btn" onclick={() => rejectModalOpen = false}>Cancel</button>
+				</div>
+			</div>
+		{/if}
+
+		{#if changesModalOpen}
+			<div class="modal-backdrop" onclick={() => changesModalOpen = false}></div>
+			<div class="modal">
+				<h3>Request Changes</h3>
+				<p class="muted mb-2">{modalInfo}</p>
+				<div class="form-field">
+					<label>What needs to be changed? <span class="required">*</span></label>
+					<textarea rows="4" bind:value={changesNotes} placeholder="Describe what the user needs to fix..."></textarea>
+				</div>
+				<div class="modal__actions">
+					<button class="btn btn--changes" onclick={confirmChanges} disabled={!changesNotes.trim() || processingId !== null}>Send Request</button>
+					<button class="btn" onclick={() => changesModalOpen = false}>Cancel</button>
+				</div>
+			</div>
+		{/if}
+	{/if}
+</div>
+
+<style>
+	.back { margin: 1rem 0 0.5rem; } .back a { color: var(--muted); text-decoration: none; } .back a:hover { color: var(--fg); }
+	h1 { margin: 0 0 0.25rem; } .mb-2 { margin-bottom: 1rem; } .mt-2 { margin-top: 1rem; }
+	.center { text-align: center; padding: 4rem 0; } .center-sm { text-align: center; padding: 2rem; }
+	.spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; margin: 0 auto 1rem; animation: spin 0.8s linear infinite; }
+	@keyframes spin { to { transform: rotate(360deg); } }
+	.btn { display: inline-flex; align-items: center; padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: none; color: var(--fg); cursor: pointer; font-size: 0.9rem; text-decoration: none; }
+	.btn:hover { border-color: var(--accent); color: var(--accent); } .btn--small { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
+	.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+	.btn--approve { background: #28a745; color: white; border-color: #28a745; } .btn--approve:hover { background: #218838; color: white; }
+	.btn--reject { border-color: #dc3545; color: #dc3545; } .btn--reject:hover { background: #dc3545; color: white; }
+	.btn--changes { border-color: #17a2b8; color: #17a2b8; } .btn--changes:hover { background: #17a2b8; color: white; }
+
+	.toast { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 500; }
+	.toast--success { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+	.toast--error { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+	.filters { padding: 1rem; margin-bottom: 1.5rem; }
+	.filters__row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
+	.filters__tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+	.filter-tab { background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.75rem; font-size: 0.85rem; color: var(--muted); cursor: pointer; }
+	.filter-tab:hover { border-color: var(--fg); color: var(--fg); }
+	.filter-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+	.filter-tab__count { display: inline-block; background: rgba(255,255,255,0.25); padding: 0 6px; border-radius: 10px; font-size: 0.75rem; margin-left: 4px; font-weight: 700; }
+
+	.profiles-list { display: flex; flex-direction: column; gap: 1rem; }
+	.profile-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+	.profile-card__header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; cursor: pointer; width: 100%; background: none; border: none; color: var(--fg); text-align: left; font-family: inherit; font-size: inherit; gap: 1rem; }
+	.profile-card__header:hover { background: rgba(255,255,255,0.02); }
+	.profile-card__info { display: flex; align-items: center; gap: 0.75rem; }
+	.profile-card__avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+	.profile-card__avatar--placeholder { background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; }
+	.profile-card__name { font-weight: 700; }
+	.profile-card__runner { font-size: 0.85rem; }
+	.status-badge { padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; text-transform: capitalize; }
+	.status-badge--pending { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+	.status-badge--approved { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+	.status-badge--rejected { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+	.status-badge--needs_changes { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+
+	.profile-card__body { border-top: 1px solid var(--border); padding: 1.25rem; }
+	.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
+	.detail__label { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.15rem; }
+	.bio-text { margin: 0.35rem 0 0; font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; }
+	code { background: var(--bg); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.75rem; }
+	.socials__list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.35rem; }
+	.social-link { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.6rem; background: var(--bg); border-radius: 6px; font-size: 0.8rem; color: var(--accent); text-decoration: none; }
+	.social-link:hover { text-decoration: underline; }
+	.status-bar { padding: 0.5rem 0.75rem; background: rgba(239, 68, 68, 0.08); border-radius: 6px; font-size: 0.85rem; color: #ef4444; }
+	.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; padding-top: 1rem; border-top: 1px solid var(--border); }
+
+	.empty { text-align: center; padding: 3rem 1rem; }
+	.empty__icon { font-size: 3rem; display: block; margin-bottom: 0.75rem; }
+	.empty h3 { margin: 0 0 0.5rem; }
+
+	.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; }
+	.modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 500px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; z-index: 101; padding: 1.5rem; }
+	.modal h3 { margin: 0 0 0.75rem; }
+	.modal__actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+	.form-field { margin-bottom: 1rem; }
+	.form-field label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; }
+	.form-field select, .form-field textarea { width: 100%; padding: 0.5rem 0.6rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 0.9rem; font-family: inherit; }
+	.required { color: #dc3545; }
+</style>

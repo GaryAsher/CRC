@@ -7,10 +7,7 @@
 
 import type { LayoutServerLoad } from './$types';
 
-// With adapter-cloudflare, pages are server-rendered by default.
-// Add `export const prerender = true` to individual static pages
-// (games, glossary, legal, etc.) if you want them pre-built at deploy time.
-// For now, all pages are rendered on-demand by Cloudflare Workers — which is fine.
+export const prerender = true;
 
 export const load: LayoutServerLoad = async ({ locals }) => {
 	return {
