@@ -99,6 +99,7 @@
 	const statusColors: Record<string, string> = { ok: '#10b981', warning: '#f0ad4e', error: '#ef4444', checking: 'var(--text-muted)' };
 	const overallLabels: Record<string, string> = { checking: 'Checking systems...', healthy: '✅ All Systems Operational', degraded: '⚠️ Degraded Performance', down: '❌ Issues Detected' };
 	const overallColors: Record<string, string> = { checking: 'var(--border)', healthy: '#10b981', degraded: '#f0ad4e', down: '#ef4444' };
+	const rowPct = $derived(Math.min((parseInt(statDbRows.replace(/,/g, '')) || 0) / 100000 * 100, 100));
 </script>
 
 <svelte:head><title>💚 Site Health | Admin | CRC</title></svelte:head>
@@ -170,7 +171,6 @@
 		<div class="card mt-4">
 			<h2>💾 Free Tier Usage</h2>
 			<p class="muted mb-2">Estimated usage against Supabase free tier limits</p>
-			{@const rowPct = Math.min((parseInt(statDbRows.replace(/,/g, '')) || 0) / 100000 * 100, 100)}
 			<div class="usage-item"><span class="usage-lbl">Database Rows</span>
 				<div class="usage-bar-wrap"><div class="usage-bar" style:width="{rowPct}%" class:usage-bar--warn={rowPct > 75}></div></div>
 				<span class="usage-val">{statDbRows} / 100,000</span>
