@@ -299,10 +299,9 @@
 								{#if run.video_url}
 									<div class="run-video">
 										<a href={run.video_url} target="_blank" rel="noopener">🎬 {run.video_url}</a>
-										{@const embed = getVideoEmbed(run.video_url)}
-										{#if embed}
+										{#if getVideoEmbed(run.video_url)}
 											<div class="run-video__embed">
-												<iframe src={embed} allowfullscreen loading="lazy" title="Run video"></iframe>
+												<iframe src={getVideoEmbed(run.video_url)} allowfullscreen loading="lazy" title="Run video"></iframe>
 											</div>
 										{/if}
 									</div>
