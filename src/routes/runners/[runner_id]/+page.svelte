@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formatDate, formatTime } from '$lib/utils';
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import { page } from '$app/stores';
 
 	let { data } = $props();
 	const runner = $derived(data.runner);
@@ -9,8 +10,9 @@
 	// Tab state
 	let activeTab = $state<'runs' | 'achievements' | 'contributions' | 'activity'>('runs');
 
-	// Game detail view within runs tab
-	let selectedGameId = $state<string | null>(null);
+	// Game detail view within runs tab — auto-select from query param if present
+	const initialGameId = $page.url.searchParams.get('game');
+	let selectedGameId = $state<string | null>(initialGameId);
 	const selectedGame = $derived(
 		selectedGameId
 			? data.gameGroups.find((g) => g.game.game_id === selectedGameId) || null

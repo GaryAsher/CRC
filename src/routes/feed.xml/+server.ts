@@ -12,6 +12,9 @@ export const GET: RequestHandler = async () => {
 		.map((post) => {
 			const date = post.date instanceof Date ? post.date : new Date(post.date);
 			const pubDate = isNaN(date.getTime()) ? new Date().toUTCString() : date.toUTCString();
+			const excerpt = post.excerpt
+				|| post.description
+				|| post.content?.replace(/<[^>]*>/g, '').replace(/[#*_`~]/g, '').slice(0, 200).trim();
 			return `
     <item>
       <title><![CDATA[${post.title || 'Untitled'}]]></title>
@@ -19,7 +22,7 @@ export const GET: RequestHandler = async () => {
       <guid isPermaLink="true">${siteUrl}/news/${post.slug}</guid>
       <pubDate>${pubDate}</pubDate>
       ${post.author ? `<author>${post.author}</author>` : ''}
-      ${post.excerpt ? `<description><![CDATA[${post.excerpt}]]></description>` : ''}
+      ${excerpt ? `<description><![CDATA[${excerpt}]]></description>` : ''}
     </item>`;
 		})
 		.join('\n');

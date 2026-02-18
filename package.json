@@ -36,6 +36,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.96.0",
+    "isomorphic-dompurify": "^2.21.0",
     "js-yaml": "^4.1.1",
     "marked": "^17.0.2"
   }

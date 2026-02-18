@@ -38,6 +38,7 @@ export const load: PageServerLoad = async () => {
 		runners,
 		recentRuns,
 		posts: posts.slice(0, 5),
+		teams: teams.slice(0, 4),
 		stats: {
 			gameCount: games.length,
 			runnerCount: runners.length,

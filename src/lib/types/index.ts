@@ -157,11 +157,14 @@ export interface RunnerSocials {
 export interface Runner {
 	runner_id: string;
 	runner_name: string;
+	display_name?: string;
+	name?: string;
 	avatar?: string;
 	joined_date: string | Date;
 	pronouns?: string;
 	location?: string;
 	status?: string;
+	hidden?: boolean;
 	bio?: string;
 	accent_color?: string;
 	cover_position?: string;
@@ -300,8 +303,10 @@ export interface Post {
 	date: string | Date;
 	slug: string;
 	description?: string;
+	excerpt?: string;
 	author?: string;
 	tags?: string[];
+	featured?: boolean;
 	content: string;
 }
 
@@ -333,4 +338,37 @@ export interface Platform {
 export interface Genre {
 	slug: string;
 	label: string;
+}
+
+// ─── Default Rules ──────────────────────────────────────────────────────────
+
+export interface DefaultRuleSet {
+	[key: string]: {
+		label: string;
+		description: string;
+		rules: string[];
+	};
+}
+
+// ─── Form Field Order ───────────────────────────────────────────────────────
+
+export interface FormFieldOrder {
+	[formName: string]: string[];
+}
+
+// ─── Banned Terms ───────────────────────────────────────────────────────────
+
+export interface BannedTermsConfig {
+	terms: string[];
+	patterns?: string[];
+	exemptions?: string[];
+}
+
+// ─── Challenges ─────────────────────────────────────────────────────────────
+
+export interface ChallengesConfig {
+	[key: string]: {
+		label: string;
+		description: string;
+	};
 }

@@ -1,22 +1,22 @@
-import yaml from 'js-yaml';
-import fs from 'node:fs';
-import path from 'node:path';
+// =============================================================================
+// Submit Game Page Server Load
+// =============================================================================
+// Loads genres and platforms for the game submission form.
+// Uses the data layer (import.meta.glob) instead of node:fs for
+// Cloudflare Workers compatibility.
+// =============================================================================
+
+import { getGenres, getPlatforms } from '$lib/server/data';
 import type { PageServerLoad } from './$types';
 
-const DATA_DIR = path.resolve('src/data');
-
 export const load: PageServerLoad = async () => {
-	// Load genres
-	const genresRaw = fs.readFileSync(path.join(DATA_DIR, 'config', 'genres.yml'), 'utf-8');
-	const genresData = yaml.load(genresRaw) as Record<string, { label: string }>;
+	const genresData = getGenres() as Record<string, { label: string }>;
 	const genres = Object.entries(genresData)
 		.filter(([, v]) => v && typeof v === 'object' && v.label)
 		.map(([slug, data]) => ({ slug, label: data.label }))
 		.sort((a, b) => a.label.localeCompare(b.label));
 
-	// Load platforms (just the labels, not the full config)
-	const platformsRaw = fs.readFileSync(path.join(DATA_DIR, 'config', 'platforms.yml'), 'utf-8');
-	const platformsData = yaml.load(platformsRaw) as Record<string, { label: string }>;
+	const platformsData = getPlatforms() as Record<string, { label: string }>;
 	const platforms = Object.entries(platformsData)
 		.filter(([, v]) => v && typeof v === 'object' && v.label)
 		.map(([slug, data]) => ({ slug, label: data.label }))

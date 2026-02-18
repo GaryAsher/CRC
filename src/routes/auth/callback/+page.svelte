@@ -3,10 +3,29 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { supabase } from '$lib/supabase';
-	import { session, user } from '$stores/auth';
+	import { session } from '$stores/auth';
 
 	let status = $state<'loading' | 'success' | 'error'>('loading');
 	let errorMessage = $state('');
+
+	/**
+	 * After exchanging the OAuth code for tokens client-side, POST
+	 * them to our server endpoint so they're set as httpOnly cookies.
+	 * This is what hooks.server.ts reads on subsequent requests.
+	 */
+	async function setServerCookies(accessToken: string, refreshToken: string) {
+		const res = await fetch('/auth/callback', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				access_token: accessToken,
+				refresh_token: refreshToken
+			})
+		});
+		if (!res.ok) {
+			throw new Error('Failed to set session cookies');
+		}
+	}
 
 	onMount(async () => {
 		try {
@@ -16,12 +35,18 @@
 			if (code) {
 				const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 				if (error) throw error;
+				if (!data.session) throw new Error('No session returned');
 
+				// Set httpOnly cookies for server-side auth
+				await setServerCookies(
+					data.session.access_token,
+					data.session.refresh_token
+				);
+
+				// Update client-side stores
 				session.set(data.session);
-				user.set(data.session?.user ?? null);
 				status = 'success';
 
-				// Redirect to homepage (or where they came from)
 				const redirectTo = $page.url.searchParams.get('redirect') || '/';
 				setTimeout(() => goto(redirectTo), 500);
 				return;
@@ -35,15 +60,20 @@
 				const { data, error } = await supabase.auth.getSession();
 				if (error) throw error;
 
-				session.set(data.session);
-				user.set(data.session?.user ?? null);
-				status = 'success';
+				if (data.session) {
+					await setServerCookies(
+						data.session.access_token,
+						data.session.refresh_token
+					);
 
+					session.set(data.session);
+				}
+
+				status = 'success';
 				setTimeout(() => goto('/'), 500);
 				return;
 			}
 
-			// No code or token found
 			throw new Error('No authentication code received. Please try signing in again.');
 		} catch (err: any) {
 			status = 'error';

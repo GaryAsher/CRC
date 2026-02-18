@@ -2,16 +2,20 @@
 	import '../styles/main.scss';
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabase';
-	import { initAuth } from '$stores/auth';
+	import { hydrateSession, listenForAuthChanges } from '$stores/auth';
 	import Header from '$components/layout/Header.svelte';
 	import Footer from '$components/layout/Footer.svelte';
 	import BackToTop from '$components/BackToTop.svelte';
 
 	let { data, children } = $props();
 
+	// Hydrate the client auth store from the server-side session
+	// (which comes from httpOnly cookies via hooks.server.ts)
+	hydrateSession(data.session);
+
 	onMount(() => {
-		const unsubscribe = initAuth(supabase);
-		return unsubscribe;
+		// Listen for client-side auth state changes (sign-in, sign-out, token refresh)
+		return listenForAuthChanges(supabase);
 	});
 </script>
 

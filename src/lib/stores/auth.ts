@@ -1,42 +1,38 @@
 // =============================================================================
-// Auth Store
+// Auth Store (Svelte 5)
 // =============================================================================
-// Provides reactive auth state across all components.
-// Replaces the scattered auth checks in assets/js/auth.js.
-//
-// Usage in components:
-//   import { session, user } from '$stores/auth';
-//   {#if $session} ... {/if}
+// Server-side session (from httpOnly cookies via hooks.server.ts) is the
+// canonical auth source. The client store is hydrated from the server data
+// passed through +layout.server.ts, and updated on client-side auth events
+// (sign-in, sign-out, token refresh).
 // =============================================================================
 
-import { writable } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
 import type { Session, User } from '@supabase/supabase-js';
 
 export const session = writable<Session | null>(null);
-export const user = writable<User | null>(null);
+export const user = derived(session, ($s) => $s?.user ?? null);
 export const isLoading = writable(true);
 
 /**
- * Initialize auth listener. Called once from the root layout.
- * Subscribes to Supabase auth state changes and updates stores.
+ * Hydrate from server-side session. Called once from root layout
+ * with the session data from +layout.server.ts.
  */
-export function initAuth(supabaseClient: typeof import('$lib/supabase').supabase) {
-	// Get initial session
-	supabaseClient.auth.getSession().then(({ data }) => {
-		session.set(data.session);
-		user.set(data.session?.user ?? null);
-		isLoading.set(false);
-	});
+export function hydrateSession(serverSession: Session | null) {
+	session.set(serverSession);
+	isLoading.set(false);
+}
 
-	// Listen for changes (sign in, sign out, token refresh)
-	const {
-		data: { subscription }
-	} = supabaseClient.auth.onAuthStateChange((_event, newSession) => {
-		session.set(newSession);
-		user.set(newSession?.user ?? null);
-		isLoading.set(false);
-	});
-
-	// Return unsubscribe function for cleanup
+/**
+ * Subscribe to client-side auth changes (sign-in, sign-out, token refresh).
+ * Called once from root layout. Returns unsubscribe function.
+ */
+export function listenForAuthChanges(supabaseClient: { auth: { onAuthStateChange: Function } }) {
+	const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
+		(_event: string, newSession: Session | null) => {
+			session.set(newSession);
+			isLoading.set(false);
+		}
+	);
 	return () => subscription.unsubscribe();
 }

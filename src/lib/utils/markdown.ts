@@ -1,26 +1,25 @@
 // =============================================================================
 // Markdown & Sanitization Utilities
 // =============================================================================
-// Renders markdown content from the site's own data files (games, runners,
-// rules, news posts). Since this content is committed to the repo and not
-// user-submitted at runtime, it doesn't need DOMPurify sanitization.
-//
-// User-generated content (profile bios, etc.) is submitted through the
-// Cloudflare Worker API which validates it server-side before storage.
+// Renders markdown content and sanitizes the HTML output with DOMPurify.
+// All markdown rendering goes through this module to ensure consistent
+// XSS protection regardless of content source.
 // =============================================================================
 
 import { marked } from 'marked';
+import DOMPurify from 'isomorphic-dompurify';
 
 /**
- * Render markdown string to HTML.
+ * Render markdown string to sanitized HTML.
  * Used with {@html renderMarkdown(content)} in Svelte templates.
  *
- * Safe because content comes from repo markdown files, not user input.
- * User-submitted content goes through the Worker API for validation.
+ * DOMPurify strips any injected scripts, event handlers, or dangerous
+ * HTML while preserving safe formatting tags.
  */
 export function renderMarkdown(input: string): string {
 	if (!input) return '';
-	return marked.parse(input, { async: false }) as string;
+	const raw = marked.parse(input, { async: false }) as string;
+	return DOMPurify.sanitize(raw);
 }
 
 /**

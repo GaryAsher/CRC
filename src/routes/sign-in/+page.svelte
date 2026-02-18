@@ -1,17 +1,16 @@
 <script lang="ts">
 	import { supabase } from '$lib/supabase';
-	import { session } from '$stores/auth';
+	import { session, isLoading } from '$stores/auth';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { PUBLIC_SITE_URL } from '$env/static/public';
-	import { onMount } from 'svelte';
 
 	let signingIn = $state(false);
 	let errorMessage = $state('');
 
 	// If already signed in, redirect
-	onMount(() => {
-		if ($session) {
+	$effect(() => {
+		if (!$isLoading && $session) {
 			goto('/profile');
 		}
 	});

@@ -1,264 +1,320 @@
 <script lang="ts">
 	import { formatDate } from '$lib/utils';
+	import { onMount } from 'svelte';
 
 	let { data } = $props();
+
+	// ── News Carousel State ──
+	let currentSlide = $state(0);
+	const postsToShow = $derived(
+		(data.posts.filter((p: any) => p.featured).length > 0
+			? data.posts.filter((p: any) => p.featured)
+			: data.posts
+		).slice(0, 5)
+	);
+	let autoplayInterval: ReturnType<typeof setInterval> | null = null;
+	let carouselHovered = $state(false);
+
+	function showSlide(index: number) {
+		if (index >= postsToShow.length) index = 0;
+		if (index < 0) index = postsToShow.length - 1;
+		currentSlide = index;
+	}
+
+	function startAutoplay() {
+		stopAutoplay();
+		autoplayInterval = setInterval(() => showSlide(currentSlide + 1), 5000);
+	}
+
+	function stopAutoplay() {
+		if (autoplayInterval) { clearInterval(autoplayInterval); autoplayInterval = null; }
+	}
+
+	onMount(() => {
+		if (postsToShow.length > 1) startAutoplay();
+
+		const handleVisibility = () => {
+			if (document.hidden) stopAutoplay();
+			else if (!carouselHovered && postsToShow.length > 1) startAutoplay();
+		};
+		document.addEventListener('visibilitychange', handleVisibility);
+		return () => { stopAutoplay(); document.removeEventListener('visibilitychange', handleVisibility); };
+	});
 </script>
 
 <svelte:head>
 	<title>Challenge Run Community</title>
+	<meta name="description" content="A space built around creative challenge runs, clear rules, and respect for all challenge styles." />
 </svelte:head>
 
 <div class="page-width">
 
-	<!-- Data Pipeline Verification -->
-	<section class="scaffold-test">
-		<h1>CRC SvelteKit Scaffold</h1>
-		<p class="muted">If you see real numbers below, the data pipeline is working.</p>
+	<h1>Challenge Run Community</h1>
+	<p class="muted mb-6">A space built around creative challenge runs, clear rules, and respect for all challenge styles.</p>
 
-		<div class="stats-grid">
-			<div class="stat-card">
-				<span class="stat-card__number">{data.stats.gameCount}</span>
-				<span class="stat-card__label">Games</span>
-			</div>
-			<div class="stat-card">
-				<span class="stat-card__number">{data.stats.runnerCount}</span>
-				<span class="stat-card__label">Runners</span>
-			</div>
-			<div class="stat-card">
-				<span class="stat-card__number">{data.stats.runCount}</span>
-				<span class="stat-card__label">Approved Runs</span>
-			</div>
-			<div class="stat-card">
-				<span class="stat-card__number">{data.stats.achievementCount}</span>
-				<span class="stat-card__label">Achievements</span>
-			</div>
-			<div class="stat-card">
-				<span class="stat-card__number">{data.stats.teamCount}</span>
-				<span class="stat-card__label">Teams</span>
-			</div>
-			<div class="stat-card">
-				<span class="stat-card__number">{data.stats.postCount}</span>
-				<span class="stat-card__label">Posts</span>
+	<div class="home-grid">
+		<!-- News Carousel -->
+		<div class="home-main">
+			<div class="home-card home-card--square">
+				<h2 class="home-card__title">📰 News</h2>
+				<div class="home-card__content">
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div
+						class="news-carousel"
+						onmouseenter={() => { carouselHovered = true; stopAutoplay(); }}
+						onmouseleave={() => { carouselHovered = false; if (postsToShow.length > 1) startAutoplay(); }}
+					>
+						{#if postsToShow.length > 0}
+							{#each postsToShow as post, i}
+								<div class="news-slide" class:is-active={currentSlide === i}>
+									<span class="news-slide__date muted">{formatDate(post.date)}</span>
+									<h3 class="news-slide__title">
+										<a href="/news/{post.slug}">{post.title}</a>
+									</h3>
+									{#if post.excerpt || post.description}
+										<p class="news-slide__excerpt muted">
+											{(post.excerpt || post.description || '').slice(0, 120)}
+										</p>
+									{/if}
+								</div>
+							{/each}
+
+							{#if postsToShow.length > 1}
+								<div class="news-carousel__controls">
+									<div class="news-carousel__dots">
+										{#each postsToShow as _, i}
+											<button
+												type="button"
+												class="news-carousel__dot"
+												class:is-active={currentSlide === i}
+												aria-label="Go to slide {i + 1}"
+												onclick={() => { showSlide(i); startAutoplay(); }}
+											></button>
+										{/each}
+									</div>
+								</div>
+							{/if}
+
+							<p class="news-carousel__link mt-3">
+								<a href="/news" class="muted">View all news →</a>
+							</p>
+						{:else}
+							<div class="news-slide is-active">
+								<span class="news-slide__date muted">Coming Soon</span>
+								<p class="news-slide__excerpt">News and updates will appear here.</p>
+							</div>
+						{/if}
+					</div>
+				</div>
 			</div>
 		</div>
-	</section>
 
-	<!-- Games List -->
-	<section>
-		<h2>Active Games</h2>
-		<div class="games-list">
-			{#each data.games as game}
-				<a href="/games/{game.game_id}" class="game-item">
-					<strong>{game.game_name}</strong>
-					<span class="muted">
-						{game.full_runs?.length ?? 0} categories ·
-						{game.platforms?.length ?? 0} platforms
-					</span>
-				</a>
-			{/each}
+		<!-- Community Board -->
+		<div class="home-sidebar">
+			<div class="home-card home-card--full-height">
+				<h2 class="home-card__title">📋 Community Board</h2>
+				<div class="community-board">
+					<p class="muted" style="margin-bottom: 1rem; font-size: 0.9rem;">Bounties, requests, and community highlights</p>
+					<div class="board-list">
+						<div class="board-item board-item--placeholder">
+							<span class="board-item__type muted">Bounty</span>
+							<p class="board-item__text">No active bounties yet. Check back soon!</p>
+						</div>
+						<div class="board-item board-item--placeholder">
+							<span class="board-item__type muted">Request</span>
+							<p class="board-item__text">Want to post a bounty or request? Contact us!</p>
+						</div>
+					</div>
+				</div>
+			</div>
 		</div>
-	</section>
+	</div>
+
+	<!-- Quick Links -->
+	<div class="resource-cards">
+		<a href="/games" class="resource-card card-lift--sm">
+			<div class="resource-card__icon">🎮</div>
+			<div class="resource-card__content">
+				<h2 class="resource-card__title">Games</h2>
+				<p class="resource-card__desc">Browse all tracked games</p>
+				<span class="resource-card__count">{data.stats.gameCount} {data.stats.gameCount === 1 ? 'game' : 'games'}</span>
+			</div>
+		</a>
+
+		<a href="/runners" class="resource-card card-lift--sm">
+			<div class="resource-card__icon">🏆</div>
+			<div class="resource-card__content">
+				<h2 class="resource-card__title">Runners</h2>
+				<p class="resource-card__desc">View runner profiles and runs</p>
+				<span class="resource-card__count">{data.stats.runnerCount} {data.stats.runnerCount === 1 ? 'runner' : 'runners'}</span>
+			</div>
+		</a>
+
+		<a href="/rules" class="resource-card card-lift--sm">
+			<div class="resource-card__icon">📜</div>
+			<div class="resource-card__content">
+				<h2 class="resource-card__title">Rules</h2>
+				<p class="resource-card__desc">Site-wide guidelines and policies</p>
+				<span class="resource-card__count">Learn more</span>
+			</div>
+		</a>
+
+		<a href="/glossary" class="resource-card card-lift--sm">
+			<div class="resource-card__icon">📖</div>
+			<div class="resource-card__content">
+				<h2 class="resource-card__title">Glossary</h2>
+				<p class="resource-card__desc">Challenge run terminology</p>
+				<span class="resource-card__count">Reference</span>
+			</div>
+		</a>
+	</div>
 
 	<!-- Recent Runs -->
 	{#if data.recentRuns.length > 0}
-		<section>
-			<h2>Recent Runs</h2>
-			<table class="runs-table">
-				<thead>
-					<tr>
-						<th>Runner</th>
-						<th>Game</th>
-						<th>Category</th>
-						<th>Time</th>
-						<th>Date</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each data.recentRuns as run}
-						<tr>
-							<td><a href="/runners/{run.runner_id}">{run.runner}</a></td>
-							<td>{run.game_id}</td>
-							<td>{run.category}</td>
-							<td>{run.time_primary}</td>
-							<td>{formatDate(run.date_completed)}</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
+		<section class="home-section">
+			<h2>🏃 Recent Runs</h2>
+			<div class="recent-runs-list">
+				{#each data.recentRuns.slice(0, 6) as run}
+					<div class="recent-run">
+						<a href="/runners/{run.runner_id}" class="recent-run__runner">{run.runner}</a>
+						<span class="muted">·</span>
+						<span class="recent-run__game">{run.game_id}</span>
+						<span class="muted">·</span>
+						<span class="recent-run__cat">{run.category}</span>
+						{#if run.time_primary}
+							<span class="recent-run__time">{run.time_primary}</span>
+						{/if}
+						<span class="recent-run__date muted">{formatDate(run.date_completed)}</span>
+					</div>
+				{/each}
+			</div>
 		</section>
 	{/if}
 
-	<!-- Recent Posts -->
-	{#if data.posts.length > 0}
-		<section>
-			<h2>News</h2>
-			{#each data.posts as post}
-				<article class="post-preview">
-					<h3>{post.title}</h3>
-					<time class="muted">{formatDate(post.date)}</time>
-				</article>
-			{/each}
-		</section>
-	{/if}
-
-	<!-- Environment Info -->
-	<section class="scaffold-test">
-		<h2>Scaffold Status</h2>
-		<ul class="checklist">
-			<li class="checklist__item checklist__item--pass">SvelteKit running</li>
-			<li class="checklist__item checklist__item--pass">SCSS loading</li>
-			<li class="checklist__item {data.stats.gameCount > 0 ? 'checklist__item--pass' : 'checklist__item--fail'}">
-				Game data loading ({data.stats.gameCount} games)
-			</li>
-			<li class="checklist__item {data.stats.runnerCount > 0 ? 'checklist__item--pass' : 'checklist__item--fail'}">
-				Runner data loading ({data.stats.runnerCount} runners)
-			</li>
-			<li class="checklist__item {data.stats.runCount > 0 ? 'checklist__item--pass' : 'checklist__item--fail'}">
-				Run data loading ({data.stats.runCount} runs)
-			</li>
-			<li class="checklist__item {data.stats.postCount > 0 ? 'checklist__item--pass' : 'checklist__item--fail'}">
-				Post data loading ({data.stats.postCount} posts)
-			</li>
-			<li class="checklist__item checklist__item--pending">Header component (Phase 3)</li>
-			<li class="checklist__item checklist__item--pending">Footer component (Phase 3)</li>
-			<li class="checklist__item checklist__item--pending">Auth flow (Phase 7)</li>
-		</ul>
-	</section>
+	<!-- Featured Teams -->
+	<div class="featured-teams">
+		<h2 class="featured-teams__title">🤝 Affiliated Teams</h2>
+		{#if data.stats.teamCount > 0}
+			<div class="teams-grid">
+				{#each data.teams as team}
+					<a href="/teams/{team.team_id}" class="team-card card-lift--sm">
+						{#if team.logo}
+							<img src={team.logo} alt={team.name} class="team-card__logo">
+						{:else}
+							<div class="team-card__logo team-card__logo--placeholder">{team.name?.charAt(0) ?? '?'}</div>
+						{/if}
+						<div class="team-card__name">{team.name}</div>
+					</a>
+				{/each}
+			</div>
+		{:else}
+			<div class="teams-grid">
+				<div class="team-card team-card--placeholder" style="border-style: dashed; opacity: 0.7;">
+					<div class="team-card__logo">?</div>
+					<div class="team-card__name">Teams coming soon</div>
+				</div>
+			</div>
+		{/if}
+		<p class="muted mt-3" style="font-size: 0.9rem;">
+			Interested in partnering? <a href="/support">Contact us!</a>
+		</p>
+	</div>
 
 </div>
 
 <style>
-	section {
-		margin: 2rem 0;
-	}
+	h1 { margin: 0 0 0.25rem; }
+	.mb-6 { margin-bottom: 1.5rem; }
+	.mt-3 { margin-top: 0.75rem; }
+	.muted { opacity: 0.6; }
 
-	h2 {
-		margin-bottom: 1rem;
-	}
+	/* Home Grid */
+	.home-grid { display: grid; grid-template-columns: 1fr 320px; gap: 1.5rem; }
+	.home-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+	.home-card--square { min-height: 260px; }
+	.home-card--full-height { height: 100%; }
+	.home-card__title { font-size: 1.1rem; margin: 0 0 0.75rem; }
 
-	.stats-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-		gap: 1rem;
-		margin: 1.5rem 0;
+	/* News Carousel */
+	.news-carousel { position: relative; }
+	.news-slide { display: none; }
+	.news-slide.is-active { display: block; }
+	.news-slide__date { font-size: 0.8rem; }
+	.news-slide__title { font-size: 1.15rem; margin: 0.25rem 0 0.5rem; }
+	.news-slide__title a { color: var(--fg); text-decoration: none; }
+	.news-slide__title a:hover { color: var(--accent); }
+	.news-slide__excerpt { font-size: 0.9rem; line-height: 1.5; margin: 0; }
+	.news-carousel__controls { margin-top: 1rem; }
+	.news-carousel__dots { display: flex; gap: 0.5rem; }
+	.news-carousel__dot {
+		width: 8px; height: 8px; border-radius: 50%;
+		background: var(--border); border: none; cursor: pointer; padding: 0;
+		transition: background 0.2s;
 	}
+	.news-carousel__dot.is-active { background: var(--accent); }
+	.news-carousel__link { font-size: 0.9rem; }
+	.news-carousel__link a { text-decoration: none; }
+	.news-carousel__link a:hover { color: var(--accent) !important; }
 
-	.stat-card {
-		background: var(--panel, rgba(255, 255, 255, 0.04));
-		border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-		border-radius: 8px;
-		padding: 1.25rem;
-		text-align: center;
+	/* Community Board */
+	.board-item { padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
+	.board-item:last-child { border-bottom: none; }
+	.board-item__type { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+	.board-item__text { margin: 0.25rem 0 0; font-size: 0.9rem; line-height: 1.4; }
+
+	/* Resource Cards */
+	.resource-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+	.resource-card {
+		display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem;
+		background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+		text-decoration: none; color: var(--fg); transition: border-color 0.2s, transform 0.2s;
 	}
+	.resource-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+	.resource-card__icon { font-size: 1.75rem; flex-shrink: 0; }
+	.resource-card__title { font-size: 1rem; margin: 0; }
+	.resource-card__desc { font-size: 0.8rem; margin: 0.15rem 0; opacity: 0.6; }
+	.resource-card__count { font-size: 0.75rem; color: var(--accent); font-weight: 600; }
 
-	.stat-card__number {
-		display: block;
-		font-size: 2rem;
-		font-weight: 700;
-		color: var(--accent, #3BC36E);
+	/* Recent Runs */
+	.home-section { margin-top: 2rem; }
+	.home-section h2 { margin-bottom: 1rem; font-size: 1.25rem; }
+	.recent-runs-list { display: flex; flex-direction: column; gap: 0.35rem; }
+	.recent-run {
+		display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+		padding: 0.5rem 0.75rem; background: var(--surface); border: 1px solid var(--border);
+		border-radius: 6px; font-size: 0.9rem;
 	}
+	.recent-run__runner { color: var(--accent); text-decoration: none; font-weight: 600; }
+	.recent-run__runner:hover { text-decoration: underline; }
+	.recent-run__time { font-family: monospace; font-size: 0.85rem; color: var(--accent); }
+	.recent-run__date { margin-left: auto; font-size: 0.8rem; }
 
-	.stat-card__label {
-		display: block;
-		margin-top: 0.25rem;
-		font-size: 0.85rem;
-		opacity: 0.7;
+	/* Featured Teams */
+	.featured-teams { margin-top: 2rem; }
+	.featured-teams__title { font-size: 1.25rem; margin-bottom: 1rem; }
+	.teams-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; }
+	.team-card {
+		display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+		padding: 1rem; background: var(--surface); border: 1px solid var(--border);
+		border-radius: 10px; text-decoration: none; color: var(--fg);
+		transition: border-color 0.2s, transform 0.2s;
 	}
-
-	.games-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
+	.team-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+	.team-card__logo { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
+	.team-card__logo--placeholder {
+		display: flex; align-items: center; justify-content: center;
+		background: var(--border); font-size: 1.5rem; font-weight: 700;
 	}
+	.team-card__name { font-size: 0.9rem; font-weight: 600; text-align: center; }
+	.featured-teams a { color: var(--accent); text-decoration: none; }
+	.featured-teams a:hover { text-decoration: underline; }
 
-	.game-item {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 0.75rem 1rem;
-		background: var(--panel, rgba(255, 255, 255, 0.04));
-		border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-		border-radius: 6px;
-		text-decoration: none;
-		color: var(--fg, #fff);
+	@media (max-width: 768px) {
+		.home-grid { grid-template-columns: 1fr; }
+		.resource-cards { grid-template-columns: repeat(2, 1fr); }
+		.recent-run__date { margin-left: 0; }
 	}
-
-	.game-item:hover {
-		border-color: var(--accent, #3BC36E);
-	}
-
-	.muted {
-		opacity: 0.6;
-		font-size: 0.9rem;
-	}
-
-	table {
-		width: 100%;
-		border-collapse: collapse;
-	}
-
-	th, td {
-		padding: 0.5rem 0.75rem;
-		text-align: left;
-		border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-	}
-
-	th {
-		font-weight: 600;
-		font-size: 0.85rem;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		opacity: 0.6;
-	}
-
-	td a {
-		color: var(--accent, #3BC36E);
-		text-decoration: none;
-	}
-
-	.post-preview {
-		margin-bottom: 1rem;
-	}
-
-	.post-preview h3 {
-		margin-bottom: 0.25rem;
-	}
-
-	/* Scaffold checklist */
-	.scaffold-test {
-		background: var(--panel, rgba(255, 255, 255, 0.04));
-		border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-		border-radius: 8px;
-		padding: 1.5rem;
-	}
-
-	.checklist {
-		list-style: none;
-		padding: 0;
-		margin: 0;
-	}
-
-	.checklist__item {
-		padding: 0.4rem 0;
-		padding-left: 1.75rem;
-		position: relative;
-	}
-
-	.checklist__item::before {
-		position: absolute;
-		left: 0;
-		font-size: 1.1rem;
-	}
-
-	.checklist__item--pass::before {
-		content: '✅';
-	}
-
-	.checklist__item--fail::before {
-		content: '❌';
-	}
-
-	.checklist__item--pending::before {
-		content: '⏳';
+	@media (max-width: 480px) {
+		.resource-cards { grid-template-columns: 1fr; }
 	}
 </style>

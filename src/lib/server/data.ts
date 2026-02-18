@@ -19,7 +19,11 @@ import type {
 	Achievement,
 	Team,
 	Post,
-	AdminConfig
+	AdminConfig,
+	DefaultRuleSet,
+	FormFieldOrder,
+	BannedTermsConfig,
+	ChallengesConfig
 } from '$types';
 
 // ─── Frontmatter Parser (replaces gray-matter) ─────────────────────────────
@@ -84,6 +88,12 @@ const configFiles = import.meta.glob('/src/data/config/*.yml', {
 }) as Record<string, string>;
 
 const historyFiles = import.meta.glob('/src/data/config/history/*.yml', {
+	query: '?raw',
+	import: 'default',
+	eager: true
+}) as Record<string, string>;
+
+const staffGuideFiles = import.meta.glob('/src/data/staff-guides/*.md', {
 	query: '?raw',
 	import: 'default',
 	eager: true
@@ -287,32 +297,48 @@ export function getAdminConfig(): AdminConfig {
 	return loadYaml<AdminConfig>('admin-config.yml');
 }
 
-export function getDefaultRules(): unknown {
-	return loadYaml('default-rules.yml');
+export function getDefaultRules(): DefaultRuleSet {
+	return loadYaml<DefaultRuleSet>('default-rules.yml');
 }
 
-export function getPlatforms(): unknown {
-	return loadYaml('platforms.yml');
+export function getPlatforms(): Record<string, { label: string; icon?: string }> {
+	return loadYaml<Record<string, { label: string; icon?: string }>>('platforms.yml');
 }
 
-export function getGenres(): unknown {
-	return loadYaml('genres.yml');
+export function getGenres(): Record<string, { label: string }> {
+	return loadYaml<Record<string, { label: string }>>('genres.yml');
 }
 
-export function getFormFieldsOrder(): unknown {
-	return loadYaml('form-fields-order.yml');
+export function getFormFieldsOrder(): FormFieldOrder {
+	return loadYaml<FormFieldOrder>('form-fields-order.yml');
 }
 
-export function getBannedTerms(): unknown {
-	return loadYaml('banned-terms.yml');
+export function getBannedTerms(): BannedTermsConfig {
+	return loadYaml<BannedTermsConfig>('banned-terms.yml');
 }
 
-export function getGameModerators(): unknown {
-	return loadYaml('game-moderators.yml');
+export function getGameModerators(): Record<string, string[]> {
+	return loadYaml<Record<string, string[]>>('game-moderators.yml');
 }
 
-export function getChallenges(): unknown {
-	return loadYaml('challenges.yml');
+export function getChallenges(): ChallengesConfig {
+	return loadYaml<ChallengesConfig>('challenges.yml');
+}
+
+// ─── Staff Guides ──────────────────────────────────────────────────────────
+
+export interface StaffGuide {
+	slug: string;
+	content: string;
+}
+
+export function getStaffGuides(): StaffGuide[] {
+	return Object.entries(staffGuideFiles)
+		.filter(([filepath]) => !filename(filepath).startsWith('README'))
+		.map(([filepath, raw]) => ({
+			slug: filename(filepath).replace(/\.md$/, ''),
+			content: raw
+		}));
 }
 
 // ─── Utility: Find Category in Game ─────────────────────────────────────────

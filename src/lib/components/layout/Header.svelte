@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { session, user } from '$stores/auth';
 	import { toggleTheme, theme } from '$stores/theme';
-	import { supabase } from '$lib/supabase';
+	import { supabase, signOut as doSignOut } from '$lib/supabase';
 	import { goto } from '$app/navigation';
 
 	let moreOpen = $state(false);
@@ -14,9 +14,8 @@
 	}
 
 	async function signOut() {
-		await supabase.auth.signOut();
 		userMenuOpen = false;
-		goto('/');
+		await doSignOut(); // clears client session + server cookies + redirects
 	}
 
 	function closeMenus() {
