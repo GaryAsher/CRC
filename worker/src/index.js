@@ -10,10 +10,13 @@
  *   POST /export-data       User data export        (authenticated, own data only)
  *
  * Secrets (set via wrangler secret put):
- *   SUPABASE_URL, SUPABASE_SERVICE_KEY, GITHUB_TOKEN, GITHUB_REPO,
+ *   SUPABASE_URL, SUPABASE_SERVICE_KEY,
  *   TURNSTILE_SECRET, VERIFY_API_KEY (optional)
  *   DISCORD_WEBHOOK_RUNS (optional), DISCORD_WEBHOOK_GAMES (optional),
  *   DISCORD_WEBHOOK_PROFILES (optional)
+ *
+ * No longer needed (Phase 3 — approvals write to Supabase, not GitHub):
+ *   GITHUB_TOKEN, GITHUB_REPO
  */
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -229,32 +232,11 @@ async function isAdmin(env, userId) {
 // GITHUB HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function githubCreateFile(env, filePath, content, commitMessage) {
-  const repo = env.GITHUB_REPO;
-  const url = `https://api.github.com/repos/${repo}/contents/${filePath}`;
-
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      message: commitMessage,
-      content: btoa(unescape(encodeURIComponent(content))),
-    }),
-  });
-
-  const data = await res.json();
-  if (!res.ok) {
-    // SECURITY (Item 15): Log details server-side but return generic message
-    console.error('GitHub create file error:', JSON.stringify(data));
-    return { ok: false, error: 'Failed to create file in repository' };
-  }
-  return { ok: true, sha: data.content?.sha };
-}
+// ═══════════════════════════════════════════════════════════════════════════════
+// GITHUB HELPERS — REMOVED (Phase 3: approvals write to Supabase directly)
+// The githubCreateFile() function previously lived here. It is no longer
+// called by any approval endpoint.
+// ═══════════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // DISCORD WEBHOOK
@@ -301,13 +283,7 @@ function slugify(s) {
     .replace(/^-|-$/g, '');
 }
 
-function yamlQuote(s) {
-  if (!s && s !== '') return '""';
-  if (/[:\[\]{},#&*!|>'"%@`\n]/.test(s) || s.trim() !== s) {
-    return JSON.stringify(s);
-  }
-  return s;
-}
+// yamlQuote — REMOVED (was only used by markdown file builders)
 
 function generateSubmissionId() {
   const ts = Date.now().toString(36);
@@ -315,332 +291,13 @@ function generateSubmissionId() {
   return `sub_${ts}_${rand}`;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// RUN FILE BUILDER
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function buildRunFileContent(run) {
-  const lines = ['---'];
-
-  lines.push(`game_id: ${yamlQuote(run.game_id)}`);
-  lines.push(`runner_id: ${yamlQuote(run.runner_id)}`);
-  lines.push(`category_slug: ${yamlQuote(run.category_slug)}`);
-  lines.push(`video_url: ${yamlQuote(run.video_url)}`);
-
-  // Date
-  const dateCompleted = run.date_completed
-    ? run.date_completed.replace(/\//g, '-')
-    : new Date().toISOString().slice(0, 10);
-  lines.push(`date: ${yamlQuote(dateCompleted)}`);
-
-  // Standard challenges
-  if (run.standard_challenges?.length) {
-    lines.push('standard_challenges:');
-    for (const c of run.standard_challenges) lines.push(`  - ${yamlQuote(c)}`);
-  } else {
-    lines.push('standard_challenges: []');
-  }
-
-  // Community challenge
-  lines.push(`community_challenge: ${run.community_challenge ? yamlQuote(run.community_challenge) : ''}`);
-
-  // Character
-  if (run.character) lines.push(`character: ${yamlQuote(run.character)}`);
-
-  // Glitch
-  if (run.glitch_id) lines.push(`glitch_id: ${yamlQuote(run.glitch_id)}`);
-
-  // Restrictions
-  if (run.restrictions?.length) {
-    lines.push('restrictions:');
-    for (const r of run.restrictions) lines.push(`  - ${yamlQuote(r)}`);
-  }
-
-  // Timing
-  if (run.run_time) lines.push(`time_primary: ${yamlQuote(run.run_time)}`);
-  if (run.timing_method_primary) lines.push(`timing_method_primary: ${yamlQuote(run.timing_method_primary)}`);
-
-  // Additional runners
-  if (run.additional_runners?.length) {
-    lines.push('additional_runners:');
-    for (const ar of run.additional_runners) {
-      lines.push(`  - runner_id: ${yamlQuote(ar.runner_id)}`);
-      if (ar.character) lines.push(`    character: ${yamlQuote(ar.character)}`);
-      lines.push(`    status: ${yamlQuote(ar.status || 'pending_confirmation')}`);
-    }
-  }
-
-  // Metadata
-  lines.push(`verified: false`);
-  lines.push(`submission_id: ${yamlQuote(run.submission_id || generateSubmissionId())}`);
-  lines.push(`submitted_at: ${yamlQuote(run.submitted_at || new Date().toISOString())}`);
-
-  lines.push('---');
-  return lines.join('\n');
-}
-
-function buildRunFilename(run) {
-  const date = (run.date_completed || new Date().toISOString().slice(0, 10)).replace(/\//g, '-');
-  const gameId = slugify(run.game_id);
-  const runnerId = slugify(run.runner_id);
-  const category = slugify(run.category_slug);
-
-  // Count existing runs for this combo to determine sequence number
-  // We'll just use 01 and let GitHub handle conflicts
-  return `${date}__${gameId}__${runnerId}__${category}__01.md`;
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// RUNNER FILE BUILDER
+// FILE BUILDERS — REMOVED (Phase 3: approvals write to Supabase directly)
+// buildRunFileContent, buildRunFilename, buildRunnerFileContent,
+// buildGameFileContent previously lived here. Approvals now INSERT into
+// the Supabase `runs`, `runners`, and `games` tables.
 // ═══════════════════════════════════════════════════════════════════════════════
-
-function buildRunnerFileContent(profile) {
-  const lines = ['---'];
-
-  lines.push(`layout: runner`);
-  lines.push(`runner_id: ${yamlQuote(profile.runner_id)}`);
-  lines.push(`runner_name: ${yamlQuote(profile.display_name || profile.runner_id)}`);
-
-  if (profile.status_message) {
-    lines.push(`status: ${yamlQuote(profile.status_message)}`);
-  }
-
-  // Avatar
-  const initial = (profile.runner_id || 'x')[0].toLowerCase();
-  const avatarPath = profile.avatar_url || `/assets/img/site/default-runner.png`;
-  lines.push(`avatar: ${yamlQuote(avatarPath)}`);
-
-  // Socials
-  const socials = profile.socials || {};
-  const hasSocials = Object.values(socials).some(Boolean);
-  if (hasSocials) {
-    lines.push('socials:');
-    for (const [key, val] of Object.entries(socials)) {
-      if (val) lines.push(`  ${key}: ${yamlQuote(val)}`);
-    }
-  }
-
-  // Badges
-  lines.push('badges: []');
-
-  // Games
-  if (profile.games?.length) {
-    lines.push('games:');
-    for (const g of profile.games) lines.push(`  - ${yamlQuote(g)}`);
-  } else {
-    lines.push('games: []');
-  }
-
-  // Approval metadata
-  lines.push('');
-  lines.push(`approval_status: approved`);
-  if (profile.approved_by) lines.push(`approved_by: ${yamlQuote(profile.approved_by)}`);
-  lines.push(`approved_at: ${new Date().toISOString().slice(0, 10)}`);
-
-  lines.push('---');
-  lines.push('');
-  lines.push(profile.bio || '');
-
-  return lines.join('\n');
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// GAME FILE BUILDER
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function buildGameFileContent(game) {
-  const gd = game.game_data || game;
-  const lines = ['---'];
-
-  // Header
-  lines.push('layout: game');
-  lines.push(`game_id: ${yamlQuote(game.game_id)}`);
-  lines.push('status: "Active"');
-  lines.push('reviewers: []');
-
-  // Modded info
-  if (gd.is_modded) {
-    lines.push('');
-    lines.push('# Modded game info');
-    lines.push('is_modded: true');
-    if (gd.base_game) lines.push(`base_game: ${yamlQuote(gd.base_game)}`);
-  }
-
-  // Game info
-  lines.push('');
-  lines.push(`game_name: ${yamlQuote(game.game_name)}`);
-
-  if (gd.game_name_aliases?.length) {
-    lines.push('game_name_aliases:');
-    for (const a of gd.game_name_aliases) lines.push(`  - ${yamlQuote(a)}`);
-  } else {
-    lines.push('game_name_aliases: []');
-  }
-
-  // Genres
-  if (gd.genres?.length) {
-    lines.push('');
-    lines.push('genres:');
-    for (const g of gd.genres) lines.push(`  - ${slugify(g)}`);
-  } else {
-    lines.push('genres: []');
-  }
-
-  // Platforms
-  if (gd.platforms?.length) {
-    lines.push('');
-    lines.push('platforms:');
-    for (const p of gd.platforms) lines.push(`  - ${slugify(p)}`);
-  } else {
-    lines.push('platforms: []');
-  }
-
-  // Cover
-  const initial = (game.game_id || 'x')[0].toLowerCase();
-  lines.push('');
-  lines.push(`cover: /assets/img/games/${initial}/${game.game_id}.jpg`);
-  lines.push('cover_position: center');
-
-  // Tabs
-  lines.push('');
-  lines.push('tabs:');
-  lines.push('  overview: true');
-  lines.push('  runs: true');
-  lines.push('  rules: true');
-  lines.push('  history: true');
-  lines.push('  resources: true');
-  lines.push('  forum: true');
-
-  // Timing
-  const timing = gd.timing_method || 'RTA';
-  lines.push('');
-  lines.push(`timing_method: ${yamlQuote(timing)}`);
-  lines.push(`rta_timing: ${timing.toUpperCase().includes('RTA') ? 'true' : 'false'}`);
-
-  // Character column
-  lines.push('');
-  const charEnabled = gd.character_column?.enabled === true;
-  lines.push('character_column:');
-  lines.push(`  enabled: ${charEnabled}`);
-  lines.push(`  label: ${yamlQuote(gd.character_column?.label || 'Character')}`);
-
-  if (charEnabled && gd.characters_data?.length) {
-    lines.push('  options:');
-    for (const ch of gd.characters_data) {
-      const s = typeof ch === 'string' ? ch : ch.label || ch.slug || '';
-      lines.push(`    - slug: ${yamlQuote(slugify(s))}`);
-      lines.push(`      label: ${yamlQuote(s)}`);
-    }
-  }
-
-  // General rules
-  if (gd.general_rules) {
-    lines.push('');
-    lines.push('general_rules: |');
-    for (const line of gd.general_rules.split('\n')) {
-      lines.push(`  ${line}`);
-    }
-  }
-
-  // Challenges data
-  const challenges = gd.challenges_data || gd.challenges || [];
-  lines.push('');
-  lines.push('# Challenge types');
-  if (challenges.length) {
-    lines.push('challenges_data:');
-    for (const c of challenges) {
-      const item = typeof c === 'string' ? { slug: slugify(c), label: c } : c;
-      lines.push(`  - slug: ${yamlQuote(item.slug || slugify(item.label || ''))}`);
-      lines.push(`    label: ${yamlQuote(item.label || item.slug || '')}`);
-      lines.push('    description: ""');
-    }
-  } else {
-    lines.push('challenges_data: []');
-  }
-
-  // Restrictions
-  const restrictions = gd.restrictions_data || [];
-  if (restrictions.length) {
-    lines.push('');
-    lines.push('restrictions_data:');
-    for (const r of restrictions) {
-      const item = typeof r === 'string' ? { slug: slugify(r), label: r } : r;
-      lines.push(`  - slug: ${yamlQuote(item.slug || slugify(item.label || ''))}`);
-      lines.push(`    label: ${yamlQuote(item.label || item.slug || '')}`);
-      lines.push('    description: ""');
-    }
-  } else {
-    lines.push('restrictions_data: []');
-  }
-
-  // Glitch data
-  const glitches = gd.glitches_data || [];
-  if (glitches.length) {
-    lines.push('');
-    lines.push('glitches_data:');
-    for (const g of glitches) {
-      const item = typeof g === 'string' ? { slug: slugify(g), label: g } : g;
-      lines.push(`  - slug: ${yamlQuote(item.slug || slugify(item.label || ''))}`);
-      lines.push(`    label: ${yamlQuote(item.label || item.slug || '')}`);
-    }
-  } else {
-    lines.push('glitches_data: []');
-  }
-
-  // Full runs
-  const fullRuns = gd.full_runs || gd.full_run_categories || [];
-  lines.push('');
-  lines.push('# Categories');
-  if (fullRuns.length) {
-    lines.push('full_runs:');
-    for (const cat of fullRuns) {
-      const item = typeof cat === 'string' ? { slug: slugify(cat), label: cat } : cat;
-      lines.push(`  - slug: ${yamlQuote(item.slug || slugify(item.label || ''))}`);
-      lines.push(`    label: ${yamlQuote(item.label || item.slug || '')}`);
-      lines.push('    description: ""');
-    }
-  } else {
-    lines.push('full_runs: []');
-  }
-
-  // Mini-challenges
-  const miniChallenges = gd.mini_challenges || [];
-  if (miniChallenges.length) {
-    lines.push('');
-    lines.push('mini_challenges:');
-    for (const cat of miniChallenges) {
-      const item = typeof cat === 'string' ? { slug: slugify(cat), label: cat } : cat;
-      lines.push(`  - slug: ${yamlQuote(item.slug || slugify(item.label || ''))}`);
-      lines.push(`    label: ${yamlQuote(item.label || item.slug || '')}`);
-      lines.push('    description: ""');
-    }
-  } else {
-    lines.push('mini_challenges: []');
-  }
-
-  // Player-made
-  lines.push('player_made: []');
-
-  // Credits
-  lines.push('');
-  lines.push('# Credits');
-  if (game.submitter_handle || game.submitter_runner_id) {
-    lines.push('credits:');
-    lines.push(`  - name: ${yamlQuote(game.submitter_handle || game.submitter_runner_id)}`);
-    if (game.submitter_runner_id) {
-      lines.push(`    runner_id: ${yamlQuote(game.submitter_runner_id)}`);
-    }
-    lines.push('    role: "Game submission"');
-  } else {
-    lines.push('credits: []');
-  }
-
-  lines.push('---');
-  lines.push('');
-  lines.push(gd.description || `${game.game_name} challenge runs.`);
-
-  return lines.join('\n');
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ADMIN AUTH MIDDLEWARE
@@ -879,7 +536,7 @@ async function handleApproveRun(body, env, request) {
     return jsonResponse({ error: 'Invalid run_id format' }, 400, env, request);
   }
 
-  // Fetch the run
+  // Fetch the pending run
   const runResult = await supabaseQuery(env,
     `pending_runs?id=eq.${encodeURIComponent(runId)}&select=*`, { method: 'GET' });
   if (!runResult.ok || !runResult.data?.length) {
@@ -894,29 +551,56 @@ async function handleApproveRun(body, env, request) {
     }
   }
 
-  // Build the run file
-  const filename = buildRunFilename(run);
-  const filePath = `_runs/${run.game_id}/${filename}`;
-  const content = buildRunFileContent(run);
-  const commitMsg = `✅ Approve run: ${run.game_id} by ${run.runner_id} (${run.category_slug})`;
+  const now = new Date().toISOString();
 
-  // Create file in GitHub
-  const ghResult = await githubCreateFile(env, filePath, content, commitMsg);
-  if (!ghResult.ok) {
-    // SECURITY (Item 15): Generic error, details logged server-side
-    return jsonResponse({ error: 'Failed to create run file. Please try again.' }, 500, env, request);
+  // Insert into the live `runs` table
+  const runsInsert = await supabaseQuery(env, 'runs', {
+    method: 'POST',
+    body: {
+      game_id: run.game_id,
+      runner_id: run.runner_id,
+      category_tier: run.category_tier || 'full_runs',
+      category_slug: run.category_slug,
+      standard_challenges: run.standard_challenges || [],
+      community_challenge: run.community_challenge || null,
+      character: run.character || null,
+      glitch_id: run.glitch_id || null,
+      restrictions: run.restrictions || [],
+      runner: run.runner_id,
+      video_url: run.video_url,
+      video_host: run.video_host || null,
+      video_id: run.video_id || null,
+      time_primary: run.run_time || null,
+      timing_method_primary: run.timing_method_primary || null,
+      date_completed: run.date_completed || null,
+      run_time: run.run_time || null,
+      additional_runners: run.additional_runners || null,
+      submission_id: run.submission_id,
+      submitted_at: run.submitted_at,
+      date_submitted: run.date_completed || null,
+      source: run.source || 'site_form',
+      status: 'approved',
+      verified: true,
+      verified_by: auth.role.runnerId || auth.user.id,
+      verified_at: now,
+      verifier_notes: body.notes || null,
+    },
+  });
+
+  if (!runsInsert.ok) {
+    console.error('Failed to insert approved run:', runsInsert.data);
+    return jsonResponse({ error: 'Failed to approve run. Please try again.' }, 500, env, request);
   }
 
-  // Update Supabase status
+  // Update pending_runs status
   await supabaseQuery(env,
     `pending_runs?id=eq.${encodeURIComponent(runId)}`, {
       method: 'PATCH',
       body: {
         status: 'verified',
         verified_by: auth.user.id,
-        verified_at: new Date().toISOString(),
+        verified_at: now,
         verifier_notes: body.notes || null,
-        github_file_path: filePath,
       },
     });
 
@@ -930,14 +614,12 @@ async function handleApproveRun(body, env, request) {
       { name: 'Category', value: run.category_slug, inline: true },
       { name: 'Video', value: run.video_url || '—', inline: false },
     ],
-    timestamp: new Date().toISOString(),
+    timestamp: now,
   });
 
   return jsonResponse({
     ok: true,
-    filename,
-    file_path: filePath,
-    message: 'Run approved and file created',
+    message: 'Run approved — visible on site immediately',
   }, 200, env, request);
 }
 
@@ -965,30 +647,45 @@ async function handleApproveProfile(body, env, request) {
     return jsonResponse({ error: 'Profile not found' }, 404, env, request);
   }
   const profile = profResult.data[0];
-
-  // Build the runner file
   const runnerId = profile.runner_id;
-  const filePath = `_runners/${runnerId}.md`;
-  const content = buildRunnerFileContent({
-    ...profile,
-    approved_by: auth.role.runnerId || 'admin',
-  });
-  const commitMsg = `👤 Approve profile: ${runnerId}`;
+  const now = new Date().toISOString();
 
-  // Create file in GitHub
-  const ghResult = await githubCreateFile(env, filePath, content, commitMsg);
-  if (!ghResult.ok) {
-    return jsonResponse({ error: 'Failed to create profile file. Please try again.' }, 500, env, request);
+  // Upsert into the live `runners` table
+  const runnersUpsert = await supabaseQuery(env, 'runners', {
+    method: 'POST',
+    headers: {
+      Prefer: 'resolution=merge-duplicates,return=representation',
+    },
+    body: {
+      runner_id: runnerId,
+      runner_name: profile.display_name || profile.runner_name || runnerId,
+      display_name: profile.display_name || null,
+      avatar: profile.avatar_url || profile.avatar || null,
+      joined_date: profile.joined_date || new Date().toISOString().slice(0, 10),
+      pronouns: profile.pronouns || null,
+      location: profile.location || null,
+      status: 'active',
+      bio: profile.bio || null,
+      accent_color: profile.accent_color || null,
+      socials: profile.socials || {},
+      user_id: profile.user_id || null,
+      updated_at: now,
+    },
+  });
+
+  if (!runnersUpsert.ok) {
+    console.error('Failed to upsert runner:', runnersUpsert.data);
+    return jsonResponse({ error: 'Failed to approve profile. Please try again.' }, 500, env, request);
   }
 
-  // Update Supabase
+  // Update pending_profiles status
   await supabaseQuery(env,
     `pending_profiles?id=eq.${encodeURIComponent(profileId)}`, {
       method: 'PATCH',
       body: {
         status: 'approved',
         reviewed_by: auth.user.id,
-        reviewed_at: new Date().toISOString(),
+        reviewed_at: now,
         reviewer_notes: body.notes || null,
       },
     });
@@ -1008,14 +705,12 @@ async function handleApproveProfile(body, env, request) {
       { name: 'Runner', value: profile.display_name || runnerId, inline: true },
       { name: 'ID', value: runnerId, inline: true },
     ],
-    timestamp: new Date().toISOString(),
+    timestamp: now,
   });
 
   return jsonResponse({
     ok: true,
-    filename: `${runnerId}.md`,
-    file_path: filePath,
-    message: 'Profile approved and file created',
+    message: 'Profile approved — visible on site immediately',
   }, 200, env, request);
 }
 
@@ -1036,44 +731,88 @@ async function handleApproveGame(body, env, request) {
     return jsonResponse({ error: 'Invalid game_id format' }, 400, env, request);
   }
 
-  // Fetch game
+  // Fetch pending game
   const gameResult = await supabaseQuery(env,
     `pending_games?id=eq.${encodeURIComponent(gameId)}&select=*`, { method: 'GET' });
   if (!gameResult.ok || !gameResult.data?.length) {
     return jsonResponse({ error: 'Game not found' }, 404, env, request);
   }
   const game = gameResult.data[0];
+  const gd = game.game_data || {};
 
   // Look up submitter's runner_id for credits
+  let submitterRunnerId = null;
   if (game.submitter_user_id) {
     const profileResult = await supabaseQuery(env,
       `runner_profiles?user_id=eq.${encodeURIComponent(game.submitter_user_id)}&select=runner_id`,
       { method: 'GET' });
     if (profileResult.ok && profileResult.data?.length) {
-      game.submitter_runner_id = profileResult.data[0].runner_id;
+      submitterRunnerId = profileResult.data[0].runner_id;
     }
   }
 
-  // Build the game file
-  const filename = `${game.game_id}.md`;
-  const filePath = `_games/${filename}`;
-  const content = buildGameFileContent(game);
-  const commitMsg = `🎮 Approve game: ${game.game_name} (${game.game_id})`;
+  const now = new Date().toISOString();
+  const initial = (game.game_id || 'x')[0].toLowerCase();
 
-  // Create file in GitHub
-  const ghResult = await githubCreateFile(env, filePath, content, commitMsg);
-  if (!ghResult.ok) {
-    return jsonResponse({ error: 'Failed to create game file. Please try again.' }, 500, env, request);
+  // Build credits array
+  const credits = [];
+  if (game.submitter_handle || submitterRunnerId) {
+    credits.push({
+      name: game.submitter_handle || submitterRunnerId,
+      runner_id: submitterRunnerId || undefined,
+      role: 'Game submission',
+    });
   }
 
-  // Update Supabase
+  // Insert into the live `games` table
+  const gamesInsert = await supabaseQuery(env, 'games', {
+    method: 'POST',
+    body: {
+      game_id: game.game_id,
+      game_name: game.game_name,
+      game_name_aliases: gd.game_name_aliases || [],
+      status: 'Active',
+      reviewers: [],
+      is_modded: gd.is_modded || false,
+      base_game: gd.base_game || null,
+      genres: gd.genres || [],
+      platforms: gd.platforms || [],
+      tabs: {
+        overview: true, runs: true, rules: true,
+        history: false, resources: false, forum: false,
+        extra_1: false, extra_2: false,
+      },
+      general_rules: gd.general_rules || '',
+      challenges_data: gd.challenges_data || [],
+      restrictions_data: gd.restrictions_data || [],
+      glitches_data: gd.glitches_data || [],
+      full_runs: gd.full_runs || [],
+      mini_challenges: gd.mini_challenges || [],
+      player_made: [],
+      character_column: gd.character_column || { enabled: false, label: 'Character' },
+      characters_data: gd.characters_data || [],
+      timing_method: gd.timing_method || 'RTA',
+      community_achievements: [],
+      credits: credits,
+      cover: `/assets/img/games/${initial}/${game.game_id}.jpg`,
+      cover_position: 'center',
+      content: gd.description || `${game.game_name} challenge runs.`,
+    },
+  });
+
+  if (!gamesInsert.ok) {
+    console.error('Failed to insert approved game:', gamesInsert.data);
+    return jsonResponse({ error: 'Failed to approve game. Please try again.' }, 500, env, request);
+  }
+
+  // Update pending_games status
   await supabaseQuery(env,
     `pending_games?id=eq.${encodeURIComponent(gameId)}`, {
       method: 'PATCH',
       body: {
         status: 'approved',
         reviewed_by: auth.user.id,
-        reviewed_at: new Date().toISOString(),
+        reviewed_at: now,
         reviewer_notes: body.notes || null,
       },
     });
@@ -1086,15 +825,13 @@ async function handleApproveGame(body, env, request) {
       { name: 'Game', value: game.game_name, inline: true },
       { name: 'ID', value: game.game_id, inline: true },
     ],
-    footer: { text: 'Game page will be live after the next site build' },
-    timestamp: new Date().toISOString(),
+    footer: { text: 'Game page is live immediately' },
+    timestamp: now,
   });
 
   return jsonResponse({
     ok: true,
-    filename,
-    file_path: filePath,
-    message: 'Game approved and file created',
+    message: 'Game approved — visible on site immediately',
   }, 200, env, request);
 }
 

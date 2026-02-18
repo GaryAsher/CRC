@@ -1,81 +1,86 @@
-# Challenge Run Community (SvelteKit)
+# Challenge Run Community
 
 Tracking challenge runs, deathless runs, and no-hit achievements across games.
 
-> **Migration status:** Phase 1 (scaffold) complete. See [migration guide](./MIGRATION.md) for full plan.
+**Live site:** https://www.challengerun.net
 
 ## Quick Start
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Start dev server
-pnpm dev
-
-# Build for production
-pnpm build
-
-# Preview production build
-pnpm preview
+pnpm dev          # Start dev server at localhost:5173
+pnpm build        # Build for Cloudflare Pages
+pnpm preview      # Preview production build locally
 ```
+
+## Architecture
+
+CRC is a SvelteKit app deployed on Cloudflare Pages with Supabase as the primary database.
+
+```
+Browser → Cloudflare Pages (SvelteKit SSR) → Supabase (dynamic data)
+                                            → Repo files (static config)
+    ↕
+Cloudflare Worker (API: submissions, approvals)
+    ↕
+Supabase (pending queues, approved content)
+```
+
+**Dynamic content** (runs, runners, games, achievements) lives in Supabase and appears
+instantly when approved — no redeployment needed.
+
+**Static content** (global config, news posts, legal pages, styles) lives in the repo
+and changes require a commit.
+
+See [CLAUDE.md](./CLAUDE.md) for the full architecture guide, coding conventions, and
+rules for AI assistants.
 
 ## Project Structure
 
 ```
 src/
-├── data/                    # Markdown collections & YAML config (from Jekyll)
-│   ├── games/               # Game definitions (_games/*.md)
-│   ├── runners/             # Runner profiles (_runners/*.md)
-│   ├── runs/                # Run submissions (_runs/**/*.md)
-│   ├── achievements/        # Achievement completions
-│   ├── teams/               # Team profiles
-│   ├── posts/               # News/blog posts
-│   ├── config/              # YAML config files (from _data/)
-│   └── templates/           # Templates for new content
+├── hooks.server.ts          # Auth middleware (every request)
+├── data/                    # Static content: config YAML, posts, staff guides
 ├── lib/
-│   ├── components/          # Svelte components
-│   │   ├── layout/          # Header, Footer, etc.
-│   │   ├── game/            # Game page components
-│   │   ├── runner/          # Runner profile components
-│   │   ├── admin/           # Admin panel components
-│   │   ├── forms/           # Form components
-│   │   └── shared/          # Shared/reusable components
-│   ├── server/
-│   │   └── data.ts          # Server-side data loading (replaces Jekyll collections)
-│   ├── stores/              # Svelte stores (auth, theme)
-│   ├── types/               # TypeScript type definitions
-│   └── utils/               # Utility functions
-├── routes/                  # SvelteKit file-based routing
-│   ├── games/[game_id]/     # Dynamic game pages
-│   ├── runners/[runner_id]/ # Dynamic runner pages
-│   ├── admin/               # Protected admin routes
-│   └── ...
-├── styles/                  # SCSS (ported from Jekyll)
-│   ├── base/
-│   ├── components/
-│   └── pages/
-static/                      # Static assets (images, CNAME)
-worker/                      # Cloudflare Worker (API layer — unchanged)
-supabase/                    # Supabase edge functions (unchanged)
-scripts/                     # CI/validation scripts (surviving from Jekyll)
+│   ├── server/data.ts       # Loads static config from repo files
+│   ├── supabase.ts          # Browser Supabase client
+│   ├── components/          # Svelte components (layout, auth, shared)
+│   ├── stores/              # Auth, theme, consent, scroll stores
+│   ├── types/               # TypeScript interfaces
+│   └── utils/               # Helpers (markdown rendering, formatDate, etc.)
+├── routes/                  # SvelteKit pages (see src/routes/README.md)
+└── styles/                  # SCSS (base, components, pages)
+worker/                      # Cloudflare Worker API (submissions, approvals)
+supabase/                    # Supabase edge functions
+scripts/                     # CI/validation scripts
+static/                      # Images, favicon, CNAME
 ```
-
-## Key Differences from Jekyll
-
-| Jekyll | SvelteKit |
-|---|---|
-| 123+ generated HTML files | ~5 dynamic route files |
-| Liquid templates | Svelte components |
-| `_data/supabase-config.yml` | `.env` with `PUBLIC_` prefix convention |
-| Client-side auth in `auth.js` | Server-side hooks + httpOnly cookies |
-| `generate-game-pages.js` etc. | Dynamic `[game_id]` routing |
 
 ## Tech Stack
 
-- **Framework:** SvelteKit 2 + Svelte 5
-- **Styling:** SCSS (same styles from Jekyll)
-- **Auth & Data:** Supabase
-- **API:** Cloudflare Workers
-- **Deployment:** GitHub Pages (static adapter) → Cloudflare Pages (future)
-- **Language:** TypeScript
+| Layer | Technology |
+|-|-|
+| Framework | SvelteKit 2 + Svelte 5 |
+| Language | TypeScript + SCSS |
+| Database | Supabase (PostgreSQL) |
+| Auth | Discord + Twitch OAuth → httpOnly cookies |
+| API | Cloudflare Worker |
+| Hosting | Cloudflare Pages |
+| Package manager | pnpm |
+
+## User Roles
+
+| Role | Can do |
+|-|-|
+| Runner | Submit runs, manage own profile |
+| Verifier | Approve/reject runs for assigned games |
+| Game Moderator | Edit game definitions, categories, rules |
+| Admin | Everything + site-wide config, user management |
+
+## Key Workflows
+
+**Run submission:** Runner fills form → Worker writes to `pending_runs` → Verifier approves → Worker moves to `runs` → visible on site instantly.
+
+**Game submission:** Runner requests new game → Worker writes to `pending_games` → Admin reviews → approved game appears in game list.
+
+**Profile creation:** User signs in via Discord/Twitch → creates profile → pending approval → approved profile is public.

@@ -1,0 +1,275 @@
+// =============================================================================
+// Server-Side Supabase Query Helpers
+// =============================================================================
+// All dynamic content (games, runs, runners, achievements, teams) is fetched
+// from Supabase at request time. Each function takes the Supabase client from
+// event.locals.supabase (created in hooks.server.ts).
+//
+// Static content (posts, config, staff guides) stays in data.ts.
+// =============================================================================
+
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Game, Runner, Run, Achievement, Team } from '$types';
+
+// ─── Games ──────────────────────────────────────────────────────────────────
+
+export async function getGames(supabase: SupabaseClient): Promise<Game[]> {
+	const { data, error } = await supabase
+		.from('games')
+		.select('*')
+		.order('game_name');
+
+	if (error) {
+		console.error('Error fetching games:', error.message);
+		return [];
+	}
+	return data as Game[];
+}
+
+export async function getActiveGames(supabase: SupabaseClient): Promise<Game[]> {
+	const { data, error } = await supabase
+		.from('games')
+		.select('*')
+		.eq('status', 'Active')
+		.order('game_name');
+
+	if (error) {
+		console.error('Error fetching active games:', error.message);
+		return [];
+	}
+	return data as Game[];
+}
+
+export async function getGame(supabase: SupabaseClient, gameId: string): Promise<Game | null> {
+	const { data, error } = await supabase
+		.from('games')
+		.select('*')
+		.eq('game_id', gameId)
+		.single();
+
+	if (error) {
+		if (error.code === 'PGRST116') return null; // Not found
+		console.error('Error fetching game:', error.message);
+		return null;
+	}
+	return data as Game;
+}
+
+// ─── Runners ────────────────────────────────────────────────────────────────
+
+export async function getRunners(supabase: SupabaseClient): Promise<Runner[]> {
+	const { data, error } = await supabase
+		.from('runners')
+		.select('*')
+		.order('runner_name');
+
+	if (error) {
+		console.error('Error fetching runners:', error.message);
+		return [];
+	}
+	return data as Runner[];
+}
+
+export async function getRunner(supabase: SupabaseClient, runnerId: string): Promise<Runner | null> {
+	const { data, error } = await supabase
+		.from('runners')
+		.select('*')
+		.eq('runner_id', runnerId)
+		.single();
+
+	if (error) {
+		if (error.code === 'PGRST116') return null;
+		console.error('Error fetching runner:', error.message);
+		return null;
+	}
+	return data as Runner;
+}
+
+// ─── Runs ───────────────────────────────────────────────────────────────────
+
+export async function getRuns(supabase: SupabaseClient): Promise<Run[]> {
+	const { data, error } = await supabase
+		.from('runs')
+		.select('*')
+		.eq('status', 'approved')
+		.order('submitted_at', { ascending: false });
+
+	if (error) {
+		console.error('Error fetching runs:', error.message);
+		return [];
+	}
+	return data as Run[];
+}
+
+export async function getRunsForGame(supabase: SupabaseClient, gameId: string): Promise<Run[]> {
+	const { data, error } = await supabase
+		.from('runs')
+		.select('*')
+		.eq('game_id', gameId)
+		.eq('status', 'approved')
+		.order('submitted_at', { ascending: false });
+
+	if (error) {
+		console.error('Error fetching runs for game:', error.message);
+		return [];
+	}
+	return data as Run[];
+}
+
+export async function getRunsForRunner(supabase: SupabaseClient, runnerId: string): Promise<Run[]> {
+	const { data, error } = await supabase
+		.from('runs')
+		.select('*')
+		.eq('runner_id', runnerId)
+		.eq('status', 'approved')
+		.order('date_completed', { ascending: false });
+
+	if (error) {
+		console.error('Error fetching runs for runner:', error.message);
+		return [];
+	}
+	return data as Run[];
+}
+
+export async function getRunsForCategory(
+	supabase: SupabaseClient,
+	gameId: string,
+	categorySlug: string
+): Promise<Run[]> {
+	const { data, error } = await supabase
+		.from('runs')
+		.select('*')
+		.eq('game_id', gameId)
+		.eq('category_slug', categorySlug)
+		.eq('status', 'approved')
+		.order('submitted_at', { ascending: false });
+
+	if (error) {
+		console.error('Error fetching runs for category:', error.message);
+		return [];
+	}
+	return data as Run[];
+}
+
+export async function getRecentRuns(supabase: SupabaseClient, limit = 10): Promise<Run[]> {
+	const { data, error } = await supabase
+		.from('runs')
+		.select('*')
+		.eq('status', 'approved')
+		.order('submitted_at', { ascending: false })
+		.limit(limit);
+
+	if (error) {
+		console.error('Error fetching recent runs:', error.message);
+		return [];
+	}
+	return data as Run[];
+}
+
+/** Get run count for a game (avoids fetching all rows) */
+export async function getRunCountForGame(supabase: SupabaseClient, gameId: string): Promise<number> {
+	const { count, error } = await supabase
+		.from('runs')
+		.select('*', { count: 'exact', head: true })
+		.eq('game_id', gameId)
+		.eq('status', 'approved');
+
+	if (error) {
+		console.error('Error counting runs:', error.message);
+		return 0;
+	}
+	return count ?? 0;
+}
+
+// ─── Achievements ───────────────────────────────────────────────────────────
+
+export async function getAchievements(supabase: SupabaseClient): Promise<Achievement[]> {
+	const { data, error } = await supabase
+		.from('achievements')
+		.select('*')
+		.eq('status', 'approved');
+
+	if (error) {
+		console.error('Error fetching achievements:', error.message);
+		return [];
+	}
+	return data as Achievement[];
+}
+
+export async function getAchievementsForGame(supabase: SupabaseClient, gameId: string): Promise<Achievement[]> {
+	const { data, error } = await supabase
+		.from('achievements')
+		.select('*')
+		.eq('game_id', gameId)
+		.eq('status', 'approved');
+
+	if (error) {
+		console.error('Error fetching achievements for game:', error.message);
+		return [];
+	}
+	return data as Achievement[];
+}
+
+export async function getAchievementsForRunner(supabase: SupabaseClient, runnerId: string): Promise<Achievement[]> {
+	const { data, error } = await supabase
+		.from('achievements')
+		.select('*')
+		.eq('runner_id', runnerId)
+		.eq('status', 'approved');
+
+	if (error) {
+		console.error('Error fetching achievements for runner:', error.message);
+		return [];
+	}
+	return data as Achievement[];
+}
+
+// ─── Teams ──────────────────────────────────────────────────────────────────
+
+export async function getTeams(supabase: SupabaseClient): Promise<Team[]> {
+	const { data, error } = await supabase
+		.from('teams')
+		.select('*')
+		.order('name');
+
+	if (error) {
+		console.error('Error fetching teams:', error.message);
+		return [];
+	}
+	return data as Team[];
+}
+
+export async function getTeam(supabase: SupabaseClient, teamId: string): Promise<Team | null> {
+	const { data, error } = await supabase
+		.from('teams')
+		.select('*')
+		.eq('team_id', teamId)
+		.single();
+
+	if (error) {
+		if (error.code === 'PGRST116') return null;
+		console.error('Error fetching team:', error.message);
+		return null;
+	}
+	return data as Team;
+}
+
+// ─── Aggregate Counts (efficient — no row fetching) ─────────────────────────
+
+export async function getCounts(supabase: SupabaseClient) {
+	const [games, runners, runs, achievements, teams] = await Promise.all([
+		supabase.from('games').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
+		supabase.from('runners').select('*', { count: 'exact', head: true }),
+		supabase.from('runs').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
+		supabase.from('achievements').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
+		supabase.from('teams').select('*', { count: 'exact', head: true })
+	]);
+
+	return {
+		gameCount: games.count ?? 0,
+		runnerCount: runners.count ?? 0,
+		runCount: runs.count ?? 0,
+		achievementCount: achievements.count ?? 0,
+		teamCount: teams.count ?? 0
+	};
+}

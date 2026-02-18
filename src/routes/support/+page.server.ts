@@ -1,10 +1,8 @@
-import { getActiveGames } from '$lib/server/data';
+import { getActiveGames } from '$lib/server/supabase';
 import type { PageServerLoad } from './$types';
 
-export const prerender = true;
-
-export const load: PageServerLoad = async () => {
-	const games = getActiveGames().map((g) => ({
+export const load: PageServerLoad = async ({ locals }) => {
+	const games = (await getActiveGames(locals.supabase)).map((g) => ({
 		game_id: g.game_id,
 		game_name: g.game_name
 	}));

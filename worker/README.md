@@ -1,59 +1,61 @@
-# Cloudflare Worker — CRC Submission API
+# worker/ — Cloudflare Worker API
 
-Handles run/game/profile submissions and admin approvals. Deployed to Cloudflare Workers.
+The backend API layer. Handles all write operations to Supabase. Deployed separately
+from the SvelteKit app via Wrangler.
+
+**Base URL:** `https://crc-run-submissions.280sauce.workers.dev`
 
 ## Endpoints
 
 | Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| POST | `/` or `/submit` | Turnstile | Submit a run |
-| POST | `/submit-game` | Turnstile | Submit a game |
-| POST | `/approve` | JWT (admin) | Approve a pending run → creates GitHub file |
-| POST | `/approve-profile` | JWT (admin) | Approve a pending profile → creates GitHub file |
-| POST | `/approve-game` | JWT (admin) | Approve a pending game → creates GitHub file |
-| POST | `/notify` | JWT (admin) | Send rejection/changes notification via Discord |
+|-|-|-|-|
+| POST | `/` | Turnstile captcha | Submit a new run |
+| POST | `/submit-game` | Turnstile captcha | Submit a new game request |
+| POST | `/approve` | Admin JWT | Approve a pending run |
+| POST | `/approve-profile` | Admin JWT | Approve a pending profile |
+| POST | `/approve-game` | Admin JWT | Approve a pending game |
+| POST | `/notify` | Admin JWT | Send Discord notification (reject/changes requested) |
+| POST | `/export-data` | User JWT | GDPR/CCPA data export (own data only) |
+
+## Security
+
+- **CORS:** Restricted to allowed origins (production domain + localhost in dev)
+- **Rate limiting:** Per-IP limits on submission endpoints
+- **Input sanitization:** All user input stripped of HTML, event handlers, JS protocols
+- **Turnstile:** Cloudflare captcha on public submission endpoints
+- **JWT verification:** Admin endpoints verify Supabase JWT and check role claims
+
+## Secrets (set via `wrangler secret put`)
+
+| Secret | Purpose |
+|-|-|
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_KEY` | Service role key (full database access) |
+| `GITHUB_TOKEN` | GitHub API token (for legacy file creation — being removed) |
+| `GITHUB_REPO` | Repository path (e.g., `owner/CRC-main`) |
+| `TURNSTILE_SECRET` | Cloudflare Turnstile server-side secret |
+| `DISCORD_WEBHOOK_RUNS` | Discord webhook for run notifications |
+| `DISCORD_WEBHOOK_GAMES` | Discord webhook for game notifications |
+| `DISCORD_WEBHOOK_PROFILES` | Discord webhook for profile notifications |
+| `ALLOWED_ORIGIN` | Comma-separated allowed CORS origins |
+
+## Files
+
+| File | Purpose |
+|-|-|
+| `src/index.js` | All Worker logic (single file) |
+| `wrangler.toml` | Wrangler deployment configuration |
+
+## Data Flow
+
+```
+Public submission → Turnstile verify → sanitize → Supabase pending table → Discord notification
+Admin approval → JWT verify → role check → update Supabase status → Discord notification
+```
 
 ## Deployment
 
 ```bash
 cd worker
-
-# First time: authenticate
-export CLOUDFLARE_API_TOKEN="your-token"
-
-# Deploy
 wrangler deploy
 ```
-
-## Secrets
-
-Set via `wrangler secret put SECRET_NAME`:
-
-| Secret | Purpose |
-|--------|---------|
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_SERVICE_KEY` | Supabase service_role key (bypasses RLS) |
-| `TURNSTILE_SECRET` | Cloudflare Turnstile secret key |
-| `GITHUB_TOKEN` | GitHub PAT with Contents write access |
-| `GITHUB_REPO` | Repository (e.g., `GaryAsher/challenge-run-site`) |
-| `DISCORD_WEBHOOK_RUNS` | Discord webhook for run notifications |
-| `DISCORD_WEBHOOK_GAMES` | Discord webhook for game notifications |
-| `DISCORD_WEBHOOK_PROFILES` | Discord webhook for profile notifications |
-
-## Environment Variables
-
-Set in `wrangler.toml` (not secrets):
-
-| Variable | Purpose |
-|----------|---------|
-| `ALLOWED_ORIGIN` | Comma-separated allowed origins for CORS |
-| `ENVIRONMENT` | Set to `development` to allow localhost CORS (unset in production) |
-
-## Security
-
-- Rate limiting: 5 submissions/min, 30 admin actions/min, 3 game submissions/min
-- All inputs sanitized (HTML tags, event handlers stripped)
-- IDs validated against format regex before database queries
-- Error messages are generic (no internal details leaked)
-- Turnstile verification fails closed (missing secret = rejected)
-- CORS restricted to allowed origins only

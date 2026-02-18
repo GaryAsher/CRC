@@ -1,8 +1,13 @@
-import { getActiveGames, getRunners, getRuns } from '$lib/server/data';
+import { getActiveGames, getRunners } from '$lib/server/supabase';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
-	const games = getActiveGames().map((g) => ({
+export const load: PageServerLoad = async ({ locals }) => {
+	const [rawGames, rawRunners] = await Promise.all([
+		getActiveGames(locals.supabase),
+		getRunners(locals.supabase)
+	]);
+
+	const games = rawGames.map((g) => ({
 		type: 'game' as const,
 		id: g.game_id,
 		name: g.game_name,
@@ -11,7 +16,7 @@ export const load: PageServerLoad = async () => {
 		url: `/games/${g.game_id}`
 	}));
 
-	const runners = getRunners()
+	const runners = rawRunners
 		.filter((r) => r.status !== 'test' && !r.hidden)
 		.map((r) => ({
 			type: 'runner' as const,

@@ -1,16 +1,12 @@
-import { getTeam, getTeams, getGames, getRunner } from '$lib/server/data';
+import { getTeam, getGames, getRunner } from '$lib/server/supabase';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export function entries() {
-	return getTeams().map((t) => ({ team_id: t.team_id }));
-}
-
-export const load: PageServerLoad = async ({ params }) => {
-	const team = getTeam(params.team_id);
+export const load: PageServerLoad = async ({ params, locals }) => {
+	const team = await getTeam(locals.supabase, params.team_id);
 	if (!team) throw error(404, 'Team not found');
 
-	const allGames = getGames();
+	const allGames = await getGames(locals.supabase);
 
 	// Resolve game names from IDs
 	const games = (team.games || [])
@@ -21,16 +17,18 @@ export const load: PageServerLoad = async ({ params }) => {
 		.filter(Boolean) as { game_id: string; game_name: string }[];
 
 	// Resolve member runner profiles
-	const members = (team.members || []).map((m) => {
-		const runner = getRunner(m.runner_id);
-		return {
-			runner_id: m.runner_id,
-			name: m.name || runner?.runner_name || m.runner_id,
-			role: m.role,
-			avatar: runner?.avatar || null,
-			hasProfile: !!runner
-		};
-	});
+	const members = await Promise.all(
+		(team.members || []).map(async (m) => {
+			const runner = await getRunner(locals.supabase, m.runner_id);
+			return {
+				runner_id: m.runner_id,
+				name: m.name || runner?.runner_name || m.runner_id,
+				role: m.role,
+				avatar: runner?.avatar || null,
+				hasProfile: !!runner
+			};
+		})
+	);
 
 	return {
 		team,
