@@ -20,12 +20,16 @@
 		errorMessage = '';
 
 		try {
+			// Store intended post-login redirect in sessionStorage
+			// (query params in redirectTo can cause Supabase allowlist matching to fail)
 			const rawRedirect = $page.url.searchParams.get('redirect') || '/';
-			const redirectTo = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/';
+			const postLoginRedirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/';
+			sessionStorage.setItem('crc_auth_redirect', postLoginRedirect);
+
 			const { error } = await supabase.auth.signInWithOAuth({
 				provider,
 				options: {
-					redirectTo: `${PUBLIC_SITE_URL}/auth/callback?redirect=${encodeURIComponent(redirectTo)}`
+					redirectTo: `${PUBLIC_SITE_URL}/auth/callback`
 				}
 			});
 			if (error) throw error;

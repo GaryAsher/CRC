@@ -47,7 +47,10 @@
 				session.set(data.session);
 				status = 'success';
 
-				const rawRedirect = $page.url.searchParams.get('redirect') || '/';
+				const rawRedirect = $page.url.searchParams.get('redirect')
+					|| sessionStorage.getItem('crc_auth_redirect')
+					|| '/';
+				sessionStorage.removeItem('crc_auth_redirect');
 				// Security: only allow relative paths to prevent open redirect attacks
 				const redirectTo = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/';
 				setTimeout(() => goto(redirectTo), 500);
