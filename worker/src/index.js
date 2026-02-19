@@ -113,7 +113,7 @@ const RATE_LIMITS = {
   '/approve-profile': 30,
   '/approve-game': 30,
   '/notify': 10,
-  '/report': 5,
+  '/export-data': 2,    // Heavy query — 2/min/IP
 };
 
 function checkRateLimit(ip, path) {
@@ -208,14 +208,14 @@ async function verifySupabaseToken(env, accessToken) {
 async function isAdmin(env, userId) {
   // Check runner_profiles.is_admin
   const profile = await supabaseQuery(env,
-    `runner_profiles?user_id=eq.${userId}&select=is_admin,runner_id`, { method: 'GET' });
+    `runner_profiles?user_id=eq.${encodeURIComponent(userId)}&select=is_admin,runner_id`, { method: 'GET' });
   if (profile.ok && Array.isArray(profile.data) && profile.data.length > 0) {
     if (profile.data[0].is_admin === true) return { admin: true, runnerId: profile.data[0].runner_id };
   }
 
   // Check moderators table
   const mod = await supabaseQuery(env,
-    `moderators?user_id=eq.${userId}&select=can_manage_moderators,assigned_games`, { method: 'GET' });
+    `moderators?user_id=eq.${encodeURIComponent(userId)}&select=can_manage_moderators,assigned_games`, { method: 'GET' });
   if (mod.ok && Array.isArray(mod.data) && mod.data.length > 0) {
     return {
       admin: mod.data[0].can_manage_moderators === true,
@@ -898,17 +898,17 @@ async function handleDataExport(body, env, request) {
 
   // 1. Profile
   const profile = await supabaseQuery(env,
-    `runner_profiles?user_id=eq.${userId}&select=*`, { method: 'GET' });
+    `runner_profiles?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
   exportData.sections.profile = profile.ok ? (profile.data || []) : [];
 
   // 2. Pending profiles (in-progress profile edits)
   const pendingProfiles = await supabaseQuery(env,
-    `pending_profiles?user_id=eq.${userId}&select=*`, { method: 'GET' });
+    `pending_profiles?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
   exportData.sections.pending_profiles = pendingProfiles.ok ? (pendingProfiles.data || []) : [];
 
   // 3. Pending run submissions
   const runs = await supabaseQuery(env,
-    `pending_runs?submitted_by=eq.${userId}&select=*`, { method: 'GET' });
+    `pending_runs?submitted_by=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
   exportData.sections.pending_runs = runs.ok ? (runs.data || []) : [];
 
   // 3b. Approved runs (GDPR Article 15 — all personal data must be included)
@@ -926,27 +926,27 @@ async function handleDataExport(body, env, request) {
 
   // 4. Linked accounts
   const linked = await supabaseQuery(env,
-    `linked_accounts?user_id=eq.${userId}&select=provider,provider_username,created_at`, { method: 'GET' });
+    `linked_accounts?user_id=eq.${encodeURIComponent(userId)}&select=provider,provider_username,created_at`, { method: 'GET' });
   exportData.sections.linked_accounts = linked.ok ? (linked.data || []) : [];
 
   // 5. Game submissions
   const games = await supabaseQuery(env,
-    `pending_games?submitter_user_id=eq.${userId}&select=*`, { method: 'GET' });
+    `pending_games?submitter_user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
   exportData.sections.game_submissions = games.ok ? (games.data || []) : [];
 
   // 6. Game update requests
   const updates = await supabaseQuery(env,
-    `game_update_requests?user_id=eq.${userId}&select=*`, { method: 'GET' });
+    `game_update_requests?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
   exportData.sections.game_update_requests = updates.ok ? (updates.data || []) : [];
 
   // 7. Support tickets
   const tickets = await supabaseQuery(env,
-    `support_tickets?user_id=eq.${userId}&select=*`, { method: 'GET' });
+    `support_tickets?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
   exportData.sections.support_tickets = tickets.ok ? (tickets.data || []) : [];
 
   // 8. Ticket messages
   const messages = await supabaseQuery(env,
-    `ticket_messages?user_id=eq.${userId}&select=*`, { method: 'GET' });
+    `ticket_messages?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
   exportData.sections.ticket_messages = messages.ok ? (messages.data || []) : [];
 
   // 9. Profile audit log (actions performed on this user's profile)
@@ -958,7 +958,7 @@ async function handleDataExport(body, env, request) {
 
   // 10. Moderator record (if they are one)
   const modRecord = await supabaseQuery(env,
-    `moderators?user_id=eq.${userId}&select=*`, { method: 'GET' });
+    `moderators?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
   if (modRecord.ok && modRecord.data?.length > 0) {
     exportData.sections.moderator_record = modRecord.data;
   }

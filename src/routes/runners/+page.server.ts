@@ -1,4 +1,4 @@
-import { getRunners, getRunsForRunner } from '$lib/server/supabase';
+import { getRunners, getRunCountForRunner } from '$lib/server/supabase';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const runnersWithCounts = await Promise.all(
 		runners.map(async (r) => ({
 			...r,
-			runCount: (await getRunsForRunner(locals.supabase, r.runner_id)).length
+			runCount: await getRunCountForRunner(locals.supabase, r.runner_id)
 		}))
 	);
 

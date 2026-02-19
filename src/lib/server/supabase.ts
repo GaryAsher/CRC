@@ -61,6 +61,8 @@ export async function getRunners(supabase: SupabaseClient): Promise<Runner[]> {
 	const { data, error } = await supabase
 		.from('runners')
 		.select('*')
+		.neq('status', 'test')
+		.or('hidden.is.null,hidden.eq.false')
 		.order('runner_name');
 
 	if (error) {
@@ -176,6 +178,21 @@ export async function getRunCountForGame(supabase: SupabaseClient, gameId: strin
 
 	if (error) {
 		console.error('Error counting runs:', error.message);
+		return 0;
+	}
+	return count ?? 0;
+}
+
+/** Get run count for a runner (avoids fetching all rows) */
+export async function getRunCountForRunner(supabase: SupabaseClient, runnerId: string): Promise<number> {
+	const { count, error } = await supabase
+		.from('runs')
+		.select('*', { count: 'exact', head: true })
+		.eq('runner_id', runnerId)
+		.eq('status', 'approved');
+
+	if (error) {
+		console.error('Error counting runs for runner:', error.message);
 		return 0;
 	}
 	return count ?? 0;
