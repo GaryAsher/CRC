@@ -886,6 +886,13 @@ async function handleDataExport(body, env, request) {
   const exportData = {
     exported_at: new Date().toISOString(),
     user_id: userId,
+    categories_collected: [
+      'Profile information (display name, bio, social links)',
+      'Run submissions and gaming activity',
+      'Account connections (Discord, Twitch)',
+      'Support communications',
+      'Moderation history (if applicable)',
+    ],
     sections: {},
   };
 
@@ -899,10 +906,23 @@ async function handleDataExport(body, env, request) {
     `pending_profiles?user_id=eq.${userId}&select=*`, { method: 'GET' });
   exportData.sections.pending_profiles = pendingProfiles.ok ? (pendingProfiles.data || []) : [];
 
-  // 3. Run submissions
+  // 3. Pending run submissions
   const runs = await supabaseQuery(env,
     `pending_runs?submitted_by=eq.${userId}&select=*`, { method: 'GET' });
-  exportData.sections.runs = runs.ok ? (runs.data || []) : [];
+  exportData.sections.pending_runs = runs.ok ? (runs.data || []) : [];
+
+  // 3b. Approved runs (GDPR Article 15 — all personal data must be included)
+  const runnerId = profile.ok && profile.data?.[0]?.runner_id;
+  if (runnerId) {
+    const approvedRuns = await supabaseQuery(env,
+      `runs?runner_id=eq.${encodeURIComponent(runnerId)}&select=*`, { method: 'GET' });
+    exportData.sections.approved_runs = approvedRuns.ok ? (approvedRuns.data || []) : [];
+
+    // 3c. Achievements
+    const achievements = await supabaseQuery(env,
+      `achievements?runner_id=eq.${encodeURIComponent(runnerId)}&select=*`, { method: 'GET' });
+    exportData.sections.achievements = achievements.ok ? (achievements.data || []) : [];
+  }
 
   // 4. Linked accounts
   const linked = await supabaseQuery(env,
@@ -930,7 +950,6 @@ async function handleDataExport(body, env, request) {
   exportData.sections.ticket_messages = messages.ok ? (messages.data || []) : [];
 
   // 9. Profile audit log (actions performed on this user's profile)
-  const runnerId = profile.ok && profile.data?.[0]?.runner_id;
   if (runnerId) {
     const audit = await supabaseQuery(env,
       `profile_audit_log?runner_id=eq.${encodeURIComponent(runnerId)}&select=*`, { method: 'GET' });

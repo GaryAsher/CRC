@@ -101,3 +101,9 @@ button.tag,
   justify-content: center;              // Center tags in table cells
   align-items: flex-start;
 }
+
+// Small variant for compact tag displays (game cards, run tables)
+.tag--small {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+}
