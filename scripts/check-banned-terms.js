@@ -37,7 +37,7 @@ const QUEUED_ONLY = args.includes('--queued');
 // Load configuration
 // ============================================================
 function loadBannedTerms() {
-  const configPath = path.join(ROOT, '_data', 'banned-terms.yml');
+  const configPath = path.join(ROOT, 'src', 'data', 'config', 'banned-terms.yml');
   
   if (!fs.existsSync(configPath)) {
     console.log('No banned-terms.yml found, skipping check');

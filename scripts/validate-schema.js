@@ -167,13 +167,13 @@ function validateWindowsUnsafeNames() {
 }
 
 function validateDataFiles() {
-  const genresPath = path.join(ROOT, '_data', 'genres.yml');
-  const challengesPath = path.join(ROOT, '_data', 'challenges.yml');
-  const platformsPath = path.join(ROOT, '_data', 'platforms.yml');
+  const genresPath = path.join(ROOT, 'src', 'data', 'config', 'genres.yml');
+  const challengesPath = path.join(ROOT, 'src', 'data', 'config', 'challenges.yml');
+  const platformsPath = path.join(ROOT, 'src', 'data', 'config', 'platforms.yml');
 
-  if (!isFile(genresPath)) die('Missing _data/genres.yml');
-  if (!isFile(challengesPath)) die('Missing _data/challenges.yml');
-  if (!isFile(platformsPath)) die('Missing _data/platforms.yml');
+  if (!isFile(genresPath)) die('Missing src/data/config/genres.yml');
+  if (!isFile(challengesPath)) die('Missing src/data/config/challenges.yml');
+  if (!isFile(platformsPath)) die('Missing src/data/config/platforms.yml');
 
   const genres = loadYamlFile(genresPath);
   const challenges = loadYamlFile(challengesPath);
