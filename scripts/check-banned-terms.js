@@ -1,29 +1,20 @@
 #!/usr/bin/env node
-/**
- * Check for banned terms in user-submitted content.
- * 
- * Scans:
- *   - _queue_games/*.md (queued game submissions)
- *   - _queue_runs/**/*.md (queued run submissions)
- *   - _runners/*.md (runner profiles)
- *   - _runs/**/*.md (approved runs)
- *   - _games/*.md (game pages)
- *   - _posts/*.md (news posts)
- * 
- * Configuration: _data/banned-terms.yml
- * 
- * Supports:
- *   - Simple substring matching (case-insensitive)
- *   - Regex patterns for slurs (catches variations and embedded text)
- * 
- * Exit codes:
- *   0 = No banned terms found
- *   1 = Banned terms detected (blocks CI)
- * 
- * Usage:
- *   node scripts/check-banned-terms.js           # Check all directories
- *   node scripts/check-banned-terms.js --queued  # Check only queue directories
- */
+// Check for banned terms in user-submitted content.
+//
+// Scans queue and content directories for markdown files containing
+// banned terms defined in src/data/config/banned-terms.yml.
+//
+// Supports:
+//   - Simple substring matching (case-insensitive)
+//   - Regex patterns for slurs (catches variations and embedded text)
+//
+// Exit codes:
+//   0 = No banned terms found
+//   1 = Banned terms detected (blocks CI)
+//
+// Usage:
+//   node scripts/check-banned-terms.js           # Check all directories
+//   node scripts/check-banned-terms.js --queued  # Check only queue directories
 
 const fs = require('fs');
 const path = require('path');
