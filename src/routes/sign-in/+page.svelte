@@ -20,7 +20,8 @@
 		errorMessage = '';
 
 		try {
-			const redirectTo = $page.url.searchParams.get('redirect') || '/';
+			const rawRedirect = $page.url.searchParams.get('redirect') || '/';
+			const redirectTo = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/';
 			const { error } = await supabase.auth.signInWithOAuth({
 				provider,
 				options: {
