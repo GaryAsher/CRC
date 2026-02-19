@@ -13,6 +13,18 @@ import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 export const handle: Handle = async ({ event, resolve }) => {
+	// ── Redirect safety net ──────────────────────────────────────────────
+	// If Supabase sends the OAuth code to the homepage (Site URL fallback)
+	// instead of /auth/callback, redirect so the callback page can handle it.
+	const url = event.url;
+	if (url.pathname === '/' && url.searchParams.has('code') && !event.locals.session) {
+		const callbackUrl = new URL('/auth/callback', url.origin);
+		callbackUrl.searchParams.set('code', url.searchParams.get('code')!);
+		return new Response(null, {
+			status: 302,
+			headers: { Location: callbackUrl.toString() }
+		});
+	}
 	// Create a Supabase client for this request
 	event.locals.supabase = createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
 		auth: {
