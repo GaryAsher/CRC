@@ -163,7 +163,7 @@
 	}
 
 	// ── Init ──
-	onMount(async () => {
+	onMount(() => {
 		const unsub = isLoading.subscribe(async (l) => {
 			if (!l) {
 				let sess: any; session.subscribe(s => sess = s)();

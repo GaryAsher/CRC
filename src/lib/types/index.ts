@@ -139,6 +139,10 @@ export interface Game {
 
 	// Markdown body content (below the front matter ---)
 	content?: string;
+
+	// Supabase timestamps
+	created_at?: string;
+	updated_at?: string;
 }
 
 // ─── Runners ────────────────────────────────────────────────────────────────
@@ -209,6 +213,10 @@ export interface Runner {
 
 	// Markdown body content
 	content?: string;
+
+	// Supabase timestamps
+	created_at?: string;
+	updated_at?: string;
 }
 
 // ─── Runs ───────────────────────────────────────────────────────────────────

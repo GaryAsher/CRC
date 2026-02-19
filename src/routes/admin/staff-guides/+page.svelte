@@ -33,7 +33,7 @@
 	let activeGuide = $state('');
 	const currentGuide = $derived(guides.find((g: { slug: string }) => g.slug === activeGuide));
 
-	onMount(async () => {
+	onMount(() => {
 		const unsub = isLoading.subscribe(async (l) => {
 			if (!l) {
 				let sess: any; session.subscribe(s => sess = s)();

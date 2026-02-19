@@ -16,7 +16,7 @@
 	let actionMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
 	let processingId = $state<number | null>(null);
 
-	onMount(async () => {
+	onMount(() => {
 		// Wait for auth to load
 		const unsub = isLoading.subscribe(async (loading) => {
 			if (!loading) {

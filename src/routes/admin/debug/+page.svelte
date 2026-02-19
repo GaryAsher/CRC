@@ -43,7 +43,7 @@
 		['Edit own profile', true, true, true, true]
 	];
 
-	onMount(async () => {
+	onMount(() => {
 		const unsub = isLoading.subscribe(async (l) => {
 			if (!l) {
 				let sess: any;

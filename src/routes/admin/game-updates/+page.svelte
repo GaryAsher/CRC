@@ -14,7 +14,7 @@
 	let expandedGames = $state<Set<string>>(new Set());
 	let toast = $state('');
 
-	onMount(async () => {
+	onMount(() => {
 		const unsub = isLoading.subscribe(async (l) => {
 			if (!l) {
 				let sess: any;

@@ -101,7 +101,7 @@
 		setTimeout(() => actionMessage = null, 3000);
 	}
 
-	onMount(async () => {
+	onMount(() => {
 		const unsub = isLoading.subscribe(async (l) => {
 			if (!l) {
 				let sess: any; session.subscribe(s => sess = s)();

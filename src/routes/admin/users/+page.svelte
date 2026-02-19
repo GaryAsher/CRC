@@ -15,7 +15,7 @@
 	let viewingUser = $state<any>(null);
 	const PAGE_SIZE = 20;
 
-	onMount(async () => {
+	onMount(() => {
 		const unsub = isLoading.subscribe(async (l) => {
 			if (!l) {
 				let sess: any;

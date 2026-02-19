@@ -47,7 +47,7 @@
 		{ icon: '🐙', name: 'GitHub', desc: 'Code & Actions', cost: 'Free', monthly: '$0/mo', status: 'Free Tier' }
 	];
 
-	onMount(async () => {
+	onMount(() => {
 		const unsub = isLoading.subscribe(async (l) => {
 			if (!l) {
 				let sess: any;

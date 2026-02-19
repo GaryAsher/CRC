@@ -111,7 +111,7 @@
 <section>
 	{#if hasDescription}
 		<div class="card">
-			{@html renderMarkdown(game.content)}
+			{@html renderMarkdown(game.content ?? '')}
 		</div>
 	{:else}
 		<div class="card">
