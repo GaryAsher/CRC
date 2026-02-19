@@ -36,7 +36,7 @@
 	let message = $state<{ type: 'success' | 'error'; text: string } | null>(null);
 
 	// ── OAuth Info ────────────────────────────────────────────────────────────
-	let oauthAvatar = $derived($user?.user_metadata?.avatar_url || '/assets/img/site/default-runner.png');
+	let oauthAvatar = $derived($user?.user_metadata?.avatar_url || '/img/site/default-runner.png');
 	let oauthName = $derived($user?.user_metadata?.full_name || $user?.user_metadata?.name || 'User');
 	let oauthProvider = $derived($user?.app_metadata?.provider || 'OAuth');
 

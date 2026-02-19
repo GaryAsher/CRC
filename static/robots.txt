@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Private routes — no indexing
+Disallow: /admin/
+Disallow: /profile/
+Disallow: /auth/
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://www.challengerun.net/sitemap.xml

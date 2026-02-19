@@ -794,7 +794,7 @@ async function handleApproveGame(body, env, request) {
       timing_method: gd.timing_method || 'RTA',
       community_achievements: [],
       credits: credits,
-      cover: `/assets/img/games/${initial}/${game.game_id}.jpg`,
+      cover: `/img/games/${initial}/${game.game_id}.jpg`,
       cover_position: 'center',
       content: gd.description || `${game.game_name} challenge runs.`,
     },

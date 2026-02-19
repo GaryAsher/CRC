@@ -128,7 +128,6 @@
       <ul>
         <li><strong>Supabase (Supabase Inc.)</strong> — Database hosting and authentication. <a href="https://supabase.com/privacy" target="_blank" rel="noopener">Privacy Policy</a></li>
         <li><strong>Cloudflare (Cloudflare, Inc.)</strong> — Hosting, CDN, security, and analytics. <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacy Policy</a></li>
-        <li><strong>GitHub (Microsoft)</strong> — Source code hosting and automated workflows. <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">Privacy Policy</a></li>
       </ul>
       <p>These providers have their own privacy policies governing how they handle data.</p>
       

@@ -6,6 +6,7 @@
 	import Header from '$components/layout/Header.svelte';
 	import Footer from '$components/layout/Footer.svelte';
 	import BackToTop from '$components/BackToTop.svelte';
+	import CookieConsent from '$components/CookieConsent.svelte';
 
 	let { data, children } = $props();
 
@@ -30,6 +31,7 @@
 	</main>
 	<Footer />
 	<BackToTop />
+	<CookieConsent />
 </div>
 
 <style>
