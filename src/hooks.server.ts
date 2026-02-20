@@ -1,66 +1,80 @@
+// =============================================================================
+// Server Hooks — Auth Middleware
+// =============================================================================
+// Uses @supabase/ssr to create a server-side Supabase client that reads/writes
+// auth tokens via cookies. Runs on every request.
+//
+// Cookie flow:
+// 1. createBrowserClient (browser) stores PKCE verifier in a cookie
+// 2. /auth/callback (server) exchanges code, sets session cookies
+// 3. This hook reads session cookies on every subsequent request
+// =============================================================================
+
 import type { Handle } from '@sveltejs/kit';
-import { createClient } from '@supabase/supabase-js';
+import { redirect } from '@sveltejs/kit';
+import { createServerClient } from '@supabase/ssr';
 import {
-  PUBLIC_SUPABASE_URL,
-  PUBLIC_SUPABASE_ANON_KEY
+	PUBLIC_SUPABASE_URL,
+	PUBLIC_SUPABASE_ANON_KEY
 } from '$env/static/public';
 
 export const handle: Handle = async ({ event, resolve }) => {
-  // ─── Skip auth entirely during prerender ───────────────────────
-  // During build, SvelteKit prerenders certain pages. The synthetic
-  // request has no real cookies or URL params, and accessing
-  // url.searchParams throws. Safe to skip — prerendered pages
-  // never need auth context.
-  if (event.isSubRequest || !event.cookies.getAll().length && !event.request.headers.get('cookie')) {
-    event.locals.session = null;
-    return resolve(event);
-  }
+	// ─── Skip auth entirely during prerender ──────────────────────
+	if (
+		event.isSubRequest ||
+		(!event.cookies.getAll().length && !event.request.headers.get('cookie'))
+	) {
+		event.locals.session = null;
+		return resolve(event);
+	}
 
-  // ─── Create Supabase client for this request ───────────────────
-  event.locals.supabase = createClient(
-    PUBLIC_SUPABASE_URL,
-    PUBLIC_SUPABASE_ANON_KEY,
-    {
-      auth: {
-        flowType: 'pkce',
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-        persistSession: false
-      }
-    }
-  );
+	// ─── Safety net: redirect stray auth codes to callback ───────
+	// If Supabase redirects the ?code= to the wrong path (e.g. homepage),
+	// catch it here and forward to the proper callback handler.
+	if (
+		event.url.searchParams.has('code') &&
+		!event.url.pathname.startsWith('/auth/callback')
+	) {
+		const code = event.url.searchParams.get('code');
+		redirect(303, `/auth/callback?code=${code}`);
+	}
 
-  // ─── Restore session from httpOnly cookies ─────────────────────
-  const accessToken = event.cookies.get('sb-access-token');
-  const refreshToken = event.cookies.get('sb-refresh-token');
+	// ─── Create Supabase server client with cookie adapter ───────
+	event.locals.supabase = createServerClient(
+		PUBLIC_SUPABASE_URL,
+		PUBLIC_SUPABASE_ANON_KEY,
+		{
+			cookies: {
+				getAll: () => {
+					return event.cookies.getAll();
+				},
+				setAll: (cookiesToSet) => {
+					for (const { name, value, options } of cookiesToSet) {
+						event.cookies.set(name, value, {
+							path: '/',
+							secure: true,
+							sameSite: 'lax',
+							...options
+						});
+					}
+				}
+			}
+		}
+	);
 
-  if (accessToken && refreshToken) {
-    const { data } = await event.locals.supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken
-    });
-    event.locals.session = data.session;
+	// ─── Restore session from cookies ────────────────────────────
+	// getSession() validates the access token and refreshes if needed.
+	// The refreshed tokens are written back via the setAll adapter.
+	const {
+		data: { session }
+	} = await event.locals.supabase.auth.getSession();
 
-    // Refresh cookies if token was renewed
-    if (data.session && data.session.access_token !== accessToken) {
-      event.cookies.set('sb-access-token', data.session.access_token, {
-        path: '/',
-        httpOnly: true,
-        secure: true,
-        sameSite: 'lax',
-        maxAge: 60 * 60
-      });
-      event.cookies.set('sb-refresh-token', data.session.refresh_token, {
-        path: '/',
-        httpOnly: true,
-        secure: true,
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30
-      });
-    }
-  } else {
-    event.locals.session = null;
-  }
+	event.locals.session = session;
 
-  return resolve(event);
+	return resolve(event, {
+		filterSerializedResponseHeaders(name) {
+			// Required for Supabase client to work properly
+			return name === 'content-range' || name === 'x-supabase-api-version';
+		}
+	});
 };

@@ -1,41 +1,65 @@
 // =============================================================================
-// Auth Callback Server Endpoint
+// Auth Callback — Server-Side Code Exchange
 // =============================================================================
-// Receives tokens from the client-side OAuth exchange and sets them as
-// httpOnly cookies. This bridges the gap between the client-side Supabase
-// SDK (which handles the OAuth code exchange) and the server-side session
-// management in hooks.server.ts.
+// This GET handler replaces the old client-side +page.svelte approach.
+//
+// Flow:
+// 1. User signs in → redirected to Discord/Twitch → back to Supabase
+// 2. Supabase redirects here with ?code=xxx
+// 3. This handler creates a server Supabase client with cookie access
+// 4. exchangeCodeForSession reads the PKCE verifier from cookies,
+//    sends both to Supabase, and receives session tokens
+// 5. Session tokens are written to cookies via the setAll adapter
+// 6. User is redirected to their intended destination
+//
+// Why server-side? The PKCE code verifier is stored in a cookie by
+// createBrowserClient. A server handler can read that cookie directly.
+// The old client-side approach lost the verifier because persistSession
+// was set to false.
 // =============================================================================
 
-import { json } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { createServerClient } from '@supabase/ssr';
+import {
+	PUBLIC_SUPABASE_URL,
+	PUBLIC_SUPABASE_ANON_KEY
+} from '$env/static/public';
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
-	try {
-		const { access_token, refresh_token } = await request.json();
+export const GET: RequestHandler = async ({ url, cookies }) => {
+	const code = url.searchParams.get('code');
 
-		if (!access_token || !refresh_token) {
-			return json({ ok: false, error: 'Missing tokens' }, { status: 400 });
+	if (code) {
+		const supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+			cookies: {
+				getAll: () => cookies.getAll(),
+				setAll: (cookiesToSet) => {
+					for (const { name, value, options } of cookiesToSet) {
+						cookies.set(name, value, {
+							path: '/',
+							secure: true,
+							sameSite: 'lax',
+							...options
+						});
+					}
+				}
+			}
+		});
+
+		const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+		if (error) {
+			console.error('Auth callback error:', error.message);
+			redirect(303, '/sign-in?error=auth_failed');
 		}
-
-		cookies.set('sb-access-token', access_token, {
-			path: '/',
-			httpOnly: true,
-			secure: true,
-			sameSite: 'lax',
-			maxAge: 60 * 60 // 1 hour
-		});
-
-		cookies.set('sb-refresh-token', refresh_token, {
-			path: '/',
-			httpOnly: true,
-			secure: true,
-			sameSite: 'lax',
-			maxAge: 60 * 60 * 24 * 30 // 30 days
-		});
-
-		return json({ ok: true });
-	} catch {
-		return json({ ok: false, error: 'Invalid request' }, { status: 400 });
 	}
+
+	// ─── Post-login redirect ─────────────────────────────────────
+	// The sign-in page sets a cookie with the intended destination.
+	const next = cookies.get('crc_auth_redirect') || '/';
+	cookies.delete('crc_auth_redirect', { path: '/' });
+
+	// Security: only allow relative paths to prevent open redirect
+	const safePath = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+	redirect(303, safePath);
 };

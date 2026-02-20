@@ -15,16 +15,25 @@
 		}
 	});
 
+	// Show error from failed callback
+	$effect(() => {
+		const err = $page.url.searchParams.get('error');
+		if (err === 'auth_failed') {
+			errorMessage = 'Authentication failed. Please try again.';
+		}
+	});
+
 	async function signInWith(provider: 'discord' | 'twitch') {
 		signingIn = true;
 		errorMessage = '';
 
 		try {
-			// Store intended post-login redirect in sessionStorage
-			// (query params in redirectTo can cause Supabase allowlist matching to fail)
+			// Store intended post-login redirect in a cookie so the
+			// server-side callback handler can read it.
+			// (sessionStorage doesn't work because the callback is server-side)
 			const rawRedirect = $page.url.searchParams.get('redirect') || '/';
 			const postLoginRedirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/';
-			sessionStorage.setItem('crc_auth_redirect', postLoginRedirect);
+			document.cookie = `crc_auth_redirect=${encodeURIComponent(postLoginRedirect)}; path=/; max-age=300; SameSite=Lax; Secure`;
 
 			const { error } = await supabase.auth.signInWithOAuth({
 				provider,
