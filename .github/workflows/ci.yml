@@ -10,17 +10,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-      PUBLIC_SUPABASE_ANON_KEY: placeholder
-      PUBLIC_SITE_URL: https://www.challengerun.net
-      PUBLIC_WORKER_URL: https://placeholder.workers.dev
-      PUBLIC_TURNSTILE_SITE_KEY: placeholder
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -35,6 +30,12 @@ jobs:
 
       - name: Build
         run: pnpm build
+        env:
+          PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          PUBLIC_SUPABASE_ANON_KEY: placeholder
+          PUBLIC_SITE_URL: https://www.challengerun.net
+          PUBLIC_WORKER_URL: https://placeholder.workers.dev
+          PUBLIC_TURNSTILE_SITE_KEY: placeholder
 
       - name: Validate config
         run: pnpm validate
