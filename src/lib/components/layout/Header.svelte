@@ -3,11 +3,81 @@
 	import { session, user } from '$stores/auth';
 	import { toggleTheme, theme } from '$stores/theme';
 	import { supabase, signOut as doSignOut } from '$lib/supabase';
-	import { goto } from '$app/navigation';
 
 	let moreOpen = $state(false);
 	let userMenuOpen = $state(false);
 	let mobileOpen = $state(false);
+
+	// ─── Profile info (fetched client-side when signed in) ────
+	let profileInfo = $state<{
+		runner_id: string | null;
+		status: string | null;
+		is_admin: boolean;
+		role: string | null;
+	} | null>(null);
+	let profileLoaded = $state(false);
+
+	// Fetch runner profile when user changes
+	$effect(() => {
+		const currentUser = $user;
+		if (!currentUser) {
+			profileInfo = null;
+			profileLoaded = false;
+			return;
+		}
+
+		// Fetch profile from runner_profiles table
+		(async () => {
+			try {
+				const { data, error } = await supabase
+					.from('runner_profiles')
+					.select('runner_id, status, is_admin, role')
+					.eq('user_id', currentUser.id)
+					.maybeSingle();
+
+				if (!error && data) {
+					profileInfo = {
+						runner_id: data.runner_id,
+						status: data.status,
+						is_admin: data.is_admin === true,
+						role: data.role || null
+					};
+				} else {
+					profileInfo = null;
+				}
+			} catch {
+				profileInfo = null;
+			}
+			profileLoaded = true;
+		})();
+	});
+
+	// ─── Derived: profile link config ─────────────────────────
+	let profileLink = $derived.by(() => {
+		if (!profileInfo) {
+			return { href: '/profile/create', icon: '➕', label: 'Create Profile' };
+		}
+		if (profileInfo.status === 'approved' && profileInfo.runner_id) {
+			return { href: `/runners/${profileInfo.runner_id}`, icon: '👤', label: 'My Profile' };
+		}
+		if (profileInfo.status === 'pending') {
+			return { href: '/profile/status', icon: '⏳', label: 'Profile Status' };
+		}
+		return { href: '/profile/create', icon: '➕', label: 'Create Profile' };
+	});
+
+	let roleLabel = $derived.by(() => {
+		if (!profileInfo) return 'No Profile';
+		if (profileInfo.is_admin) return 'Admin';
+		if (profileInfo.role === 'verifier') return 'Verifier';
+		if (profileInfo.status === 'pending') return '⏳ Pending';
+		if (profileInfo.status === 'approved') return 'Runner';
+		return 'No Profile';
+	});
+
+	let showAdminLink = $derived(
+		profileInfo?.is_admin || profileInfo?.role === 'verifier'
+	);
 
 	function isActive(path: string): boolean {
 		return $page.url.pathname.startsWith(path);
@@ -15,7 +85,7 @@
 
 	async function signOut() {
 		userMenuOpen = false;
-		await doSignOut(); // clears client session + server cookies + redirects
+		await doSignOut();
 	}
 
 	function closeMenus() {
@@ -79,6 +149,9 @@
 							src={$user?.user_metadata?.avatar_url || '/img/site/default-runner.png'}
 							alt=""
 						/>
+						{#if showAdminLink}
+							<span class="nav-user__admin-indicator"></span>
+						{/if}
 					</button>
 					{#if userMenuOpen}
 						<div class="nav-user__menu">
@@ -92,13 +165,29 @@
 									<span class="nav-user__menu-name">
 										{$user?.user_metadata?.full_name || $user?.email || 'User'}
 									</span>
+									{#if profileLoaded}
+										<span class="nav-user__menu-status">{roleLabel}</span>
+									{/if}
 								</div>
 							</div>
 							<div class="nav-user__menu-items">
-								<a href="/profile" class="nav-user__menu-item">👤 My Profile</a>
-								<a href="/profile/edit" class="nav-user__menu-item">✏️ Edit Profile</a>
+								<a href={profileLink.href} class="nav-user__menu-item">
+									{profileLink.icon} {profileLink.label}
+								</a>
+								{#if profileInfo?.status === 'approved'}
+									<a href="/profile/edit" class="nav-user__menu-item">✏️ Edit Profile</a>
+								{/if}
 								<a href="/profile/settings" class="nav-user__menu-item">⚙️ Settings</a>
-								<a href="/admin" class="nav-user__menu-item">🛡️ Admin</a>
+								{#if showAdminLink}
+									<a href="/admin" class="nav-user__menu-item">
+										🛡️ Admin
+										{#if profileInfo?.is_admin}
+											<span class="nav-user__menu-badge">Admin</span>
+										{:else}
+											<span class="nav-user__menu-badge">Verifier</span>
+										{/if}
+									</a>
+								{/if}
 								<hr class="nav-user__menu-divider" />
 								<button type="button" class="nav-user__menu-item nav-user__menu-item--signout" onclick={signOut}>
 									🚪 Sign Out

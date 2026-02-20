@@ -1,13 +1,33 @@
 <script lang="ts">
+	import AzNav from '$lib/components/AzNav.svelte';
+	import { norm, matchesLetterFilter, getFirstLetter } from '$lib/utils/filters';
+
 	let { data } = $props();
 	let search = $state('');
+	let activeLetter = $state('');
+	let showLimit = $state(25);
 
 	const filtered = $derived(
 		data.runners.filter((r) => {
-			if (!search) return true;
-			return r.runner_name.toLowerCase().includes(search.toLowerCase());
+			const name = r.display_name || r.runner_name || '';
+
+			// Letter filter
+			const firstLetter = getFirstLetter(name);
+			if (!matchesLetterFilter(firstLetter, activeLetter)) return false;
+
+			// Text search
+			if (search) {
+				const q = norm(search);
+				if (!norm(name).includes(q) && !norm(r.runner_name || '').includes(q)) {
+					return false;
+				}
+			}
+
+			return true;
 		})
 	);
+
+	let visible = $derived(showLimit === 0 ? filtered : filtered.slice(0, showLimit));
 </script>
 
 <svelte:head>
@@ -18,7 +38,11 @@
 	<h1>Runners</h1>
 	<p class="muted">Browse challenge runners and their achievements.</p>
 
-	<div class="filter-wrap" style="margin: 1.25rem 0;">
+	<!-- A-Z Navigation -->
+	<AzNav bind:activeLetter />
+
+	<!-- Search + results controls -->
+	<div class="filter-wrap" style="margin-bottom: 0.75rem;">
 		<input
 			class="filter"
 			type="text"
@@ -28,10 +52,22 @@
 		/>
 	</div>
 
-	<p class="muted">{filtered.length} of {data.runners.length} runners</p>
+	<div class="results-controls">
+		<label class="muted" for="runners-limit">Show</label>
+		<select id="runners-limit" class="select" bind:value={showLimit}>
+			<option value={10}>10</option>
+			<option value={25}>25</option>
+			<option value={50}>50</option>
+			<option value={100}>100</option>
+			<option value={0}>All</option>
+		</select>
+		<span class="muted" style="margin-left: auto; font-size: 0.9rem;">
+			{visible.length} of {data.runners.length} runners
+		</span>
+	</div>
 
 	<div class="runners-grid">
-		{#each filtered as runner (runner.runner_id)}
+		{#each visible as runner (runner.runner_id)}
 			<a href="/runners/{runner.runner_id}" class="runner-card card card-lift">
 				<img
 					class="runner-card__avatar"
@@ -39,7 +75,7 @@
 					alt=""
 				/>
 				<div class="runner-card__info">
-					<strong class="runner-card__name">{runner.runner_name}</strong>
+					<strong class="runner-card__name">{runner.display_name || runner.runner_name}</strong>
 					{#if runner.pronouns}
 						<span class="runner-card__pronouns muted">{runner.pronouns}</span>
 					{/if}
@@ -47,6 +83,12 @@
 				</div>
 			</a>
 		{/each}
+
+		{#if visible.length === 0}
+			<p class="muted" style="grid-column: 1 / -1; text-align: center; padding: 2rem 0;">
+				No runners match your search.
+			</p>
+		{/if}
 	</div>
 </div>
 
