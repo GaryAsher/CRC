@@ -26,24 +26,47 @@
 			return;
 		}
 
-		// Fetch profile from runner_profiles table
 		(async () => {
 			try {
-				const { data, error } = await supabase
+				// 1. Check runner_profiles (links auth user → runner)
+				const { data: profile } = await supabase
 					.from('runner_profiles')
-					.select('runner_id, status, is_admin, role')
+					.select('runner_id, is_admin')
 					.eq('user_id', currentUser.id)
 					.maybeSingle();
 
-				if (!error && data) {
+				if (profile?.runner_id) {
+					// 2. Runner exists — check runners table for their status
+					const { data: runner } = await supabase
+						.from('runners')
+						.select('status')
+						.eq('runner_id', profile.runner_id)
+						.maybeSingle();
+
+					// 3. Check if they're a moderator/verifier
+					const { data: mod } = await supabase
+						.from('moderators')
+						.select('can_manage_moderators')
+						.eq('user_id', currentUser.id)
+						.maybeSingle();
+
 					profileInfo = {
-						runner_id: data.runner_id,
-						status: data.status,
-						is_admin: data.is_admin === true,
-						role: data.role || null
+						runner_id: profile.runner_id,
+						status: runner?.status ?? 'pending',
+						is_admin: profile.is_admin === true,
+						role: mod ? 'verifier' : null
 					};
 				} else {
-					profileInfo = null;
+					// 4. No runner_profiles entry — check if they have a pending profile
+					const { data: pending } = await supabase
+						.from('pending_profiles')
+						.select('id')
+						.eq('user_id', currentUser.id)
+						.maybeSingle();
+
+					profileInfo = pending
+						? { runner_id: null, status: 'pending', is_admin: false, role: null }
+						: null;
 				}
 			} catch {
 				profileInfo = null;
