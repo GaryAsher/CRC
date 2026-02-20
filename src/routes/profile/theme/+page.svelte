@@ -3,6 +3,7 @@
 	import { session, isLoading, user } from '$stores/auth';
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabase';
+	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 	import { browser } from '$app/environment';
 
 	let signedIn = $state(false);
@@ -87,14 +88,24 @@
 		if (!signedIn) return;
 		syncStatus = 'saving';
 		try {
-			const userId = $user?.id;
-			if (!userId) { syncStatus = 'error'; return; }
+			const { data: { session: sess } } = await supabase.auth.getSession();
+			if (!sess) { syncStatus = 'error'; return; }
+
 			const themeData = { accentColor, bgColor, surfaceColor, fontFamily, textOutline, bgImageUrl, bgOpacity };
-			const { error } = await supabase
-				.from('runner_profiles')
-				.update({ theme_settings: themeData })
-				.eq('user_id', userId);
-			syncStatus = error ? 'error' : 'synced';
+			const res = await fetch(
+				`${PUBLIC_SUPABASE_URL}/rest/v1/runner_profiles?user_id=eq.${sess.user.id}`,
+				{
+					method: 'PATCH',
+					headers: {
+						'apikey': PUBLIC_SUPABASE_ANON_KEY,
+						'Authorization': `Bearer ${sess.access_token}`,
+						'Content-Type': 'application/json',
+						'Prefer': 'return=minimal'
+					},
+					body: JSON.stringify({ theme_settings: themeData })
+				}
+			);
+			syncStatus = res.ok ? 'synced' : 'error';
 		} catch {
 			syncStatus = 'error';
 		}
@@ -120,24 +131,34 @@
 		}
 
 		// Try Supabase if signed in
-		if (signedIn && $user?.id) {
+		if (signedIn) {
 			try {
-				const { data } = await supabase
-					.from('runner_profiles')
-					.select('theme_settings')
-					.eq('user_id', $user.id)
-					.single();
-				if (data?.theme_settings) {
-					const t = data.theme_settings;
-					accentColor = t.accentColor || accentColor;
-					bgColor = t.bgColor || bgColor;
-					surfaceColor = t.surfaceColor || surfaceColor;
-					fontFamily = t.fontFamily || fontFamily;
-					textOutline = t.textOutline || textOutline;
-					bgImageUrl = t.bgImageUrl || bgImageUrl;
-					bgOpacity = t.bgOpacity ?? bgOpacity;
-					activePreset = PRESETS.find(p => p.accent === accentColor)?.id || null;
-					syncStatus = 'synced';
+				const { data: { session: sess } } = await supabase.auth.getSession();
+				if (sess) {
+					const res = await fetch(
+						`${PUBLIC_SUPABASE_URL}/rest/v1/runner_profiles?user_id=eq.${sess.user.id}&select=theme_settings`,
+						{
+							headers: {
+								'apikey': PUBLIC_SUPABASE_ANON_KEY,
+								'Authorization': `Bearer ${sess.access_token}`
+							}
+						}
+					);
+					if (res.ok) {
+						const rows = await res.json();
+						if (rows.length > 0 && rows[0].theme_settings) {
+							const t = rows[0].theme_settings;
+							accentColor = t.accentColor || accentColor;
+							bgColor = t.bgColor || bgColor;
+							surfaceColor = t.surfaceColor || surfaceColor;
+							fontFamily = t.fontFamily || fontFamily;
+							textOutline = t.textOutline || textOutline;
+							bgImageUrl = t.bgImageUrl || bgImageUrl;
+							bgOpacity = t.bgOpacity ?? bgOpacity;
+							activePreset = PRESETS.find(p => p.accent === accentColor)?.id || null;
+							syncStatus = 'synced';
+						}
+					}
 				}
 			} catch { /* ignore */ }
 		}

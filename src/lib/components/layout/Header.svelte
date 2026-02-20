@@ -200,6 +200,7 @@
 								{#if profileInfo?.profileState === 'active'}
 									<a href="/profile/edit" class="nav-user__menu-item">✏️ Edit Profile</a>
 								{/if}
+								<a href="/profile/theme" class="nav-user__menu-item">🎨 Theme</a>
 								<a href="/profile/settings" class="nav-user__menu-item">⚙️ Settings</a>
 								{#if showAdminLink}
 									<a href="/admin" class="nav-user__menu-item">
