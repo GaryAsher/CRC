@@ -2,22 +2,15 @@
 	import { onMount } from 'svelte';
 	import { session, user, isLoading } from '$stores/auth';
 	import { goto } from '$app/navigation';
-	import { checkAdminRole, fetchPending, adminAction } from '$lib/admin';
+	import { checkAdminRole } from '$lib/admin';
+	import { supabase } from '$lib/supabase';
 
-	type Tab = 'runs' | 'profiles' | 'games';
-
-	let activeTab = $state<Tab>('runs');
 	let role = $state<{ admin: boolean; verifier: boolean; runnerId: string | null } | null>(null);
 	let checking = $state(true);
-	let pendingRuns = $state<any[]>([]);
-	let pendingProfiles = $state<any[]>([]);
-	let pendingGames = $state<any[]>([]);
-	let loadingData = $state(false);
-	let actionMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
-	let processingId = $state<number | null>(null);
+	let counts = $state<Record<string, number>>({});
+	let countsLoading = $state(true);
 
 	onMount(() => {
-		// Wait for auth to load
 		const unsub = isLoading.subscribe(async (loading) => {
 			if (!loading) {
 				let sess: any;
@@ -31,82 +24,55 @@
 				checking = false;
 
 				if (role?.admin || role?.verifier) {
-					await loadPendingData();
+					await loadCounts();
 				}
 			}
 		});
-
 		return unsub;
 	});
 
-	async function loadPendingData() {
-		loadingData = true;
+	async function loadCounts() {
+		countsLoading = true;
 		try {
-			const [runs, profiles, games] = await Promise.all([
-				fetchPending('pending_runs'),
-				fetchPending('pending_profiles'),
-				fetchPending('pending_games')
+			const [profiles, games, runs, runsQueue] = await Promise.all([
+				supabase.from('pending_profiles').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+				supabase.from('pending_games').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+				supabase.from('pending_runs').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+				supabase.from('pending_runs').select('id', { count: 'exact', head: true }).eq('status', 'pending')
 			]);
-			pendingRuns = runs;
-			pendingProfiles = profiles;
-			pendingGames = games;
+			counts = {
+				pendingProfiles: profiles.count ?? 0,
+				pendingGames: games.count ?? 0,
+				pendingRuns: runs.count ?? 0,
+				pendingRunsQueue: runsQueue.count ?? 0
+			};
 		} catch (err) {
-			console.error('Failed to load pending data:', err);
-		} finally {
-			loadingData = false;
+			console.error('Failed to load counts:', err);
 		}
+		countsLoading = false;
 	}
 
-	async function approveRun(id: number) {
-		processingId = id;
-		actionMessage = null;
-		const result = await adminAction('/approve', { run_id: id });
-		actionMessage = { type: result.ok ? 'success' : 'error', text: result.message };
-		if (result.ok) {
-			pendingRuns = pendingRuns.filter(r => r.id !== id);
-		}
-		processingId = null;
-	}
+	// Navigation sections — order matters
+	const NAV_SECTIONS = [
+		{ key: 'profiles', icon: '👥', title: 'Pending Profiles', desc: 'Review runner profile applications.', href: '/admin/profiles', countKey: 'pendingProfiles' },
+		{ key: 'games', icon: '🎮', title: 'Pending Games', desc: 'Review new game submissions.', href: '/admin/games', countKey: 'pendingGames' },
+		{ key: 'runs', icon: '🏃', title: 'Approved Runs', desc: 'Manage and view all approved runs.', href: '/admin/runs', countKey: 'pendingRuns' },
+		{ key: 'runs-queue', icon: '📋', title: 'Runs Queue', desc: 'Review, approve, or reject submitted runs.', href: '/admin/runs-queue', countKey: 'pendingRunsQueue' },
+		{ key: 'game-updates', icon: '📝', title: 'Game Updates', desc: 'Review user-submitted game page corrections.', href: '/admin/game-updates' },
+		{ key: 'users', icon: '🔍', title: 'Users', desc: 'View and manage registered users.', href: '/admin/users', adminOnly: true },
+		{ key: 'financials', icon: '💰', title: 'Financials', desc: 'Track site income and expenses.', href: '/admin/financials', adminOnly: true },
+		{ key: 'health', icon: '💚', title: 'Site Health', desc: 'Performance, storage, and system status.', href: '/admin/health' },
+		{ key: 'staff-guides', icon: '📖', title: 'Staff Guides', desc: 'Internal documentation for staff.', href: '/admin/staff-guides' },
+		{ key: 'debug', icon: '🔧', title: 'Debug Tools', desc: 'Role simulation, system diagnostics.', href: '/admin/debug', adminOnly: true }
+	];
 
-	async function rejectRun(id: number) {
-		if (!confirm('Reject this run? This cannot be undone.')) return;
-		processingId = id;
-		actionMessage = null;
-		const result = await adminAction('/approve', { run_id: id, action: 'reject' });
-		actionMessage = { type: result.ok ? 'success' : 'error', text: result.message };
-		if (result.ok) {
-			pendingRuns = pendingRuns.filter(r => r.id !== id);
-		}
-		processingId = null;
-	}
+	let visibleSections = $derived(
+		NAV_SECTIONS.filter(s => !s.adminOnly || role?.admin)
+	);
 
-	async function approveProfile(id: number) {
-		processingId = id;
-		actionMessage = null;
-		const result = await adminAction('/approve-profile', { profile_id: id });
-		actionMessage = { type: result.ok ? 'success' : 'error', text: result.message };
-		if (result.ok) {
-			pendingProfiles = pendingProfiles.filter(p => p.id !== id);
-		}
-		processingId = null;
-	}
-
-	async function approveGame(id: number) {
-		processingId = id;
-		actionMessage = null;
-		const result = await adminAction('/approve-game', { game_id: id });
-		actionMessage = { type: result.ok ? 'success' : 'error', text: result.message };
-		if (result.ok) {
-			pendingGames = pendingGames.filter(g => g.id !== id);
-		}
-		processingId = null;
-	}
-
-	function formatDate(d: string) {
-		return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-	}
-
-	let totalPending = $derived(pendingRuns.length + pendingProfiles.length + pendingGames.length);
+	let totalPending = $derived(
+		(counts.pendingProfiles ?? 0) + (counts.pendingGames ?? 0) + (counts.pendingRuns ?? 0)
+	);
 </script>
 
 <svelte:head><title>Admin Dashboard | Challenge Run Community</title></svelte:head>
@@ -115,212 +81,161 @@
 	{#if checking || $isLoading}
 		<div class="admin-loading">
 			<div class="spinner"></div>
-			<p>Checking permissions...</p>
+			<p class="muted">Checking permissions...</p>
 		</div>
 	{:else if !role?.admin && !role?.verifier}
 		<div class="admin-denied">
-			<h1>Access Denied</h1>
-			<p>You don't have admin or verifier permissions.</p>
+			<h1>🔒 Access Denied</h1>
+			<p class="muted">You need verifier, admin, or super admin privileges to access the dashboard.</p>
 			<a href="/" class="btn btn--outline">Go Home</a>
 		</div>
 	{:else}
-		<div class="admin-page">
-			<div class="admin-header">
-				<h1>Admin Dashboard</h1>
-				<div class="admin-stats">
-					<span class="stat" class:stat--active={totalPending > 0}>
-						{totalPending} pending
-					</span>
-					<span class="stat stat--role">
-						{role.admin ? '🛡️ Admin' : '✅ Verifier'}
-					</span>
+		<div class="dash">
+			<!-- Header -->
+			<div class="dash-header">
+				<div class="dash-header__info">
+					<h1>Dashboard</h1>
+					<p class="muted">{role.admin ? '🛡️ Admin' : '✅ Verifier'}</p>
+				</div>
+				{#if $user}
+					<div class="dash-header__user">
+						{#if $user.user_metadata?.avatar_url}
+							<img class="dash-header__avatar" src={$user.user_metadata.avatar_url} alt="" />
+						{/if}
+						<span>{$user.user_metadata?.full_name || $user.user_metadata?.name || 'Staff'}</span>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Stats row -->
+			<div class="dash-stats">
+				<div class="dash-stat" class:dash-stat--alert={counts.pendingProfiles > 0}>
+					<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingProfiles ?? 0}</span>
+					<span class="dash-stat__label">Pending Profiles</span>
+				</div>
+				<div class="dash-stat" class:dash-stat--alert={counts.pendingGames > 0}>
+					<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingGames ?? 0}</span>
+					<span class="dash-stat__label">Pending Games</span>
+				</div>
+				<div class="dash-stat" class:dash-stat--alert={counts.pendingRuns > 0}>
+					<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingRuns ?? 0}</span>
+					<span class="dash-stat__label">Pending Runs</span>
+				</div>
+				<div class="dash-stat">
+					<span class="dash-stat__value">{totalPending}</span>
+					<span class="dash-stat__label">Total Pending</span>
 				</div>
 			</div>
 
-			{#if actionMessage}
-				<div class="alert alert--{actionMessage.type}">{actionMessage.text}</div>
-			{/if}
-
-			<!-- Tabs -->
-			<div class="tabs">
-				<button class="tab" class:tab--active={activeTab === 'runs'} onclick={() => activeTab = 'runs'}>
-					Runs <span class="badge">{pendingRuns.length}</span>
-				</button>
-				<button class="tab" class:tab--active={activeTab === 'profiles'} onclick={() => activeTab = 'profiles'}>
-					Profiles <span class="badge">{pendingProfiles.length}</span>
-				</button>
-				<button class="tab" class:tab--active={activeTab === 'games'} onclick={() => activeTab = 'games'}>
-					Games <span class="badge">{pendingGames.length}</span>
-				</button>
-				<button class="tab tab--refresh" onclick={loadPendingData} disabled={loadingData}>
-					{loadingData ? '⏳' : '🔄'} Refresh
-				</button>
+			<!-- Navigation grid -->
+			<div class="dash-nav">
+				{#each visibleSections as sec}
+					<a class="dash-nav-card" href={sec.href}>
+						<span class="dash-nav-card__icon">{sec.icon}</span>
+						<span class="dash-nav-card__title">
+							{sec.title}
+							{#if sec.countKey && (counts[sec.countKey] ?? 0) > 0}
+								<span class="dash-nav-card__badge">{counts[sec.countKey]}</span>
+							{/if}
+						</span>
+						<p class="dash-nav-card__desc">{sec.desc}</p>
+					</a>
+				{/each}
 			</div>
-
-			<!-- Pending Runs -->
-			{#if activeTab === 'runs'}
-				<div class="panel">
-					{#if pendingRuns.length === 0}
-						<p class="empty">No pending runs. All caught up! 🎉</p>
-					{:else}
-						{#each pendingRuns as run}
-							<div class="item-card">
-								<div class="item-card__header">
-									<strong>{run.game_id}</strong> — {run.category_slug}
-									<span class="item-card__date">{formatDate(run.submitted_at)}</span>
-								</div>
-								<div class="item-card__details">
-									<span>🏃 {run.runner_id}</span>
-									{#if run.character}<span>🎮 {run.character}</span>{/if}
-									{#if run.run_time}<span>⏱️ {run.run_time}</span>{/if}
-								</div>
-								{#if run.video_url}
-									<a href={run.video_url} target="_blank" rel="noopener" class="item-card__video">
-										🎬 {run.video_url}
-									</a>
-								{/if}
-								<div class="item-card__actions">
-									<button
-										class="btn btn--approve"
-										onclick={() => approveRun(run.id)}
-										disabled={processingId === run.id}
-									>
-										{processingId === run.id ? '...' : '✅ Approve'}
-									</button>
-									<button
-										class="btn btn--reject"
-										onclick={() => rejectRun(run.id)}
-										disabled={processingId === run.id}
-									>
-										❌ Reject
-									</button>
-								</div>
-							</div>
-						{/each}
-					{/if}
-				</div>
-			{/if}
-
-			<!-- Pending Profiles -->
-			{#if activeTab === 'profiles'}
-				<div class="panel">
-					{#if pendingProfiles.length === 0}
-						<p class="empty">No pending profiles.</p>
-					{:else}
-						{#each pendingProfiles as profile}
-							<div class="item-card">
-								<div class="item-card__header">
-									<strong>{profile.runner_id || profile.display_name || 'Unknown'}</strong>
-									<span class="item-card__date">{formatDate(profile.submitted_at || profile.created_at)}</span>
-								</div>
-								<div class="item-card__details">
-									{#if profile.email}<span>📧 {profile.email}</span>{/if}
-									{#if profile.pronouns}<span>{profile.pronouns}</span>{/if}
-								</div>
-								<div class="item-card__actions">
-									<button
-										class="btn btn--approve"
-										onclick={() => approveProfile(profile.id)}
-										disabled={processingId === profile.id}
-									>
-										{processingId === profile.id ? '...' : '✅ Approve'}
-									</button>
-								</div>
-							</div>
-						{/each}
-					{/if}
-				</div>
-			{/if}
-
-			<!-- Pending Games -->
-			{#if activeTab === 'games'}
-				<div class="panel">
-					{#if pendingGames.length === 0}
-						<p class="empty">No pending game requests.</p>
-					{:else}
-						{#each pendingGames as game}
-							<div class="item-card">
-								<div class="item-card__header">
-									<strong>{game.game_name || game.game_id}</strong>
-									<span class="item-card__date">{formatDate(game.submitted_at)}</span>
-								</div>
-								<div class="item-card__details">
-									{#if game.submitter_handle}<span>👤 {game.submitter_handle}</span>{/if}
-									{#if game.game_data?.full_runs?.length}
-										<span>📂 {game.game_data.full_runs.length} categories</span>
-									{/if}
-								</div>
-								{#if game.game_data?.description}
-									<p class="item-card__desc">{game.game_data.description}</p>
-								{/if}
-								<div class="item-card__actions">
-									{#if role.admin}
-										<button
-											class="btn btn--approve"
-											onclick={() => approveGame(game.id)}
-											disabled={processingId === game.id}
-										>
-											{processingId === game.id ? '...' : '✅ Approve'}
-										</button>
-									{:else}
-										<span class="muted">Admin required to approve games</span>
-									{/if}
-								</div>
-							</div>
-						{/each}
-					{/if}
-				</div>
-			{/if}
 		</div>
 	{/if}
 </div>
 
 <style>
 	.admin-loading, .admin-denied { text-align: center; padding: 4rem 0; }
-	.spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; margin: 0 auto 1rem; animation: spin 0.8s linear infinite; }
+	.spinner {
+		width: 36px; height: 36px;
+		border: 3px solid var(--border); border-top-color: var(--accent);
+		border-radius: 50%; margin: 0 auto 1rem;
+		animation: spin 0.8s linear infinite;
+	}
 	@keyframes spin { to { transform: rotate(360deg); } }
-	.btn--outline { display: inline-block; padding: 0.5rem 1.25rem; border: 1px solid var(--border); border-radius: 6px; color: var(--fg); text-decoration: none; }
+	.btn--outline {
+		display: inline-block; padding: 0.5rem 1.25rem;
+		border: 1px solid var(--border); border-radius: 6px;
+		color: var(--fg); text-decoration: none;
+	}
 
-	.admin-page { max-width: 900px; margin: 1.5rem auto; }
-	.admin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
-	.admin-header h1 { margin: 0; font-size: 1.5rem; }
-	.admin-stats { display: flex; gap: 0.75rem; }
-	.stat { padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; background: var(--surface); border: 1px solid var(--border); }
-	.stat--active { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
-	.stat--role { background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.3); color: var(--accent); }
+	.dash { max-width: 960px; margin: 0 auto; }
 
-	.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 1.5rem; }
-	.tab { padding: 0.6rem 1.25rem; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 0.4rem; }
-	.tab:hover { color: var(--fg); }
-	.tab--active { color: var(--accent); border-bottom-color: var(--accent); }
-	.tab--refresh { margin-left: auto; font-size: 0.85rem; }
-	.tab--refresh:disabled { opacity: 0.5; }
-	.badge { background: var(--surface); border: 1px solid var(--border); padding: 0.1rem 0.5rem; border-radius: 10px; font-size: 0.75rem; }
+	/* Header */
+	.dash-header {
+		display: flex; justify-content: space-between; align-items: flex-start;
+		margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;
+	}
+	.dash-header h1 { margin: 0; font-size: 1.5rem; }
+	.dash-header__user {
+		display: flex; align-items: center; gap: 0.75rem;
+		font-size: 0.9rem; color: var(--muted);
+	}
+	.dash-header__avatar {
+		width: 36px; height: 36px; border-radius: 50%;
+		object-fit: cover; background: var(--surface);
+	}
 
-	.panel { min-height: 200px; }
-	.empty { text-align: center; padding: 3rem 0; color: var(--muted); font-size: 1rem; }
+	/* Stats row */
+	.dash-stats {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+		gap: 1rem; margin-bottom: 2rem;
+	}
+	.dash-stat {
+		background: var(--surface); border: 1px solid var(--border);
+		border-radius: 12px; padding: 1.25rem; text-align: center;
+	}
+	.dash-stat--alert {
+		background: rgba(239, 68, 68, 0.06);
+		border-color: rgba(239, 68, 68, 0.25);
+	}
+	.dash-stat__value {
+		display: block; font-size: 2rem; font-weight: 700;
+		line-height: 1.2; color: var(--fg);
+	}
+	.dash-stat--alert .dash-stat__value { color: #ef4444; }
+	.dash-stat__label {
+		display: block; font-size: 0.8rem; font-weight: 500;
+		color: var(--muted); margin-top: 0.25rem;
+	}
 
-	.item-card { border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 0.75rem; background: var(--surface); }
-	.item-card__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem; }
-	.item-card__date { font-size: 0.8rem; color: var(--muted); }
-	.item-card__details { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.85rem; margin-bottom: 0.5rem; }
-	.item-card__video { display: block; font-size: 0.8rem; color: var(--accent); word-break: break-all; margin-bottom: 0.5rem; }
-	.item-card__desc { font-size: 0.85rem; color: var(--muted); margin: 0.5rem 0; }
-	.item-card__actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
-
-	.btn--approve { padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #22c55e; background: none; color: #22c55e; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
-	.btn--approve:hover { background: #22c55e; color: #fff; }
-	.btn--approve:disabled { opacity: 0.4; cursor: not-allowed; }
-	.btn--reject { padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #ef4444; background: none; color: #ef4444; cursor: pointer; font-size: 0.85rem; }
-	.btn--reject:hover { background: #ef4444; color: #fff; }
-	.btn--reject:disabled { opacity: 0.4; cursor: not-allowed; }
-
-	.alert { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
-	.alert--success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #22c55e; }
-	.alert--error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; }
+	/* Nav grid */
+	.dash-nav {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+		gap: 1rem;
+	}
+	.dash-nav-card {
+		display: block; padding: 1.25rem;
+		background: var(--surface); border: 1px solid var(--border);
+		border-radius: 12px; text-decoration: none; color: var(--fg);
+		transition: border-color 0.15s, box-shadow 0.15s;
+	}
+	.dash-nav-card:hover {
+		border-color: var(--accent);
+		box-shadow: 0 2px 12px rgba(99, 102, 241, 0.1);
+	}
+	.dash-nav-card__icon { font-size: 1.5rem; display: block; margin-bottom: 0.5rem; }
+	.dash-nav-card__title {
+		font-size: 1rem; font-weight: 700; display: flex;
+		align-items: center; gap: 0.5rem;
+	}
+	.dash-nav-card__badge {
+		display: inline-flex; align-items: center; justify-content: center;
+		min-width: 22px; height: 22px; padding: 0 6px;
+		border-radius: 11px; font-size: 0.75rem; font-weight: 700;
+		background: #ef4444; color: #fff;
+	}
+	.dash-nav-card__desc {
+		margin: 0.35rem 0 0; font-size: 0.85rem;
+		color: var(--muted); line-height: 1.4;
+	}
 
 	@media (max-width: 600px) {
-		.tabs { overflow-x: auto; }
-		.tab { padding: 0.5rem 0.75rem; font-size: 0.8rem; white-space: nowrap; }
+		.dash-stats { grid-template-columns: repeat(2, 1fr); }
+		.dash-nav { grid-template-columns: 1fr; }
 	}
 </style>
