@@ -165,7 +165,7 @@
 							type="button"
 							class="tag-picker__option"
 							class:is-highlighted={i === highlightIndex}
-							onpointerdown|preventDefault={() => pick(item)}
+							onpointerdown={(e) => { e.preventDefault(); pick(item); }}
 							onpointerenter={() => { highlightIndex = i; }}
 						>
 							{item.label}
