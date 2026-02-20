@@ -9,11 +9,15 @@
 	let mobileOpen = $state(false);
 
 	// ─── Profile info (fetched client-side when signed in) ────
+	// Schema reality:
+	//   runner_profiles: runner_id, is_admin, role  (row exists = approved)
+	//   pending_profiles: user_id, status           (row exists = pending)
+	//   moderators: user_id, role, can_manage_moderators
 	let profileInfo = $state<{
 		runner_id: string | null;
-		status: string | null;
+		profileState: 'active' | 'pending' | 'none';
 		is_admin: boolean;
-		role: string | null;
+		is_verifier: boolean;
 	} | null>(null);
 	let profileLoaded = $state(false);
 
@@ -28,45 +32,42 @@
 
 		(async () => {
 			try {
-				// 1. Check runner_profiles (links auth user → runner)
+				// 1. Check runner_profiles — if a row exists, profile is approved
 				const { data: profile } = await supabase
 					.from('runner_profiles')
-					.select('runner_id, is_admin')
+					.select('runner_id, is_admin, role')
 					.eq('user_id', currentUser.id)
 					.maybeSingle();
 
 				if (profile?.runner_id) {
-					// 2. Runner exists — check runners table for their status
-					const { data: runner } = await supabase
-						.from('runners')
-						.select('status')
-						.eq('runner_id', profile.runner_id)
-						.maybeSingle();
-
-					// 3. Check if they're a moderator/verifier
+					// Profile is approved (row only exists after approval)
+					// Check moderators table for verifier status
 					const { data: mod } = await supabase
 						.from('moderators')
-						.select('can_manage_moderators')
+						.select('role')
 						.eq('user_id', currentUser.id)
 						.maybeSingle();
 
 					profileInfo = {
 						runner_id: profile.runner_id,
-						status: runner?.status ?? 'pending',
+						profileState: 'active',
 						is_admin: profile.is_admin === true,
-						role: mod ? 'verifier' : null
+						is_verifier: !!mod
 					};
 				} else {
-					// 4. No runner_profiles entry — check if they have a pending profile
+					// 2. No runner_profiles row — check pending_profiles
 					const { data: pending } = await supabase
 						.from('pending_profiles')
 						.select('id')
 						.eq('user_id', currentUser.id)
 						.maybeSingle();
 
-					profileInfo = pending
-						? { runner_id: null, status: 'pending', is_admin: false, role: null }
-						: null;
+					profileInfo = {
+						runner_id: null,
+						profileState: pending ? 'pending' : 'none',
+						is_admin: false,
+						is_verifier: false
+					};
 				}
 			} catch {
 				profileInfo = null;
@@ -77,29 +78,28 @@
 
 	// ─── Derived: profile link config ─────────────────────────
 	let profileLink = $derived.by(() => {
-		if (!profileInfo) {
+		if (!profileInfo || profileInfo.profileState === 'none') {
 			return { href: '/profile/create', icon: '➕', label: 'Create Profile' };
 		}
-		if (profileInfo.status === 'approved' && profileInfo.runner_id) {
+		if (profileInfo.profileState === 'active' && profileInfo.runner_id) {
 			return { href: `/runners/${profileInfo.runner_id}`, icon: '👤', label: 'My Profile' };
 		}
-		if (profileInfo.status === 'pending') {
+		if (profileInfo.profileState === 'pending') {
 			return { href: '/profile/status', icon: '⏳', label: 'Profile Status' };
 		}
 		return { href: '/profile/create', icon: '➕', label: 'Create Profile' };
 	});
 
 	let roleLabel = $derived.by(() => {
-		if (!profileInfo) return 'No Profile';
+		if (!profileInfo || profileInfo.profileState === 'none') return 'No Profile';
 		if (profileInfo.is_admin) return 'Admin';
-		if (profileInfo.role === 'verifier') return 'Verifier';
-		if (profileInfo.status === 'pending') return '⏳ Pending';
-		if (profileInfo.status === 'approved') return 'Runner';
-		return 'No Profile';
+		if (profileInfo.is_verifier) return 'Verifier';
+		if (profileInfo.profileState === 'pending') return '⏳ Pending';
+		return 'Runner';
 	});
 
 	let showAdminLink = $derived(
-		profileInfo?.is_admin || profileInfo?.role === 'verifier'
+		profileInfo?.is_admin || profileInfo?.is_verifier
 	);
 
 	function isActive(path: string): boolean {
@@ -197,7 +197,7 @@
 								<a href={profileLink.href} class="nav-user__menu-item">
 									{profileLink.icon} {profileLink.label}
 								</a>
-								{#if profileInfo?.status === 'approved'}
+								{#if profileInfo?.profileState === 'active'}
 									<a href="/profile/edit" class="nav-user__menu-item">✏️ Edit Profile</a>
 								{/if}
 								<a href="/profile/settings" class="nav-user__menu-item">⚙️ Settings</a>
