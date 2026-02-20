@@ -130,7 +130,7 @@
 			}
 		}
 
-		// Try Supabase if signed in
+		// Try Supabase if signed in (overwrites localStorage values)
 		if (signedIn) {
 			try {
 				const { data: { session: sess } } = await supabase.auth.getSession();
@@ -162,6 +162,9 @@
 				}
 			} catch { /* ignore */ }
 		}
+
+		// Apply loaded values to the document
+		applyTheme();
 	}
 
 	// ── Watch for color changes (deselect preset if custom) ──────────────────
