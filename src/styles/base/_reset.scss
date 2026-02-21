@@ -33,6 +33,27 @@ body {
   color: var(--fg);
   margin: 0;
   line-height: 1.6;
+  text-shadow: var(--text-outline, none);
+  position: relative;
+}
+
+// Optional background image overlay (set via custom theme)
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: var(--bg-image, none);
+  background-size: cover;
+  background-position: center;
+  opacity: var(--bg-image-opacity, 0);
+  pointer-events: none;
+  z-index: 0;
+}
+
+// Ensure page content sits above the bg image overlay
+body > * {
+  position: relative;
+  z-index: 1;
 }
 
 // ──────────────────────────────────────────────────────────

@@ -1,13 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { session, isLoading, user } from '$stores/auth';
-	import { goto } from '$app/navigation';
+	import { session, isLoading } from '$stores/auth';
 	import { supabase } from '$lib/supabase';
+	import {
+		THEME_DEFAULTS, FONT_MAP, outlineShadow,
+		applyCustomTheme, saveCustomThemeToStorage, clearCustomTheme
+	} from '$stores/theme';
+	import type { CustomTheme } from '$stores/theme';
 	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 	import { browser } from '$app/environment';
 
 	let signedIn = $state(false);
-	let syncStatus = $state<'synced' | 'local' | 'saving' | 'error'>('local');
+	let syncStatus = $state<'synced' | 'unsaved' | 'saving' | 'error'>('unsaved');
 
 	// ── Presets ───────────────────────────────────────────────────────────────
 	const PRESETS: { id: string; name: string; accent: string; bg: string; surface: string }[] = [
@@ -31,86 +35,85 @@
 		{ id: 'ubuntu', name: 'Ubuntu', css: "'Ubuntu', sans-serif" },
 	];
 
-	// ── Theme State ───────────────────────────────────────────────────────────
-	let accentColor = $state('#3BC36E');
-	let bgColor = $state('#0f0f0f');
-	let surfaceColor = $state('#0b0b0b');
-	let fontFamily = $state('system');
-	let textOutline = $state<'none' | 'light' | 'dark' | 'auto'>('none');
-	let bgImageUrl = $state('');
-	let bgOpacity = $state(15);
-	let activePreset = $state<string | null>('default');
+	// ── Editing State (only affects preview, NOT the live site) ──────────────
+	let accentColor = $state(THEME_DEFAULTS.accentColor);
+	let bgColor = $state(THEME_DEFAULTS.bgColor);
+	let surfaceColor = $state(THEME_DEFAULTS.surfaceColor);
+	let fontFamily = $state(THEME_DEFAULTS.fontFamily);
+	let textOutline = $state<CustomTheme['textOutline']>(THEME_DEFAULTS.textOutline);
+	let bgImageUrl = $state(THEME_DEFAULTS.bgImageUrl);
+	let bgOpacity = $state(THEME_DEFAULTS.bgOpacity);
 
-	// ── Derived ───────────────────────────────────────────────────────────────
+	// ── Saved State (what's currently applied to the site) ───────────────────
+	let savedTheme = $state<CustomTheme>({ ...THEME_DEFAULTS });
+
+	// ── Derived ──────────────────────────────────────────────────────────────
+	let activePreset = $derived(PRESETS.find(p => p.accent === accentColor && p.bg === bgColor && p.surface === surfaceColor)?.id || null);
 	let currentFont = $derived(FONTS.find(f => f.id === fontFamily) || FONTS[0]);
+	let textShadow = $derived(outlineShadow(textOutline, bgColor));
+
 	let previewStyle = $derived(
-		`--accent: ${accentColor}; --bg: ${bgColor}; --surface: ${surfaceColor}; font-family: ${currentFont.css};` +
-		(bgImageUrl ? ` background-image: url('${bgImageUrl}'); background-size: cover; background-position: center;` : '')
+		`--preview-accent: ${accentColor}; --preview-bg: ${bgColor}; --preview-surface: ${surfaceColor}; ` +
+		`font-family: ${currentFont.css}; ` +
+		`text-shadow: ${textShadow};`
 	);
 
-	// ── Apply theme to document ───────────────────────────────────────────────
-	function hexToRgb(hex: string): string | null {
-		const m = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
-		if (!m) return null;
-		return `${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}`;
-	}
+	let hasUnsavedChanges = $derived(
+		accentColor !== savedTheme.accentColor ||
+		bgColor !== savedTheme.bgColor ||
+		surfaceColor !== savedTheme.surfaceColor ||
+		fontFamily !== savedTheme.fontFamily ||
+		textOutline !== savedTheme.textOutline ||
+		bgImageUrl !== savedTheme.bgImageUrl ||
+		bgOpacity !== savedTheme.bgOpacity
+	);
 
-	function applyTheme() {
-		if (!browser) return;
-		const s = document.documentElement.style;
-		s.setProperty('--accent', accentColor);
-		const rgb = hexToRgb(accentColor);
-		if (rgb) {
-			s.setProperty('--accent-rgb', rgb);
-			s.setProperty('--focus', `rgba(${rgb}, 0.6)`);
-			s.setProperty('--focus-2', `rgba(${rgb}, 0.35)`);
-		}
-		s.setProperty('--bg', bgColor);
-		s.setProperty('--surface', surfaceColor);
-		if (fontFamily !== 'system') {
-			s.setProperty('--font-family', currentFont.css);
-		} else {
-			s.removeProperty('--font-family');
-		}
-		// Save to localStorage
-		const themeData = { accentColor, bgColor, surfaceColor, fontFamily, textOutline, bgImageUrl, bgOpacity };
-		localStorage.setItem('crc-custom-theme', JSON.stringify(themeData));
-	}
-
+	// ── Preset Selection ─────────────────────────────────────────────────────
 	function selectPreset(preset: typeof PRESETS[0]) {
 		accentColor = preset.accent;
 		bgColor = preset.bg;
 		surfaceColor = preset.surface;
-		activePreset = preset.id;
-		applyTheme();
+		syncStatus = 'unsaved';
 	}
 
+	// ── Mark unsaved on any change ───────────────────────────────────────────
+	function markUnsaved() {
+		if (syncStatus !== 'unsaved') syncStatus = 'unsaved';
+	}
+
+	// ── Reset to last saved state ────────────────────────────────────────────
 	function resetTheme() {
-		selectPreset(PRESETS[0]);
-		fontFamily = 'system';
-		textOutline = 'none';
-		bgImageUrl = '';
-		bgOpacity = 15;
-		if (browser) {
-			localStorage.removeItem('crc-custom-theme');
-			const s = document.documentElement.style;
-			s.removeProperty('--font-family');
-			s.removeProperty('--accent-rgb');
-			s.removeProperty('--focus');
-			s.removeProperty('--focus-2');
-		}
-		applyTheme();
+		accentColor = savedTheme.accentColor;
+		bgColor = savedTheme.bgColor;
+		surfaceColor = savedTheme.surfaceColor;
+		fontFamily = savedTheme.fontFamily;
+		textOutline = savedTheme.textOutline;
+		bgImageUrl = savedTheme.bgImageUrl;
+		bgOpacity = savedTheme.bgOpacity;
+		syncStatus = 'synced';
 	}
 
+	// ── Save: apply globally + persist ───────────────────────────────────────
 	async function saveTheme() {
-		applyTheme();
-		if (!signedIn) return;
+		const themeData: CustomTheme = { accentColor, bgColor, surfaceColor, fontFamily, textOutline, bgImageUrl, bgOpacity };
+
+		// Apply to the live site immediately
+		saveCustomThemeToStorage(themeData);
+
+		// Update saved state
+		savedTheme = { ...themeData };
+
+		if (!signedIn) {
+			syncStatus = 'synced';
+			return;
+		}
+
+		// Persist to Supabase
 		syncStatus = 'saving';
 		try {
 			const { data: { session: sess } } = await supabase.auth.getSession();
 			if (!sess) { syncStatus = 'error'; return; }
 
-			const themeData = { accentColor, bgColor, surfaceColor, fontFamily, textOutline, bgImageUrl, bgOpacity };
 			const res = await fetch(
 				`${PUBLIC_SUPABASE_URL}/rest/v1/runner_profiles?user_id=eq.${sess.user.id}`,
 				{
@@ -130,21 +133,25 @@
 		}
 	}
 
+	// ── Load saved theme on mount ────────────────────────────────────────────
+	function applyLoadedData(data: Partial<CustomTheme>) {
+		accentColor = data.accentColor || THEME_DEFAULTS.accentColor;
+		bgColor = data.bgColor || THEME_DEFAULTS.bgColor;
+		surfaceColor = data.surfaceColor || THEME_DEFAULTS.surfaceColor;
+		fontFamily = data.fontFamily || THEME_DEFAULTS.fontFamily;
+		textOutline = data.textOutline || THEME_DEFAULTS.textOutline;
+		bgImageUrl = data.bgImageUrl || THEME_DEFAULTS.bgImageUrl;
+		bgOpacity = data.bgOpacity ?? THEME_DEFAULTS.bgOpacity;
+		savedTheme = { accentColor, bgColor, surfaceColor, fontFamily, textOutline, bgImageUrl, bgOpacity };
+	}
+
 	async function loadSavedTheme() {
 		// Try localStorage first
 		if (browser) {
 			const saved = localStorage.getItem('crc-custom-theme');
 			if (saved) {
 				try {
-					const data = JSON.parse(saved);
-					accentColor = data.accentColor || '#3BC36E';
-					bgColor = data.bgColor || '#0f0f0f';
-					surfaceColor = data.surfaceColor || '#0b0b0b';
-					fontFamily = data.fontFamily || 'system';
-					textOutline = data.textOutline || 'none';
-					bgImageUrl = data.bgImageUrl || '';
-					bgOpacity = data.bgOpacity ?? 15;
-					activePreset = PRESETS.find(p => p.accent === accentColor)?.id || null;
+					applyLoadedData(JSON.parse(saved));
 				} catch { /* ignore */ }
 			}
 		}
@@ -166,31 +173,14 @@
 					if (res.ok) {
 						const rows = await res.json();
 						if (rows.length > 0 && rows[0].theme_settings) {
-							const t = rows[0].theme_settings;
-							accentColor = t.accentColor || accentColor;
-							bgColor = t.bgColor || bgColor;
-							surfaceColor = t.surfaceColor || surfaceColor;
-							fontFamily = t.fontFamily || fontFamily;
-							textOutline = t.textOutline || textOutline;
-							bgImageUrl = t.bgImageUrl || bgImageUrl;
-							bgOpacity = t.bgOpacity ?? bgOpacity;
-							activePreset = PRESETS.find(p => p.accent === accentColor)?.id || null;
+							applyLoadedData(rows[0].theme_settings);
 							syncStatus = 'synced';
 						}
 					}
 				}
 			} catch { /* ignore */ }
 		}
-
-		// Apply loaded values to the document
-		applyTheme();
 	}
-
-	// ── Watch for color changes (deselect preset if custom) ──────────────────
-	$effect(() => {
-		const match = PRESETS.find(p => p.accent === accentColor && p.bg === bgColor && p.surface === surfaceColor);
-		activePreset = match?.id || null;
-	});
 
 	onMount(() => {
 		const unsub = isLoading.subscribe(async (l) => {
@@ -198,6 +188,10 @@
 				let sess: any; session.subscribe(s => sess = s)();
 				signedIn = !!sess;
 				await loadSavedTheme();
+				if (savedTheme.accentColor !== THEME_DEFAULTS.accentColor ||
+					savedTheme.fontFamily !== THEME_DEFAULTS.fontFamily) {
+					syncStatus = 'synced';
+				}
 			}
 		});
 		return unsub;
@@ -205,21 +199,20 @@
 </script>
 
 <svelte:head>
-	<title>🎨 Theme Customization | CRC</title>
-	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Poppins:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Nunito:wght@400;600;700&family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
+	<title>Theme Customization | CRC</title>
 </svelte:head>
 
 <div class="page-width">
-	<h1>🎨 Theme Customization</h1>
-	<p class="muted mb-3">Personalize your CRC experience with custom colors and fonts.</p>
+	<h1>Theme Customization</h1>
+	<p class="muted mb-3">Personalize your CRC experience. Changes show in the preview — click Save to apply.</p>
 
 	<!-- Sync Status -->
 	<div class="sync-status sync-status--{syncStatus}">
 		<span>
-			{#if syncStatus === 'synced'}☁️ Synced to account
-			{:else if syncStatus === 'saving'}💾 Saving...
-			{:else if syncStatus === 'error'}⚠️ Sync failed
-			{:else}💾 {signedIn ? 'Not synced yet' : 'Sign in to sync across devices'}
+			{#if syncStatus === 'synced'}&#9989; Saved{signedIn ? ' & synced to account' : ''}
+			{:else if syncStatus === 'saving'}Saving...
+			{:else if syncStatus === 'error'}&#9888;&#65039; Sync failed — saved locally
+			{:else}&#9998;&#65039; {hasUnsavedChanges ? 'Unsaved changes' : (signedIn ? 'No changes' : 'Sign in to sync across devices')}
 			{/if}
 		</span>
 	</div>
@@ -254,24 +247,24 @@
 						<label class="color-label">Accent Color</label>
 						<p class="color-desc">Buttons, links, and highlights</p>
 						<div class="color-inputs">
-							<input type="color" bind:value={accentColor} oninput={applyTheme} />
-							<input type="text" bind:value={accentColor} oninput={applyTheme} maxlength="7" class="color-hex" />
+							<input type="color" bind:value={accentColor} oninput={markUnsaved} />
+							<input type="text" bind:value={accentColor} oninput={markUnsaved} maxlength="7" class="color-hex" />
 						</div>
 					</div>
 					<div class="color-option">
 						<label class="color-label">Background</label>
 						<p class="color-desc">Main page background</p>
 						<div class="color-inputs">
-							<input type="color" bind:value={bgColor} oninput={applyTheme} />
-							<input type="text" bind:value={bgColor} oninput={applyTheme} maxlength="7" class="color-hex" />
+							<input type="color" bind:value={bgColor} oninput={markUnsaved} />
+							<input type="text" bind:value={bgColor} oninput={markUnsaved} maxlength="7" class="color-hex" />
 						</div>
 					</div>
 					<div class="color-option">
 						<label class="color-label">Surface</label>
 						<p class="color-desc">Card and panel backgrounds</p>
 						<div class="color-inputs">
-							<input type="color" bind:value={surfaceColor} oninput={applyTheme} />
-							<input type="text" bind:value={surfaceColor} oninput={applyTheme} maxlength="7" class="color-hex" />
+							<input type="color" bind:value={surfaceColor} oninput={markUnsaved} />
+							<input type="text" bind:value={surfaceColor} oninput={markUnsaved} maxlength="7" class="color-hex" />
 						</div>
 					</div>
 				</div>
@@ -282,7 +275,7 @@
 				<h2>Font Options</h2>
 				<div class="form-group">
 					<label class="form-label">Font Family</label>
-					<select bind:value={fontFamily} onchange={applyTheme} class="form-input">
+					<select bind:value={fontFamily} onchange={markUnsaved} class="form-input">
 						{#each FONTS as font}
 							<option value={font.id}>{font.name}</option>
 						{/each}
@@ -294,7 +287,7 @@
 					<div class="outline-options">
 						{#each (['none', 'light', 'dark', 'auto'] as const) as opt}
 							<label class="outline-option">
-								<input type="radio" name="text-outline" value={opt} bind:group={textOutline} />
+								<input type="radio" name="text-outline" value={opt} bind:group={textOutline} onchange={markUnsaved} />
 								<span class="outline-btn">{opt === 'none' ? 'None' : opt === 'light' ? 'Light (white)' : opt === 'dark' ? 'Dark (black)' : 'Auto'}</span>
 							</label>
 						{/each}
@@ -307,12 +300,12 @@
 				<h2>Background Image</h2>
 				<div class="form-group">
 					<label class="form-label">Image URL</label>
-					<input type="url" bind:value={bgImageUrl} placeholder="https://example.com/image.jpg" class="form-input" />
+					<input type="url" bind:value={bgImageUrl} oninput={markUnsaved} placeholder="https://example.com/image.jpg" class="form-input" />
 				</div>
 				{#if bgImageUrl}
 					<div class="form-group mt-2">
 						<label class="form-label">Opacity: {bgOpacity}%</label>
-						<input type="range" min="0" max="50" bind:value={bgOpacity} class="form-range" />
+						<input type="range" min="0" max="50" bind:value={bgOpacity} oninput={markUnsaved} class="form-range" />
 					</div>
 				{/if}
 				<div class="bg-preview">
@@ -323,7 +316,7 @@
 					{/if}
 				</div>
 				{#if bgImageUrl}
-					<button class="btn btn--small mt-2" onclick={() => { bgImageUrl = ''; bgOpacity = 15; }}>Clear Background</button>
+					<button class="btn btn--small mt-2" onclick={() => { bgImageUrl = ''; bgOpacity = 15; markUnsaved(); }}>Clear Background</button>
 				{/if}
 			</div>
 		</div>
@@ -332,28 +325,33 @@
 		<div class="theme-preview">
 			<div class="card">
 				<h2>Live Preview</h2>
-				<p class="preview-font-info muted">Font: {currentFont.name}</p>
+				<p class="preview-font-info muted">Font: {currentFont.name} | Outline: {textOutline}</p>
 				<div class="preview-box" style={previewStyle}>
-					<div class="preview-header">
-						<span class="preview-brand" style="color: {accentColor}">CRC</span>
-						<span class="preview-nav">Games | Runners | Teams</span>
-					</div>
-					<div class="preview-content">
-						<h3>Sample Content</h3>
-						<p>This is how your theme will look across the site.</p>
-						<button class="preview-btn" style="background: {accentColor}">Example Button</button>
-						<a href={'#'} class="preview-link" style="color: {accentColor}" onclick={(e) => e.preventDefault()}>Example Link</a>
-					</div>
-					<div class="preview-card" style="background: {surfaceColor}">
-						<h4>Card Example</h4>
-						<p style="opacity:0.6;">Cards use the surface color.</p>
+					{#if bgImageUrl}
+						<div class="preview-bg-image" style="background-image: url('{bgImageUrl}'); opacity: {bgOpacity / 100};"></div>
+					{/if}
+					<div class="preview-inner">
+						<div class="preview-header">
+							<span class="preview-brand" style="color: {accentColor}">CRC</span>
+							<span class="preview-nav">Games | Runners | Teams</span>
+						</div>
+						<div class="preview-content">
+							<h3>Sample Content</h3>
+							<p>This is how your theme will look across the site.</p>
+							<button class="preview-btn" style="background: {accentColor}">Example Button</button>
+							<a href={'#'} class="preview-link" style="color: {accentColor}" onclick={(e) => e.preventDefault()}>Example Link</a>
+						</div>
+						<div class="preview-card" style="background: {surfaceColor}">
+							<h4>Card Example</h4>
+							<p style="opacity:0.6;">Cards use the surface color.</p>
+						</div>
 					</div>
 				</div>
 			</div>
 
 			<div class="theme-actions mt-3">
-				<button class="btn" onclick={resetTheme}>Reset to Default</button>
-				<button class="btn btn--primary" onclick={saveTheme}>💾 Save Theme</button>
+				<button class="btn" onclick={resetTheme} disabled={!hasUnsavedChanges}>Reset</button>
+				<button class="btn btn--primary" onclick={saveTheme} disabled={!hasUnsavedChanges && syncStatus === 'synced'}>Save Theme</button>
 			</div>
 		</div>
 	</div>
@@ -362,14 +360,15 @@
 <style>
 	h1 { margin: 0 0 0.25rem; } h2 { margin: 0 0 0.75rem; } .mb-2 { margin-bottom: 0.75rem; } .mb-3 { margin-bottom: 1.25rem; } .mt-2 { margin-top: 1rem; } .mt-3 { margin-top: 1.5rem; }
 	.btn { display: inline-flex; align-items: center; padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: none; color: var(--fg); cursor: pointer; font-size: 0.9rem; text-decoration: none; }
-	.btn:hover { border-color: var(--accent); color: var(--accent); }
+	.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+	.btn:disabled { opacity: 0.4; cursor: default; }
 	.btn--primary { background: var(--accent); color: white; border-color: var(--accent); }
-	.btn--primary:hover { opacity: 0.9; color: white; }
+	.btn--primary:hover:not(:disabled) { opacity: 0.9; color: white; }
 	.btn--small { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
 
 	.sync-status { padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1.5rem; display: inline-block; }
 	.sync-status--synced { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-	.sync-status--local { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+	.sync-status--unsaved { background: rgba(234, 179, 8, 0.1); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.2); }
 	.sync-status--saving { background: rgba(234, 179, 8, 0.1); color: #eab308; }
 	.sync-status--error { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
 
@@ -380,20 +379,20 @@
 	.preset-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
 	.preset-btn { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 0.75rem 0.5rem; background: var(--bg); border: 2px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.15s; }
 	.preset-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
-	.preset-btn.active { border-color: var(--accent); background: rgba(59, 195, 110, 0.08); }
+	.preset-btn.active { border-color: var(--accent); background: rgba(255, 255, 255, 0.04); }
 	.preset-swatch { width: 28px; height: 28px; border-radius: 50%; }
 	.preset-name { font-size: 0.75rem; color: var(--muted); }
 
 	/* Colors */
 	.color-options { display: flex; flex-direction: column; gap: 1rem; }
-	.color-option { } .color-label { font-weight: 600; font-size: 0.9rem; }
+	.color-label { font-weight: 600; font-size: 0.9rem; }
 	.color-desc { font-size: 0.8rem; color: var(--muted); margin: 0.15rem 0 0.5rem; }
 	.color-inputs { display: flex; gap: 0.5rem; align-items: center; }
 	.color-inputs input[type="color"] { width: 40px; height: 36px; border: 1px solid var(--border); border-radius: 6px; padding: 2px; cursor: pointer; background: var(--bg); }
 	.color-hex { width: 90px; padding: 0.4rem; font-family: monospace; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); }
 
 	/* Font */
-	.form-group { } .form-label { font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 0.35rem; }
+	.form-label { font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 0.35rem; }
 	.form-input { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg); font-size: 0.9rem; }
 	.form-range { width: 100%; }
 	.outline-options { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
@@ -409,7 +408,9 @@
 	/* Preview */
 	.theme-preview { position: sticky; top: 1rem; align-self: start; }
 	.preview-font-info { font-size: 0.8rem; margin-bottom: 0.75rem; }
-	.preview-box { border-radius: 12px; border: 1px solid var(--border); padding: 1.25rem; color: #e0e0e0; }
+	.preview-box { border-radius: 12px; border: 1px solid var(--border); padding: 0; color: #e0e0e0; overflow: hidden; position: relative; background: var(--preview-bg); }
+	.preview-bg-image { position: absolute; inset: 0; background-size: cover; background-position: center; pointer-events: none; }
+	.preview-inner { position: relative; padding: 1.25rem; }
 	.preview-header { display: flex; justify-content: space-between; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
 	.preview-brand { font-weight: 800; font-size: 1.25rem; }
 	.preview-nav { font-size: 0.85rem; opacity: 0.6; }
