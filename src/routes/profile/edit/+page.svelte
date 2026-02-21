@@ -658,7 +658,7 @@
 													class="fi"
 													value={getGoalSearchText(i)}
 													oninput={(e) => { goalSearchText[i] = (e.target as HTMLInputElement).value; goalDropdownOpen[i] = true; }}
-													onfocus={() => goalDropdownOpen[i] = true}
+													onclick={() => goalDropdownOpen[i] = !goalDropdownOpen[i]}
 													onblur={() => handleGoalSearchBlur(i)}
 													placeholder="Search for a game..."
 													autocomplete="off"
