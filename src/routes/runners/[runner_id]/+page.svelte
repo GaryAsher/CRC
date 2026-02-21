@@ -86,13 +86,19 @@
 		<!-- Social Links -->
 		{#if Object.values(socials).some(Boolean)}
 			<div class="runner-socials">
-				{#if socials.twitch}<a href={socials.twitch} target="_blank" rel="noopener" class="runner-link" title="Twitch">Twitch</a>{/if}
-				{#if socials.youtube}<a href={socials.youtube} target="_blank" rel="noopener" class="runner-link" title="YouTube">YouTube</a>{/if}
-				{#if socials.twitter}<a href={socials.twitter} target="_blank" rel="noopener" class="runner-link" title="X">X</a>{/if}
-				{#if socials.bluesky}<a href={socials.bluesky} target="_blank" rel="noopener" class="runner-link" title="Bluesky">Bluesky</a>{/if}
-				{#if socials.discord}<span class="runner-link" title="Discord">Discord: {socials.discord}</span>{/if}
-				{#if socials.speedruncom}<a href={socials.speedruncom} target="_blank" rel="noopener" class="runner-link" title="SRC">SRC</a>{/if}
-				{#if socials.steam}<a href={socials.steam} target="_blank" rel="noopener" class="runner-link" title="Steam">Steam</a>{/if}
+				{#if socials.twitch}<a href={socials.twitch} target="_blank" rel="noopener" class="runner-link" title="Twitch"><span class="runner-link__icon">📺</span> Twitch</a>{/if}
+				{#if socials.youtube}<a href={socials.youtube} target="_blank" rel="noopener" class="runner-link" title="YouTube"><span class="runner-link__icon">▶️</span> YouTube</a>{/if}
+				{#if socials.discord}<span class="runner-link" title="Discord"><span class="runner-link__icon">💬</span> Discord: {socials.discord}</span>{/if}
+				{#if socials.twitter}<a href={socials.twitter} target="_blank" rel="noopener" class="runner-link" title="X / Twitter"><span class="runner-link__icon">🐦</span> X</a>{/if}
+				{#if socials.bluesky}<a href={socials.bluesky} target="_blank" rel="noopener" class="runner-link" title="Bluesky"><span class="runner-link__icon">🦋</span> Bluesky</a>{/if}
+				{#if socials.instagram}<a href={socials.instagram} target="_blank" rel="noopener" class="runner-link" title="Instagram"><span class="runner-link__icon">📷</span> Instagram</a>{/if}
+				{#if socials.speedruncom}<a href={socials.speedruncom} target="_blank" rel="noopener" class="runner-link" title="Speedrun.com"><span class="runner-link__icon">⏱️</span> Speedrun.com</a>{/if}
+				{#if socials.steam}<a href={socials.steam} target="_blank" rel="noopener" class="runner-link" title="Steam"><span class="runner-link__icon">🎮</span> Steam</a>{/if}
+				{#if Array.isArray(socials.other)}
+					{#each socials.other as link}
+						{#if link}<a href={link} target="_blank" rel="noopener" class="runner-link" title={link}><span class="runner-link__icon">🔗</span> {new URL(link).hostname.replace('www.', '')}</a>{/if}
+					{/each}
+				{/if}
 			</div>
 		{/if}
 	</section>
@@ -477,12 +483,13 @@
 		font-size: 0.75rem; color: var(--fg); text-decoration: none;
 	}
 	.runner-team-badge:hover { border-color: var(--accent); color: var(--accent); }
-	.runner-socials { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+	.runner-socials { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-top: 0.5rem; }
 	.runner-link {
-		display: inline-block; padding: 0.3rem 0.65rem; background: var(--surface);
+		display: flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.65rem; background: var(--surface);
 		border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem;
-		color: var(--fg); text-decoration: none;
+		color: var(--fg); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	}
+	.runner-link__icon { flex-shrink: 0; font-size: 0.85rem; }
 	.runner-link:hover { border-color: var(--accent); color: var(--accent); }
 
 	/* Bio */
@@ -504,7 +511,8 @@
 	.highlight-card__video:hover { text-decoration: underline; opacity: 1; }
 
 	/* Tabs */
-	.runner-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; gap: 0; }
+	.runner-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; gap: 0; scrollbar-width: none; -ms-overflow-style: none; }
+	.runner-tabs::-webkit-scrollbar { display: none; }
 	.tab {
 		padding: 0.75rem 1.25rem; background: none; border: none; border-bottom: 2px solid transparent;
 		color: var(--text-muted); cursor: pointer; font-size: 0.9rem; font-family: inherit; white-space: nowrap;
@@ -649,6 +657,7 @@
 	@media (max-width: 640px) {
 		.runner-banner { height: 120px; }
 		.runner-top { flex-direction: column; }
+		.runner-socials { grid-template-columns: 1fr; }
 		.runner-stats-card { justify-content: center; }
 		.runner-stat { padding: 0 0.75rem; }
 		.runner-stat--total { margin-left: 0; border-left: none; width: 100%; flex-direction: row; justify-content: center; gap: 0.5rem; border-top: 1px solid var(--border); padding-top: 0.75rem; margin-top: 0.5rem; }

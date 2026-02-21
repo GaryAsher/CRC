@@ -2,6 +2,7 @@
 	import { user } from '$stores/auth';
 	import { supabase } from '$lib/supabase';
 	import { sanitizeText } from '$lib/utils/markdown';
+	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 	import AuthGuard from '$components/auth/AuthGuard.svelte';
 
 	type Tab = 'basic' | 'customize' | 'socials' | 'goals' | 'highlights';
@@ -169,12 +170,27 @@
 				updated_at: new Date().toISOString()
 			};
 
-			const { error } = await supabase
-				.from('runner_profiles')
-				.update(update)
-				.eq('user_id', $user.id);
+			const { data: { session: sess } } = await supabase.auth.getSession();
+			if (!sess) throw new Error('Not authenticated. Please sign in again.');
 
-			if (error) throw error;
+			const res = await fetch(
+				`${PUBLIC_SUPABASE_URL}/rest/v1/runner_profiles?user_id=eq.${sess.user.id}`,
+				{
+					method: 'PATCH',
+					headers: {
+						'apikey': PUBLIC_SUPABASE_ANON_KEY,
+						'Authorization': `Bearer ${sess.access_token}`,
+						'Content-Type': 'application/json',
+						'Prefer': 'return=minimal'
+					},
+					body: JSON.stringify(update)
+				}
+			);
+
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({}));
+				throw new Error(err.message || `Save failed (${res.status})`);
+			}
 
 			// Update local pending state
 			existingPendingOther = pendingOther;
@@ -267,6 +283,52 @@
 
 	function removeGoal(i: number) {
 		goals = goals.filter((_, idx) => idx !== i);
+		goalSearchText = goalSearchText.filter((_, idx) => idx !== i);
+		goalDropdownOpen = goalDropdownOpen.filter((_, idx) => idx !== i);
+	}
+
+	// Typeahead state for game selection in goals
+	let goalSearchText = $state<string[]>([]);
+	let goalDropdownOpen = $state<boolean[]>([]);
+
+	function getGoalSearchText(i: number): string {
+		if (goalSearchText[i] !== undefined) return goalSearchText[i];
+		// Initialize from existing goal game name
+		const game = gamesList.find((g: any) => g.id === goals[i]?.game);
+		return game?.name || '';
+	}
+
+	function filteredGames(search: string) {
+		if (!search.trim()) return gamesList.slice(0, 20);
+		const lower = search.toLowerCase();
+		return gamesList.filter((g: any) => g.name.toLowerCase().includes(lower)).slice(0, 20);
+	}
+
+	function selectGoalGame(i: number, game: any) {
+		goals[i] = { ...goals[i], game: game.id };
+		goalSearchText[i] = game.name;
+		goalDropdownOpen[i] = false;
+	}
+
+	function clearGoalGame(i: number) {
+		goals[i] = { ...goals[i], game: '' };
+		goalSearchText[i] = '';
+		goalDropdownOpen[i] = false;
+	}
+
+	function handleGoalSearchBlur(i: number) {
+		// Delay to allow click on dropdown item
+		setTimeout(() => { goalDropdownOpen[i] = false; }, 200);
+	}
+
+	// Completion prompt: when current >= total and not already completed
+	function handleProgressChange(i: number) {
+		const g = goals[i];
+		if (g && g.total > 0 && g.current >= g.total && !g.completed) {
+			if (confirm(`🎉 You've reached ${g.current}/${g.total}! Mark this goal as completed?`)) {
+				goals[i] = { ...goals[i], completed: true, date: new Date().toISOString().split('T')[0] };
+			}
+		}
 	}
 
 	// ── Highlights helpers ──────────────────────────────────────
@@ -589,12 +651,38 @@
 									<div class="form-row">
 										<div class="fg fg--flex">
 											<label class="fl" for="goal-game-{i}">Game</label>
-											<select id="goal-game-{i}" class="fi" bind:value={goals[i].game}>
-												<option value="">None</option>
-												{#each gamesList as g}
-													<option value={g.id}>{g.name}</option>
-												{/each}
-											</select>
+											<div class="typeahead">
+												<input
+													id="goal-game-{i}"
+													type="text"
+													class="fi"
+													value={getGoalSearchText(i)}
+													oninput={(e) => { goalSearchText[i] = (e.target as HTMLInputElement).value; goalDropdownOpen[i] = true; }}
+													onfocus={() => goalDropdownOpen[i] = true}
+													onblur={() => handleGoalSearchBlur(i)}
+													placeholder="Search for a game..."
+													autocomplete="off"
+												/>
+												{#if goals[i].game}
+													<button type="button" class="typeahead__clear" onclick={() => clearGoalGame(i)} title="Clear">✕</button>
+												{/if}
+												{#if goalDropdownOpen[i]}
+													{@const matches = filteredGames(getGoalSearchText(i))}
+													{#if matches.length > 0}
+														<ul class="typeahead__list">
+															{#each matches as g}
+																<li>
+																	<button type="button" class="typeahead__option" class:typeahead__option--active={g.id === goals[i].game} onmousedown={() => selectGoalGame(i, g)}>
+																		{g.name}
+																	</button>
+																</li>
+															{/each}
+														</ul>
+													{:else}
+														<ul class="typeahead__list"><li class="typeahead__empty">No games found</li></ul>
+													{/if}
+												{/if}
+											</div>
 										</div>
 										<div class="fg">
 											<label class="fl" for="goal-status-{i}">Status</label>
@@ -608,7 +696,7 @@
 									<div class="form-row goal-progress">
 										<div class="fg">
 											<label class="fl" for="goal-current-{i}">Current</label>
-											<input id="goal-current-{i}" type="number" class="fi" bind:value={goals[i].current} min="0" />
+											<input id="goal-current-{i}" type="number" class="fi" bind:value={goals[i].current} min="0" onchange={() => handleProgressChange(i)} />
 										</div>
 										<div class="fg">
 											<label class="fl" for="goal-total-{i}">Total</label>
@@ -750,8 +838,9 @@
 	/* Tabs */
 	.edit-tabs {
 		display: flex; gap: 0; border-bottom: 2px solid var(--border);
-		margin-bottom: 1.5rem; overflow-x: auto;
+		margin-bottom: 1.5rem; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
 	}
+	.edit-tabs::-webkit-scrollbar { display: none; }
 	.edit-tab {
 		padding: 0.6rem 1rem; background: none; border: none;
 		border-bottom: 2px solid transparent; margin-bottom: -2px;
@@ -868,4 +957,27 @@
 		display: flex; gap: 0.75rem; margin-top: 2rem;
 		padding-top: 1.5rem; border-top: 1px solid var(--border);
 	}
+
+	/* Typeahead */
+	.typeahead { position: relative; }
+	.typeahead__clear {
+		position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+		background: none; border: none; color: var(--muted); cursor: pointer;
+		font-size: 0.85rem; padding: 2px 6px; border-radius: 4px;
+	}
+	.typeahead__clear:hover { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+	.typeahead__list {
+		position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+		background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+		max-height: 200px; overflow-y: auto; list-style: none; margin: 4px 0 0; padding: 4px;
+		box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+	}
+	.typeahead__option {
+		display: block; width: 100%; text-align: left; padding: 0.45rem 0.65rem;
+		background: none; border: none; color: var(--fg); cursor: pointer;
+		font-size: 0.9rem; border-radius: 4px; font-family: inherit;
+	}
+	.typeahead__option:hover { background: var(--bg-hover); }
+	.typeahead__option--active { color: var(--accent); font-weight: 600; }
+	.typeahead__empty { padding: 0.5rem 0.65rem; color: var(--muted); font-size: 0.85rem; }
 </style>
