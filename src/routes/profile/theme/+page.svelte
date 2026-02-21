@@ -49,13 +49,28 @@
 	);
 
 	// ── Apply theme to document ───────────────────────────────────────────────
+	function hexToRgb(hex: string): string | null {
+		const m = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+		if (!m) return null;
+		return `${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}`;
+	}
+
 	function applyTheme() {
 		if (!browser) return;
-		document.documentElement.style.setProperty('--accent', accentColor);
-		document.documentElement.style.setProperty('--bg', bgColor);
-		document.documentElement.style.setProperty('--surface', surfaceColor);
+		const s = document.documentElement.style;
+		s.setProperty('--accent', accentColor);
+		const rgb = hexToRgb(accentColor);
+		if (rgb) {
+			s.setProperty('--accent-rgb', rgb);
+			s.setProperty('--focus', `rgba(${rgb}, 0.6)`);
+			s.setProperty('--focus-2', `rgba(${rgb}, 0.35)`);
+		}
+		s.setProperty('--bg', bgColor);
+		s.setProperty('--surface', surfaceColor);
 		if (fontFamily !== 'system') {
-			document.documentElement.style.setProperty('font-family', currentFont.css);
+			s.setProperty('--font-family', currentFont.css);
+		} else {
+			s.removeProperty('--font-family');
 		}
 		// Save to localStorage
 		const themeData = { accentColor, bgColor, surfaceColor, fontFamily, textOutline, bgImageUrl, bgOpacity };
@@ -78,7 +93,11 @@
 		bgOpacity = 15;
 		if (browser) {
 			localStorage.removeItem('crc-custom-theme');
-			document.documentElement.style.removeProperty('font-family');
+			const s = document.documentElement.style;
+			s.removeProperty('--font-family');
+			s.removeProperty('--accent-rgb');
+			s.removeProperty('--focus');
+			s.removeProperty('--focus-2');
 		}
 		applyTheme();
 	}

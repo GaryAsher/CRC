@@ -18,12 +18,21 @@
 				var t = localStorage.getItem('crc-custom-theme');
 				if (t) {
 					var d = JSON.parse(t), s = document.documentElement.style;
-					if (d.accentColor) s.setProperty('--accent', d.accentColor);
+					if (d.accentColor) {
+						s.setProperty('--accent', d.accentColor);
+						var m = d.accentColor.replace('#','').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+						if (m) {
+							var rgb = parseInt(m[1],16)+', '+parseInt(m[2],16)+', '+parseInt(m[3],16);
+							s.setProperty('--accent-rgb', rgb);
+							s.setProperty('--focus', 'rgba('+rgb+', 0.6)');
+							s.setProperty('--focus-2', 'rgba('+rgb+', 0.35)');
+						}
+					}
 					if (d.bgColor) s.setProperty('--bg', d.bgColor);
 					if (d.surfaceColor) s.setProperty('--surface', d.surfaceColor);
 					if (d.fontFamily && d.fontFamily !== 'system') {
 						var fonts = { inter: "'Inter', sans-serif", roboto: "'Roboto', sans-serif", poppins: "'Poppins', sans-serif", montserrat: "'Montserrat', sans-serif", nunito: "'Nunito', sans-serif", ubuntu: "'Ubuntu', sans-serif" };
-						if (fonts[d.fontFamily]) s.setProperty('font-family', fonts[d.fontFamily]);
+						if (fonts[d.fontFamily]) s.setProperty('--font-family', fonts[d.fontFamily]);
 					}
 				}
 			} catch(e) {}

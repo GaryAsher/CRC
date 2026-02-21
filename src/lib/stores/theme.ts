@@ -57,17 +57,33 @@ export function toggleTheme() {
 
 // ── Custom Theme ──────────────────────────────────────────────────────────
 
+/** Convert hex color to "r, g, b" string for use in rgba() */
+function hexToRgb(hex: string): string | null {
+	const m = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+	if (!m) return null;
+	return `${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}`;
+}
+
 /** Apply a custom theme object to the document root */
 export function applyCustomTheme(data: Partial<CustomTheme>) {
 	if (!browser) return;
 	const s = document.documentElement.style;
-	if (data.accentColor) s.setProperty('--accent', data.accentColor);
+	if (data.accentColor) {
+		s.setProperty('--accent', data.accentColor);
+		// Update --accent-rgb so focus rings (--focus, --focus-2) use the right color
+		const rgb = hexToRgb(data.accentColor);
+		if (rgb) {
+			s.setProperty('--accent-rgb', rgb);
+			s.setProperty('--focus', `rgba(${rgb}, 0.6)`);
+			s.setProperty('--focus-2', `rgba(${rgb}, 0.35)`);
+		}
+	}
 	if (data.bgColor) s.setProperty('--bg', data.bgColor);
 	if (data.surfaceColor) s.setProperty('--surface', data.surfaceColor);
 	if (data.fontFamily && data.fontFamily !== 'system' && FONT_MAP[data.fontFamily]) {
-		s.setProperty('font-family', FONT_MAP[data.fontFamily]);
+		s.setProperty('--font-family', FONT_MAP[data.fontFamily]);
 	} else if (data.fontFamily === 'system') {
-		s.removeProperty('font-family');
+		s.removeProperty('--font-family');
 	}
 }
 
@@ -98,7 +114,10 @@ export function clearCustomTheme() {
 	localStorage.removeItem('crc-custom-theme');
 	const s = document.documentElement.style;
 	s.removeProperty('--accent');
+	s.removeProperty('--accent-rgb');
+	s.removeProperty('--focus');
+	s.removeProperty('--focus-2');
 	s.removeProperty('--bg');
 	s.removeProperty('--surface');
-	s.removeProperty('font-family');
+	s.removeProperty('--font-family');
 }
