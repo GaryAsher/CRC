@@ -1,14 +1,32 @@
 // =============================================================================
 // Theme Store
 // =============================================================================
-// Manages dark/light theme preference.
-// Replaces the inline theme toggle JS in _includes/header.html.
+// Manages dark/light theme preference AND custom theme (colors, font, etc.)
 // =============================================================================
 
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
 type Theme = 'dark' | 'light';
+
+export interface CustomTheme {
+	accentColor: string;
+	bgColor: string;
+	surfaceColor: string;
+	fontFamily: string;
+	textOutline: 'none' | 'light' | 'dark' | 'auto';
+	bgImageUrl: string;
+	bgOpacity: number;
+}
+
+const FONT_MAP: Record<string, string> = {
+	inter: "'Inter', sans-serif",
+	roboto: "'Roboto', sans-serif",
+	poppins: "'Poppins', sans-serif",
+	montserrat: "'Montserrat', sans-serif",
+	nunito: "'Nunito', sans-serif",
+	ubuntu: "'Ubuntu', sans-serif",
+};
 
 function getInitialTheme(): Theme {
 	if (!browser) return 'dark'; // SSR default
@@ -35,4 +53,52 @@ if (browser) {
 
 export function toggleTheme() {
 	theme.update((current) => (current === 'dark' ? 'light' : 'dark'));
+}
+
+// ── Custom Theme ──────────────────────────────────────────────────────────
+
+/** Apply a custom theme object to the document root */
+export function applyCustomTheme(data: Partial<CustomTheme>) {
+	if (!browser) return;
+	const s = document.documentElement.style;
+	if (data.accentColor) s.setProperty('--accent', data.accentColor);
+	if (data.bgColor) s.setProperty('--bg', data.bgColor);
+	if (data.surfaceColor) s.setProperty('--surface', data.surfaceColor);
+	if (data.fontFamily && data.fontFamily !== 'system' && FONT_MAP[data.fontFamily]) {
+		s.setProperty('font-family', FONT_MAP[data.fontFamily]);
+	} else if (data.fontFamily === 'system') {
+		s.removeProperty('font-family');
+	}
+}
+
+/** Load custom theme from localStorage and apply it. Returns the data if found. */
+export function loadCustomThemeFromStorage(): CustomTheme | null {
+	if (!browser) return null;
+	try {
+		const saved = localStorage.getItem('crc-custom-theme');
+		if (!saved) return null;
+		const data = JSON.parse(saved) as CustomTheme;
+		applyCustomTheme(data);
+		return data;
+	} catch {
+		return null;
+	}
+}
+
+/** Save custom theme to localStorage and apply it. */
+export function saveCustomThemeToStorage(data: CustomTheme) {
+	if (!browser) return;
+	localStorage.setItem('crc-custom-theme', JSON.stringify(data));
+	applyCustomTheme(data);
+}
+
+/** Clear custom theme and reset to defaults. */
+export function clearCustomTheme() {
+	if (!browser) return;
+	localStorage.removeItem('crc-custom-theme');
+	const s = document.documentElement.style;
+	s.removeProperty('--accent');
+	s.removeProperty('--bg');
+	s.removeProperty('--surface');
+	s.removeProperty('font-family');
 }

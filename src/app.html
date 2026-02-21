@@ -12,6 +12,22 @@
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
+		<script>
+			// Apply custom theme from localStorage BEFORE first paint to prevent flash
+			try {
+				var t = localStorage.getItem('crc-custom-theme');
+				if (t) {
+					var d = JSON.parse(t), s = document.documentElement.style;
+					if (d.accentColor) s.setProperty('--accent', d.accentColor);
+					if (d.bgColor) s.setProperty('--bg', d.bgColor);
+					if (d.surfaceColor) s.setProperty('--surface', d.surfaceColor);
+					if (d.fontFamily && d.fontFamily !== 'system') {
+						var fonts = { inter: "'Inter', sans-serif", roboto: "'Roboto', sans-serif", poppins: "'Poppins', sans-serif", montserrat: "'Montserrat', sans-serif", nunito: "'Nunito', sans-serif", ubuntu: "'Ubuntu', sans-serif" };
+						if (fonts[d.fontFamily]) s.setProperty('font-family', fonts[d.fontFamily]);
+					}
+				}
+			} catch(e) {}
+		</script>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>
