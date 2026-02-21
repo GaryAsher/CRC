@@ -149,7 +149,8 @@
 			autocomplete="off"
 			aria-label={ariaLabel}
 			bind:value={query}
-			onfocus={open}
+			onclick={() => { isOpen ? close() : open(); }}
+			oninput={() => { if (!isOpen) open(); }}
 			onkeydown={handleKeydown}
 		/>
 
