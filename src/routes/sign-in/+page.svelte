@@ -56,6 +56,7 @@
 		<div class="sign-in-card">
 			<h1>Sign In</h1>
 			<p class="muted">Sign in to submit runs, manage your profile, and track your achievements.</p>
+			<p class="first-time">First time here? Just click one of the buttons below to sign up via Discord or Twitch.</p>
 
 			{#if errorMessage}
 				<div class="alert alert--error">{errorMessage}</div>
@@ -105,6 +106,15 @@
 		font-size: 1.5rem;
 	}
 	.sign-in-card > .muted {
+		margin-bottom: 0.5rem;
+	}
+	.first-time {
+		font-size: 0.85rem;
+		color: #fbbf24;
+		background: rgba(245, 158, 11, 0.1);
+		border: 1px solid rgba(245, 158, 11, 0.25);
+		border-radius: 6px;
+		padding: 0.5rem 0.75rem;
 		margin-bottom: 1.5rem;
 	}
 	.sign-in-buttons {

@@ -69,6 +69,9 @@
 </svelte:head>
 
 <div class="site-wrapper">
+	<div class="dev-banner">
+		<p>🚧 <strong>CRC is still in development.</strong> Feel free to explore! Check out the <a href="/games">Games</a> pages, <a href="/sign-in">sign up</a> to create your profile, or <a href="https://discord.gg/HHwCt5zENp" target="_blank" rel="noopener">join our Discord</a>.</p>
+	</div>
 	<Header />
 	<main>
 		{@render children()}
@@ -79,6 +82,17 @@
 </div>
 
 <style>
+	.dev-banner {
+		background: rgba(245, 158, 11, 0.15);
+		border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+		padding: 0.5rem 1rem;
+		text-align: center;
+		font-size: 0.85rem;
+		color: #fbbf24;
+	}
+	.dev-banner p { margin: 0; }
+	.dev-banner a { color: #fbbf24; font-weight: 600; text-decoration: underline; }
+	.dev-banner a:hover { color: #fff; }
 	.site-wrapper {
 		display: flex;
 		flex-direction: column;

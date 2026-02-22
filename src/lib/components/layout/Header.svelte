@@ -32,16 +32,15 @@
 
 		(async () => {
 			try {
-				// 1. Check runner_profiles — if a row exists, profile is approved
+				// 1. Check runner_profiles for this user
 				const { data: profile } = await supabase
 					.from('runner_profiles')
-					.select('runner_id, is_admin, role')
+					.select('runner_id, is_admin, role, status')
 					.eq('user_id', currentUser.id)
 					.maybeSingle();
 
-				if (profile?.runner_id) {
-					// Profile is approved (row only exists after approval)
-					// Check moderators table for verifier status
+				if (profile?.runner_id && profile.status === 'approved') {
+					// Profile is approved
 					const { data: mod } = await supabase
 						.from('moderators')
 						.select('role')
@@ -54,17 +53,19 @@
 						is_admin: profile.is_admin === true,
 						is_verifier: !!mod
 					};
+				} else if (profile?.runner_id) {
+					// Profile exists but is pending/rejected
+					profileInfo = {
+						runner_id: profile.runner_id,
+						profileState: 'pending',
+						is_admin: false,
+						is_verifier: false
+					};
 				} else {
-					// 2. No runner_profiles row — check pending_profiles
-					const { data: pending } = await supabase
-						.from('pending_profiles')
-						.select('id')
-						.eq('user_id', currentUser.id)
-						.maybeSingle();
-
+					// No profile at all
 					profileInfo = {
 						runner_id: null,
-						profileState: pending ? 'pending' : 'none',
+						profileState: 'none',
 						is_admin: false,
 						is_verifier: false
 					};

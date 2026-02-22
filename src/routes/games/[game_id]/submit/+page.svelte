@@ -142,12 +142,15 @@
 
 			const { data: profile } = await supabase
 				.from('runner_profiles')
-				.select('runner_id')
+				.select('runner_id, status')
 				.eq('user_id', userData.user.id)
 				.single();
 
 			if (!profile?.runner_id) {
 				throw new Error('You need a runner profile to submit runs. Create one in your Profile settings.');
+			}
+			if (profile.status !== 'approved') {
+				throw new Error('Your profile is still pending approval. You can browse the site, but submissions are locked until an admin approves your profile.');
 			}
 
 			const payload: Record<string, any> = {

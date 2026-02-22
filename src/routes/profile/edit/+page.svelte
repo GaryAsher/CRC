@@ -37,6 +37,7 @@
 	let saving = $state(false);
 	let msg = $state<{ type: 'success' | 'error'; text: string } | null>(null);
 	let runnerId = $state('');
+	let profileApprovalStatus = $state('pending');
 
 	// Basic Info
 	let displayName = $state('');
@@ -105,7 +106,7 @@
 		try {
 			const { data: profile, error } = await supabase
 				.from('runner_profiles')
-				.select('runner_id, display_name, pronouns, location, bio, status_message, avatar_url, banner_url, socials, personal_goals, featured_runs, other_links_pending')
+				.select('runner_id, display_name, pronouns, location, bio, status_message, avatar_url, banner_url, socials, personal_goals, featured_runs, other_links_pending, status')
 				.eq('user_id', $user!.id)
 				.maybeSingle();
 
@@ -114,6 +115,8 @@
 				loading = false;
 				return;
 			}
+
+			profileApprovalStatus = profile.status || 'pending';
 
 			runnerId = profile.runner_id || '';
 			displayName = profile.display_name || '';
@@ -152,6 +155,10 @@
 	// ── Save ────────────────────────────────────────────────────
 	async function handleSave() {
 		if (!$user) return;
+		if (profileApprovalStatus !== 'approved') {
+			msg = { type: 'error', text: 'Your profile is pending approval. Editing is locked until an admin approves your profile.' };
+			return;
+		}
 		if (bannedTermsWarning) {
 			msg = { type: 'error', text: bannedTermsWarning };
 			return;
@@ -408,6 +415,10 @@
 
 			{#if msg}
 				<div class="alert alert--{msg.type}">{msg.text}</div>
+			{/if}
+
+			{#if profileApprovalStatus !== 'approved' && !loading}
+				<div class="alert alert--warning">⏳ Your profile is pending approval. You can view your profile details, but editing is locked until an admin approves it.</div>
 			{/if}
 
 			{#if loading}
@@ -809,7 +820,7 @@
 					<button
 						class="btn btn--primary"
 						onclick={handleSave}
-						disabled={saving || !displayName.trim() || !!bannedTermsWarning}
+						disabled={saving || !displayName.trim() || !!bannedTermsWarning || profileApprovalStatus !== 'approved'}
 					>
 						{saving ? 'Saving...' : 'Save Changes'}
 					</button>
@@ -837,6 +848,7 @@
 	.alert { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.5rem; font-size: 0.9rem; }
 	.alert--success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #22c55e; }
 	.alert--error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; }
+	.alert--warning { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24; }
 
 	/* Preview card */
 	.preview-card { overflow: hidden; padding: 0; }
