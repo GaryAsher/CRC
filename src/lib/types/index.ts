@@ -246,6 +246,9 @@ export interface Run {
 	// Metadata
 	date_submitted: string | Date;
 
+	// Runner content
+	runner_notes?: string;
+
 	// Moderation
 	status: 'pending' | 'approved' | 'rejected';
 	verified: boolean;

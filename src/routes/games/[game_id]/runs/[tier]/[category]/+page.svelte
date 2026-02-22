@@ -14,6 +14,7 @@
 	let sortKey = $state<'date' | 'time'>('date');
 	let sortDir = $state<'desc' | 'asc'>('desc');
 	let showAdvanced = $state(false);
+	let verifiedOnly = $state(false);
 
 	// Advanced filter selections
 	let selectedCharacter = $state<{ slug: string; label: string } | null>(null);
@@ -22,14 +23,10 @@
 	let selectedGlitch = $state<{ slug: string; label: string } | null>(null);
 
 	// Typeahead open state
-	let charSearch = $state('');
-	let charOpen = $state(false);
-	let challengeSearch = $state('');
-	let challengeOpen = $state(false);
-	let restrictionSearch = $state('');
-	let restrictionOpen = $state(false);
-	let glitchSearch = $state('');
-	let glitchOpen = $state(false);
+	let charSearch = $state(''); let charOpen = $state(false);
+	let challengeSearch = $state(''); let challengeOpen = $state(false);
+	let restrictionSearch = $state(''); let restrictionOpen = $state(false);
+	let glitchSearch = $state(''); let glitchOpen = $state(false);
 
 	// ── Available options from game data ──
 	const hasCharacters = $derived(game.character_column?.enabled && game.characters_data?.length > 0);
@@ -39,14 +36,14 @@
 	const hasGlitches = $derived(game.glitches_data?.length > 0);
 	const hasAnyAdvanced = $derived(hasCharacters || hasChallenges || hasRestrictions || hasGlitches);
 
-	// Lookup maps for label↔slug resolution
+	// Lookup maps
 	const challengeMap = $derived(new Map((game.challenges_data || []).map((c: any) => [c.slug, c.label])));
 	const restrictionMap = $derived(new Map((game.restrictions_data || []).map((r: any) => [r.slug, r.label])));
 	const characterMap = $derived(new Map((game.characters_data || []).map((c: any) => [c.slug, c.label])));
 	const glitchMap = $derived(new Map((game.glitches_data || []).map((g: any) => [g.slug, g.label])));
 
 	const activeFilterCount = $derived(
-		(selectedCharacter ? 1 : 0) + selectedChallenges.size + selectedRestrictions.size + (selectedGlitch ? 1 : 0)
+		(selectedCharacter ? 1 : 0) + selectedChallenges.size + selectedRestrictions.size + (selectedGlitch ? 1 : 0) + (verifiedOnly ? 1 : 0)
 	);
 
 	// ── Typeahead helpers ──
@@ -64,19 +61,14 @@
 
 	function selectCharacter(c: { slug: string; label: string }) { selectedCharacter = c; charSearch = c.label; charOpen = false; }
 	function clearCharacter() { selectedCharacter = null; charSearch = ''; }
-
 	function addChallenge(c: { slug: string; label: string }) { selectedChallenges = new Map([...selectedChallenges, [c.slug, c.label]]); challengeSearch = ''; challengeOpen = false; }
 	function removeChallenge(slug: string) { const m = new Map(selectedChallenges); m.delete(slug); selectedChallenges = m; }
-
 	function addRestriction(r: { slug: string; label: string }) { selectedRestrictions = new Map([...selectedRestrictions, [r.slug, r.label]]); restrictionSearch = ''; restrictionOpen = false; }
 	function removeRestriction(slug: string) { const m = new Map(selectedRestrictions); m.delete(slug); selectedRestrictions = m; }
-
 	function selectGlitch(g: { slug: string; label: string }) { selectedGlitch = g; glitchSearch = g.label; glitchOpen = false; }
 	function clearGlitch() { selectedGlitch = null; glitchSearch = ''; }
+	function resetFilters() { clearCharacter(); selectedChallenges = new Map(); challengeSearch = ''; selectedRestrictions = new Map(); restrictionSearch = ''; clearGlitch(); verifiedOnly = false; }
 
-	function resetFilters() { clearCharacter(); selectedChallenges = new Map(); challengeSearch = ''; selectedRestrictions = new Map(); restrictionSearch = ''; clearGlitch(); }
-
-	// Resolve a run value to slug for matching (values might be slugs or labels)
 	function resolveToSlugs(values: string[], lookupMap: Map<string, string>): string[] {
 		const labelToSlug = new Map<string, string>();
 		for (const [slug, label] of lookupMap) labelToSlug.set(norm(label), slug);
@@ -90,33 +82,25 @@
 		if (query.trim()) {
 			const q = norm(query);
 			runs = runs.filter((r: any) => {
-				const fields = [r.runner, r.character, ...(r.standard_challenges || []), ...(r.restrictions || [])].filter(Boolean).join(' ');
+				const fields = [r.runner, r.character, ...(r.standard_challenges || []), ...(r.restrictions || []), r.runner_notes || ''].filter(Boolean).join(' ');
 				return norm(fields).includes(q);
 			});
 		}
+
+		if (verifiedOnly) runs = runs.filter((r: any) => r.verified);
 
 		if (selectedCharacter) {
 			const slug = norm(selectedCharacter.slug);
 			runs = runs.filter((r: any) => norm(r.character || '') === slug);
 		}
-
 		if (selectedChallenges.size > 0) {
 			const needed = [...selectedChallenges.keys()].map(norm);
-			runs = runs.filter((r: any) => {
-				const runSlugs = resolveToSlugs(r.standard_challenges || [], challengeMap).map(norm);
-				return needed.every(n => runSlugs.includes(n));
-			});
+			runs = runs.filter((r: any) => { const s = resolveToSlugs(r.standard_challenges || [], challengeMap).map(norm); return needed.every(n => s.includes(n)); });
 		}
-
 		if (selectedRestrictions.size > 0) {
 			const needed = [...selectedRestrictions.keys()].map(norm);
-			runs = runs.filter((r: any) => {
-				const ids = r.restriction_ids || r.restrictions || [];
-				const runSlugs = resolveToSlugs(ids, restrictionMap).map(norm);
-				return needed.every(n => runSlugs.includes(n));
-			});
+			runs = runs.filter((r: any) => { const ids = r.restriction_ids || r.restrictions || []; const s = resolveToSlugs(ids, restrictionMap).map(norm); return needed.every(n => s.includes(n)); });
 		}
-
 		if (selectedGlitch) {
 			const slug = norm(selectedGlitch.slug);
 			runs = runs.filter((r: any) => norm(r.glitch_id || '') === slug);
@@ -143,7 +127,7 @@
 
 	// ── Pagination ──
 	let currentPage = $state(1);
-	$effect(() => { query; selectedCharacter; selectedChallenges; selectedRestrictions; selectedGlitch; currentPage = 1; });
+	$effect(() => { query; selectedCharacter; selectedChallenges; selectedRestrictions; selectedGlitch; verifiedOnly; currentPage = 1; });
 	const totalPages = $derived(Math.max(1, Math.ceil(processedRuns.length / PAGE_SIZE)));
 	const safeCurrentPage = $derived(Math.min(currentPage, totalPages));
 	const pagedRuns = $derived(() => { const s = (safeCurrentPage - 1) * PAGE_SIZE; return processedRuns.slice(s, s + PAGE_SIZE); });
@@ -154,7 +138,7 @@
 	function goToPage(p: number) { currentPage = Math.max(1, Math.min(p, totalPages)); tableEl?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 	function toggleSort(key: 'date' | 'time') { if (sortKey === key) { sortDir = sortDir === 'desc' ? 'asc' : 'desc'; } else { sortKey = key; sortDir = key === 'time' ? 'asc' : 'desc'; } }
 
-	// ── URL Hash filter support (Rule Builder links) ──
+	// ── URL Hash filter support ──
 	$effect(() => {
 		const hash = $page.url.hash;
 		if (!hash || !hash.includes('filters=')) return;
@@ -170,6 +154,8 @@
 	});
 
 	const showRestrictions = $derived(data.runs.some((r: any) => r.restrictions?.length || r.restriction_ids?.length));
+	const hasAnyNotes = $derived(data.runs.some((r: any) => r.runner_notes));
+	const hasAnyVerified = $derived(data.runs.some((r: any) => r.verified));
 </script>
 
 <svelte:head>
@@ -194,7 +180,7 @@
 			<input type="text" placeholder="Filter by runner, challenge, etc." bind:value={query} class="filter-input__field" />
 			{#if query}<button class="filter-input__clear" onclick={() => query = ''} aria-label="Clear filter">✕</button>{/if}
 		</div>
-		{#if hasAnyAdvanced}
+		{#if hasAnyAdvanced || hasAnyVerified}
 			<button class="btn btn--filter-toggle" class:is-active={showAdvanced} onclick={() => showAdvanced = !showAdvanced} aria-expanded={showAdvanced}>
 				<span class="filter-toggle__icon">{showAdvanced ? '▲' : '▼'}</span> Advanced Filters
 				{#if activeFilterCount > 0}<span class="filter-badge">{activeFilterCount}</span>{/if}
@@ -203,7 +189,7 @@
 	</div>
 
 	<!-- Advanced Filters Panel -->
-	{#if showAdvanced && hasAnyAdvanced}
+	{#if showAdvanced}
 		<div class="advanced-filters">
 			<div class="filter-groups">
 				{#if hasCharacters}
@@ -216,10 +202,7 @@
 							{#if selectedCharacter}<button class="ta__clear" onclick={clearCharacter}>✕</button>{/if}
 							{#if charOpen}
 								{@const matches = filterItems(game.characters_data || [], charSearch)}
-								<ul class="ta__list">
-									{#if matches.length === 0}<li class="ta__empty">No matches</li>
-									{:else}{#each matches as c}<li><button class="ta__opt" class:ta__opt--active={selectedCharacter?.slug === c.slug} onmousedown={() => selectCharacter(c)}>{c.label}</button></li>{/each}{/if}
-								</ul>
+								<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">No matches</li>{:else}{#each matches as c}<li><button class="ta__opt" class:ta__opt--active={selectedCharacter?.slug === c.slug} onmousedown={() => selectCharacter(c)}>{c.label}</button></li>{/each}{/if}</ul>
 							{/if}
 						</div>
 					</div>
@@ -234,10 +217,7 @@
 								onblur={() => handleBlur(() => { challengeOpen = false; challengeSearch = ''; })} />
 							{#if challengeOpen}
 								{@const matches = filterItems(game.challenges_data || [], challengeSearch, selectedChallenges)}
-								<ul class="ta__list">
-									{#if matches.length === 0}<li class="ta__empty">{selectedChallenges.size === (game.challenges_data?.length || 0) ? 'All selected' : 'No matches'}</li>
-									{:else}{#each matches as c}<li><button class="ta__opt" onmousedown={() => addChallenge(c)}>{c.label}</button></li>{/each}{/if}
-								</ul>
+								<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">{selectedChallenges.size === (game.challenges_data?.length || 0) ? 'All selected' : 'No matches'}</li>{:else}{#each matches as c}<li><button class="ta__opt" onmousedown={() => addChallenge(c)}>{c.label}</button></li>{/each}{/if}</ul>
 							{/if}
 						</div>
 					</div>
@@ -252,10 +232,7 @@
 								onblur={() => handleBlur(() => { restrictionOpen = false; restrictionSearch = ''; })} />
 							{#if restrictionOpen}
 								{@const matches = filterItems(game.restrictions_data || [], restrictionSearch, selectedRestrictions)}
-								<ul class="ta__list">
-									{#if matches.length === 0}<li class="ta__empty">{selectedRestrictions.size === (game.restrictions_data?.length || 0) ? 'All selected' : 'No matches'}</li>
-									{:else}{#each matches as r}<li><button class="ta__opt" onmousedown={() => addRestriction(r)}>{r.label}</button></li>{/each}{/if}
-								</ul>
+								<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">{selectedRestrictions.size === (game.restrictions_data?.length || 0) ? 'All selected' : 'No matches'}</li>{:else}{#each matches as r}<li><button class="ta__opt" onmousedown={() => addRestriction(r)}>{r.label}</button></li>{/each}{/if}</ul>
 							{/if}
 						</div>
 					</div>
@@ -271,14 +248,20 @@
 							{#if selectedGlitch}<button class="ta__clear" onclick={clearGlitch}>✕</button>{/if}
 							{#if glitchOpen}
 								{@const matches = filterItems(game.glitches_data || [], glitchSearch)}
-								<ul class="ta__list">
-									{#if matches.length === 0}<li class="ta__empty">No matches</li>
-									{:else}{#each matches as g}<li><button class="ta__opt" class:ta__opt--active={selectedGlitch?.slug === g.slug} onmousedown={() => selectGlitch(g)}>{g.label}</button></li>{/each}{/if}
-								</ul>
+								<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">No matches</li>{:else}{#each matches as g}<li><button class="ta__opt" class:ta__opt--active={selectedGlitch?.slug === g.slug} onmousedown={() => selectGlitch(g)}>{g.label}</button></li>{/each}{/if}</ul>
 							{/if}
 						</div>
 					</div>
 				{/if}
+
+				<!-- Verified filter -->
+				<div class="filter-group">
+					<label class="filter-group__label">Verification</label>
+					<label class="verified-toggle">
+						<input type="checkbox" bind:checked={verifiedOnly} />
+						<span>Show verified only</span>
+					</label>
+				</div>
 			</div>
 
 			{#if activeFilterCount > 0}
@@ -288,6 +271,7 @@
 						{#each [...selectedChallenges] as [slug, label]}<button class="chip" onclick={() => removeChallenge(slug)}>{label} ✕</button>{/each}
 						{#each [...selectedRestrictions] as [slug, label]}<button class="chip chip--restriction" onclick={() => removeRestriction(slug)}>{label} ✕</button>{/each}
 						{#if selectedGlitch}<button class="chip chip--glitch" onclick={clearGlitch}>{selectedGlitch.label} ✕</button>{/if}
+						{#if verifiedOnly}<button class="chip chip--verified" onclick={() => verifiedOnly = false}>Verified only ✕</button>{/if}
 					</div>
 					<button class="btn btn--small btn--outline" onclick={resetFilters}>Remove all filters</button>
 				</div>
@@ -308,18 +292,22 @@
 				<th><button class="th-sort" class:th-sort--active={sortKey === 'time'} onclick={() => toggleSort('time')}>Time{#if game.timing_method} ({game.timing_method}){/if} {#if sortKey === 'time'}{sortDir === 'asc' ? '▲' : '▼'}{/if}</button></th>
 				<th><button class="th-sort" class:th-sort--active={sortKey === 'date'} onclick={() => toggleSort('date')}>Date {#if sortKey === 'date'}{sortDir === 'desc' ? '▼' : '▲'}{/if}</button></th>
 				<th>Video</th>
+				<th class="col-verified-head" title="Verified by a moderator">✓</th>
+				{#if hasAnyNotes}<th>Notes</th>{/if}
 			</tr></thead>
 			<tbody>
 				{#each pagedRuns() as run, i}
 					<tr>
 						<td class="col-rank">{showingStart + i}</td>
-						<td><a href="/runners/{run.runner_id}">{run.runner}</a>{#if run.verified}<span class="verified-badge" title="Verified">✓</span>{/if}</td>
+						<td><a href="/runners/{run.runner_id}">{run.runner}</a></td>
 						{#if game.character_column?.enabled}<td>{characterMap.get(run.character || '') || run.character || '—'}</td>{/if}
 						<td>{#each run.standard_challenges || [] as ch}<span class="tag tag--small">{challengeMap.get(ch) || ch}</span>{/each}{#if !run.standard_challenges?.length}—{/if}</td>
 						{#if showRestrictions}<td>{#each run.restriction_ids || run.restrictions || [] as r}<span class="tag tag--small tag--restriction">{restrictionMap.get(r) || r}</span>{/each}{#if !(run.restriction_ids?.length || run.restrictions?.length)}—{/if}</td>{/if}
 						<td class="col-time">{formatTime(run.time_primary)}</td>
 						<td class="col-date">{formatDate(run.date_completed)}</td>
 						<td>{#if run.video_url}{@const src = run.video_url.includes('youtube') || run.video_url.includes('youtu.be') ? 'YouTube' : run.video_url.includes('twitch') ? 'Twitch' : 'Watch'}<a href={run.video_url} target="_blank" rel="noopener" class="video-link">▶ {src}</a>{:else}—{/if}</td>
+						<td class="col-verified">{#if run.verified}<span class="verified-check" title="Verified">✓</span>{/if}</td>
+						{#if hasAnyNotes}<td class="col-notes">{#if run.runner_notes}<span class="notes-text" title={run.runner_notes}>{run.runner_notes}</span>{/if}</td>{/if}
 					</tr>
 				{/each}
 			</tbody>
@@ -373,6 +361,13 @@
 	.chip--restriction:hover { background: rgba(245, 158, 11, 0.25); }
 	.chip--glitch { background: rgba(16, 185, 129, 0.15); color: #10b981; }
 	.chip--glitch:hover { background: rgba(16, 185, 129, 0.25); }
+	.chip--verified { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+	.chip--verified:hover { background: rgba(56, 189, 248, 0.25); }
+
+	/* Verified toggle */
+	.verified-toggle { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer; padding: 0.45rem 0; color: var(--fg); }
+	.verified-toggle input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+
 	.results-status { margin-bottom: 0.5rem; font-size: 0.8rem; }
 	.table-wrap { overflow-x: auto; }
 	table { width: 100%; border-collapse: collapse; }
@@ -386,9 +381,18 @@
 	.th-sort { background: none; border: none; color: var(--text-muted); cursor: pointer; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0; font-family: inherit; }
 	.th-sort:hover { color: var(--fg); }
 	.th-sort--active { color: var(--accent); }
+
+	/* Verified column */
+	.col-verified-head { text-align: center; width: 2.5rem; }
+	.col-verified { text-align: center; width: 2.5rem; }
+	.verified-check { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font-size: 0.7rem; font-weight: 700; background: rgba(16, 185, 129, 0.2); color: #10b981; }
+
+	/* Notes column */
+	.col-notes { max-width: 200px; }
+	.notes-text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; color: var(--muted); cursor: default; }
+
 	.tag--small { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 500; margin-right: 0.25rem; background: rgba(99, 102, 241, 0.12); color: #818cf8; }
 	.tag--restriction { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
-	.verified-badge { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; font-size: 0.6rem; background: rgba(16, 185, 129, 0.2); color: #10b981; margin-left: 0.35rem; vertical-align: middle; }
 	.video-link { white-space: nowrap; }
 	.pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1rem; padding: 0.5rem 0; }
 	.pagination__status { font-size: 0.8rem; color: var(--text-muted); }
@@ -396,5 +400,5 @@
 	.btn:hover { border-color: var(--accent); }
 	.btn--small { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 	.btn--outline { background: none; }
-	@media (max-width: 768px) { th, td { padding: 0.4rem 0.5rem; font-size: 0.85rem; } .col-rank { display: none; } th:first-child { display: none; } .filter-groups { grid-template-columns: 1fr; } }
+	@media (max-width: 768px) { th, td { padding: 0.4rem 0.5rem; font-size: 0.85rem; } .col-rank { display: none; } th:first-child { display: none; } .filter-groups { grid-template-columns: 1fr; } .col-notes { max-width: 120px; } }
 </style>

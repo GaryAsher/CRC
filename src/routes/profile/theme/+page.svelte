@@ -345,6 +345,24 @@
 							<h4>Card Example</h4>
 							<p style="opacity:0.6;">Cards use the surface color.</p>
 						</div>
+						<div class="preview-tags">
+							<h4>Tag Colors</h4>
+							<p style="opacity:0.5; font-size:0.8rem; margin:0.25rem 0 0.5rem;">How tags appear on run tables</p>
+							<div class="preview-tags__row">
+								<span class="preview-tag preview-tag--challenge">Deathless</span>
+								<span class="preview-tag preview-tag--challenge">No Hit</span>
+							</div>
+							<div class="preview-tags__row">
+								<span class="preview-tag preview-tag--restriction">No Boons</span>
+								<span class="preview-tag preview-tag--restriction">No Keepsakes</span>
+							</div>
+							<div class="preview-tags__row">
+								<span class="preview-tag preview-tag--glitch">Glitchless</span>
+							</div>
+							<div class="preview-tags__row">
+								<span class="preview-tag preview-tag--verified">✓ Verified</span>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -419,6 +437,16 @@
 	.preview-link { text-decoration: none; font-size: 0.85rem; }
 	.preview-card { padding: 1rem; border-radius: 8px; margin-top: 1rem; }
 	.preview-card h4 { margin: 0 0 0.35rem; } .preview-card p { margin: 0; font-size: 0.85rem; }
+
+	/* Tag color previews */
+	.preview-tags { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.08); }
+	.preview-tags h4 { margin: 0; }
+	.preview-tags__row { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.4rem; }
+	.preview-tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500; }
+	.preview-tag--challenge { background: rgba(99, 102, 241, 0.12); color: #818cf8; }
+	.preview-tag--restriction { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+	.preview-tag--glitch { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+	.preview-tag--verified { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
 
 	.theme-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
 
