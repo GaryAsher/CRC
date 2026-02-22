@@ -111,6 +111,8 @@ const RATE_LIMITS = {
   '/submit-game': 3,
   '/approve': 30,
   '/approve-profile': 30,
+  '/reject-profile': 30,
+  '/request-profile-changes': 30,
   '/approve-game': 30,
   '/notify': 10,
   '/export-data': 2,    // Heavy query — 2/min/IP
@@ -647,7 +649,10 @@ async function handleApproveProfile(body, env, request) {
     return jsonResponse({ error: 'Profile not found' }, 404, env, request);
   }
   const profile = profResult.data[0];
-  const runnerId = profile.runner_id;
+  const runnerId = profile.requested_runner_id;
+  if (!runnerId) {
+    return jsonResponse({ error: 'Profile has no runner ID — user may not have completed the form yet' }, 400, env, request);
+  }
   const now = new Date().toISOString();
 
   // Upsert into the live `runners` table
@@ -658,15 +663,14 @@ async function handleApproveProfile(body, env, request) {
     },
     body: {
       runner_id: runnerId,
-      runner_name: profile.display_name || profile.runner_name || runnerId,
+      runner_name: profile.display_name || runnerId,
       display_name: profile.display_name || null,
-      avatar: profile.avatar_url || profile.avatar || null,
-      joined_date: profile.joined_date || new Date().toISOString().slice(0, 10),
+      avatar: profile.avatar_url || null,
+      joined_date: new Date().toISOString().slice(0, 10),
       pronouns: profile.pronouns || null,
       location: profile.location || null,
       status: 'active',
       bio: profile.bio || null,
-      accent_color: profile.accent_color || null,
       socials: profile.socials || {},
       user_id: profile.user_id || null,
       updated_at: now,
@@ -676,6 +680,32 @@ async function handleApproveProfile(body, env, request) {
   if (!runnersUpsert.ok) {
     console.error('Failed to upsert runner:', runnersUpsert.data);
     return jsonResponse({ error: 'Failed to approve profile. Please try again.' }, 500, env, request);
+  }
+
+  // Upsert into runner_profiles (create the approved profile row)
+  const rpUpsert = await supabaseQuery(env, 'runner_profiles', {
+    method: 'POST',
+    headers: {
+      Prefer: 'resolution=merge-duplicates,return=representation',
+    },
+    body: {
+      user_id: profile.user_id,
+      runner_id: runnerId,
+      display_name: profile.display_name || null,
+      pronouns: profile.pronouns || null,
+      location: profile.location || null,
+      bio: profile.bio || null,
+      avatar_url: profile.avatar_url || null,
+      socials: profile.socials || {},
+      status: 'approved',
+      approved_at: now,
+      approved_by: auth.user.id,
+      updated_at: now,
+    },
+  });
+
+  if (!rpUpsert.ok) {
+    console.error('Failed to upsert runner_profiles:', rpUpsert.data);
   }
 
   // Update pending_profiles status
@@ -688,13 +718,6 @@ async function handleApproveProfile(body, env, request) {
         reviewed_at: now,
         reviewer_notes: body.notes || null,
       },
-    });
-
-  // Also update runner_profiles status if exists
-  await supabaseQuery(env,
-    `runner_profiles?runner_id=eq.${encodeURIComponent(runnerId)}`, {
-      method: 'PATCH',
-      body: { approval_status: 'approved' },
     });
 
   // Discord notification
@@ -712,6 +735,92 @@ async function handleApproveProfile(body, env, request) {
     ok: true,
     message: 'Profile approved — visible on site immediately',
   }, 200, env, request);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /reject-profile
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function handleRejectProfile(body, env, request) {
+  const auth = await authenticateAdmin(env, body);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+  if (!auth.role.admin) return jsonResponse({ error: 'Admin required' }, 403, env, request);
+
+  const profileId = body.profile_id;
+  if (!profileId || !isValidId(profileId)) return jsonResponse({ error: 'Invalid profile_id' }, 400, env, request);
+
+  const reason = body.reason || 'No reason provided';
+  const notes = body.notes || null;
+  const now = new Date().toISOString();
+
+  const updateResult = await supabaseQuery(env,
+    `pending_profiles?id=eq.${encodeURIComponent(profileId)}`, {
+      method: 'PATCH',
+      body: {
+        status: 'rejected',
+        rejection_reason: reason,
+        reviewed_by: auth.user.id,
+        reviewed_at: now,
+        reviewer_notes: notes,
+      },
+    });
+
+  if (!updateResult.ok) return jsonResponse({ error: 'Failed to reject profile' }, 500, env, request);
+
+  await sendDiscordNotification(env, 'profiles', {
+    title: '❌ Profile Rejected',
+    color: 0xdc3545,
+    fields: [
+      { name: 'Profile ID', value: profileId, inline: true },
+      { name: 'Reason', value: reason, inline: false },
+      ...(notes ? [{ name: 'Notes', value: notes, inline: false }] : []),
+    ],
+    timestamp: now,
+  });
+
+  return jsonResponse({ ok: true, message: 'Profile rejected.' }, 200, env, request);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /request-profile-changes
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function handleRequestProfileChanges(body, env, request) {
+  const auth = await authenticateAdmin(env, body);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+  if (!auth.role.admin) return jsonResponse({ error: 'Admin required' }, 403, env, request);
+
+  const profileId = body.profile_id;
+  if (!profileId || !isValidId(profileId)) return jsonResponse({ error: 'Invalid profile_id' }, 400, env, request);
+
+  const notes = body.notes;
+  if (!notes) return jsonResponse({ error: 'Notes are required' }, 400, env, request);
+  const now = new Date().toISOString();
+
+  const updateResult = await supabaseQuery(env,
+    `pending_profiles?id=eq.${encodeURIComponent(profileId)}`, {
+      method: 'PATCH',
+      body: {
+        status: 'needs_changes',
+        reviewed_by: auth.user.id,
+        reviewed_at: now,
+        reviewer_notes: notes,
+      },
+    });
+
+  if (!updateResult.ok) return jsonResponse({ error: 'Failed to update profile' }, 500, env, request);
+
+  await sendDiscordNotification(env, 'profiles', {
+    title: '✏️ Profile Changes Requested',
+    color: 0x17a2b8,
+    fields: [
+      { name: 'Profile ID', value: profileId, inline: true },
+      { name: 'Notes', value: notes, inline: false },
+    ],
+    timestamp: now,
+  });
+
+  return jsonResponse({ ok: true, message: 'Changes requested.' }, 200, env, request);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -989,7 +1098,9 @@ export default {
     }
 
     const url = new URL(request.url);
-    const path = url.pathname.replace(/\/+$/, '') || '/';
+    const rawPath = url.pathname.replace(/\/+$/, '') || '/';
+    // Support both /approve-profile and /admin/approve-profile
+    const path = rawPath.replace(/^\/admin/, '');
 
     // SECURITY (Item 7): Rate limiting
     const clientIp = request.headers.get('CF-Connecting-IP') || '';
@@ -1011,6 +1122,12 @@ export default {
 
         case '/approve-profile':
           return handleApproveProfile(body, env, request);
+
+        case '/reject-profile':
+          return handleRejectProfile(body, env, request);
+
+        case '/request-profile-changes':
+          return handleRequestProfileChanges(body, env, request);
 
         case '/approve-game':
           return handleApproveGame(body, env, request);
