@@ -62,10 +62,16 @@
 						is_verifier: false
 					};
 				} else {
-					// No profile at all
+					// No runner_profiles row — check pending_profiles
+					const { data: pending } = await supabase
+						.from('pending_profiles')
+						.select('id, has_profile')
+						.eq('user_id', currentUser.id)
+						.maybeSingle();
+
 					profileInfo = {
 						runner_id: null,
-						profileState: 'none',
+						profileState: (pending?.has_profile) ? 'pending' : 'none',
 						is_admin: false,
 						is_verifier: false
 					};

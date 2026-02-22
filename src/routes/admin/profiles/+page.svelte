@@ -16,6 +16,9 @@
 	let profiles = $state<any[]>([]);
 	let statusFilter = $state<ProfileStatus>('pending');
 	let expandedId = $state<string | null>(null);
+	let profileFilter = $state<'all' | 'yes' | 'no'>('all');
+	let dateFrom = $state('');
+	let dateTo = $state('');
 
 	// ── Modals ────────────────────────────────────────────────────────────────
 	let rejectModalOpen = $state(false);
@@ -32,8 +35,13 @@
 	};
 
 	let filteredProfiles = $derived.by(() => {
-		if (statusFilter === 'all') return profiles;
-		return profiles.filter(p => p.status === statusFilter);
+		let result = profiles;
+		if (statusFilter !== 'all') result = result.filter(p => p.status === statusFilter);
+		if (profileFilter === 'yes') result = result.filter(p => p.has_profile === true);
+		if (profileFilter === 'no') result = result.filter(p => !p.has_profile);
+		if (dateFrom) result = result.filter(p => p.created_at >= dateFrom);
+		if (dateTo) result = result.filter(p => p.created_at <= dateTo + 'T23:59:59');
+		return result;
 	});
 	let pendingCount = $derived(profiles.filter(p => p.status === 'pending').length);
 
@@ -159,6 +167,27 @@
 				</div>
 				<button class="btn btn--small" onclick={loadProfiles}>↻ Refresh</button>
 			</div>
+			<div class="filters__advanced">
+				<div class="filter-group">
+					<label class="filter-label">Profile Created</label>
+					<select class="filter-select" bind:value={profileFilter}>
+						<option value="all">All</option>
+						<option value="yes">Yes — filled out form</option>
+						<option value="no">No — signed up only</option>
+					</select>
+				</div>
+				<div class="filter-group">
+					<label class="filter-label">Date From</label>
+					<input type="date" class="filter-input" bind:value={dateFrom} />
+				</div>
+				<div class="filter-group">
+					<label class="filter-label">Date To</label>
+					<input type="date" class="filter-input" bind:value={dateTo} />
+				</div>
+				{#if profileFilter !== 'all' || dateFrom || dateTo}
+					<button class="btn btn--small" onclick={() => { profileFilter = 'all'; dateFrom = ''; dateTo = ''; }}>✕ Clear</button>
+				{/if}
+			</div>
 		</div>
 
 		{#if loading}
@@ -183,6 +212,7 @@
 									<div class="profile-card__runner muted">@{p.runner_id}</div>
 								</div>
 								<span class="status-badge status-badge--{p.status}">{p.status}</span>
+							{#if !p.has_profile}<span class="status-badge status-badge--no-profile">no profile</span>{/if}
 							</div>
 							<span class="muted" style="font-size:0.85rem;">{formatDate(p.created_at)}</span>
 						</button>
@@ -299,6 +329,11 @@
 	.filter-tab:hover { border-color: var(--fg); color: var(--fg); }
 	.filter-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
 	.filter-tab__count { display: inline-block; background: rgba(255,255,255,0.25); padding: 0 6px; border-radius: 10px; font-size: 0.75rem; margin-left: 4px; font-weight: 700; }
+	.filters__advanced { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+	.filter-group { display: flex; flex-direction: column; gap: 0.25rem; }
+	.filter-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+	.filter-select, .filter-input { padding: 0.35rem 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 0.85rem; font-family: inherit; }
+	.filter-select:focus, .filter-input:focus { border-color: var(--accent); outline: none; }
 
 	.profiles-list { display: flex; flex-direction: column; gap: 1rem; }
 	.profile-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
@@ -314,6 +349,7 @@
 	.status-badge--approved { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
 	.status-badge--rejected { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 	.status-badge--needs_changes { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+	.status-badge--no-profile { background: rgba(156, 163, 175, 0.15); color: #9ca3af; }
 
 	.profile-card__body { border-top: 1px solid var(--border); padding: 1.25rem; }
 	.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }

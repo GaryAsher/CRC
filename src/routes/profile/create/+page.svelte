@@ -59,20 +59,28 @@
 		if (!$user) return;
 
 		try {
-			// Check for existing profile
-			const { data: profile, error } = await supabase
+			// 1. Check runner_profiles — already approved
+			const { data: approved } = await supabase
 				.from('runner_profiles')
 				.select('runner_id, status')
 				.eq('user_id', $user.id)
-				.single();
+				.maybeSingle();
 
-			if (profile && !error) {
-				if (profile.status === 'pending') {
-					pageState = 'has-pending';
-				} else {
-					existingRunnerId = profile.runner_id;
-					pageState = 'has-profile';
-				}
+			if (approved?.runner_id) {
+				existingRunnerId = approved.runner_id;
+				pageState = approved.status === 'pending' ? 'has-pending' : 'has-profile';
+				return;
+			}
+
+			// 2. Check pending_profiles — submitted but not yet approved
+			const { data: pending } = await supabase
+				.from('pending_profiles')
+				.select('id, requested_runner_id, has_profile, status')
+				.eq('user_id', $user.id)
+				.maybeSingle();
+
+			if (pending?.has_profile && pending.requested_runner_id) {
+				pageState = 'has-pending';
 				return;
 			}
 		} catch {
@@ -128,13 +136,28 @@
 
 		checkTimeout = setTimeout(async () => {
 			try {
-				const { data, error } = await supabase
+				// Check runner_profiles
+				const { data: rpData } = await supabase
 					.from('runner_profiles')
 					.select('runner_id')
 					.eq('runner_id', value)
 					.maybeSingle();
 
-				if (data) {
+				if (rpData) {
+					runnerIdStatus = 'taken';
+					runnerIdError = 'Already taken';
+					return;
+				}
+
+				// Check pending_profiles
+				const { data: ppData } = await supabase
+					.from('pending_profiles')
+					.select('requested_runner_id')
+					.eq('requested_runner_id', value)
+					.eq('has_profile', true)
+					.maybeSingle();
+
+				if (ppData) {
 					runnerIdStatus = 'taken';
 					runnerIdError = 'Already taken';
 				} else {
@@ -183,18 +206,21 @@
 			if (others.length > 0) socials.other = others;
 
 			const { error } = await supabase
-				.from('runner_profiles')
-				.insert({
-					user_id: $user.id,
-					runner_id: finalId,
+				.from('pending_profiles')
+				.update({
+					requested_runner_id: finalId,
 					display_name: displayName.trim(),
 					pronouns: pronouns.trim() || null,
 					location: location.trim() || null,
 					bio: bio.trim() || null,
 					socials,
+					avatar_url: $user.user_metadata?.avatar_url || null,
+					has_profile: true,
 					status: 'pending',
-					avatar_url: $user.user_metadata?.avatar_url || null
-				});
+					submitted_at: new Date().toISOString(),
+					updated_at: new Date().toISOString()
+				})
+				.eq('user_id', $user.id);
 
 			if (error) throw error;
 

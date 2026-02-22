@@ -16,6 +16,8 @@
 	let games = $state<any[]>([]);
 	let statusFilter = $state<GameStatus>('pending');
 	let expandedId = $state<string | null>(null);
+	let dateFrom = $state('');
+	let dateTo = $state('');
 
 	let rejectModalOpen = $state(false);
 	let changesModalOpen = $state(false);
@@ -26,8 +28,11 @@
 	let changesNotes = $state('');
 
 	let filteredGames = $derived.by(() => {
-		if (statusFilter === 'all') return games;
-		return games.filter(g => g.status === statusFilter);
+		let result = games;
+		if (statusFilter !== 'all') result = result.filter(g => g.status === statusFilter);
+		if (dateFrom) result = result.filter(g => g.submitted_at >= dateFrom);
+		if (dateTo) result = result.filter(g => g.submitted_at <= dateTo + 'T23:59:59');
+		return result;
 	});
 	let pendingCount = $derived(games.filter(g => g.status === 'pending').length);
 
@@ -145,6 +150,19 @@
 				</div>
 				<button class="btn btn--small" onclick={loadGames}>↻ Refresh</button>
 			</div>
+			<div class="filters__advanced">
+				<div class="filter-group">
+					<label class="filter-label">Date From</label>
+					<input type="date" class="filter-input" bind:value={dateFrom} />
+				</div>
+				<div class="filter-group">
+					<label class="filter-label">Date To</label>
+					<input type="date" class="filter-input" bind:value={dateTo} />
+				</div>
+				{#if dateFrom || dateTo}
+					<button class="btn btn--small" onclick={() => { dateFrom = ''; dateTo = ''; }}>✕ Clear</button>
+				{/if}
+			</div>
 		</div>
 
 		{#if loading}
@@ -261,6 +279,11 @@
 	.filter-tab:hover { border-color: var(--fg); color: var(--fg); }
 	.filter-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
 	.filter-tab__count { display: inline-block; background: rgba(255,255,255,0.25); padding: 0 6px; border-radius: 10px; font-size: 0.75rem; margin-left: 4px; font-weight: 700; }
+	.filters__advanced { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+	.filter-group { display: flex; flex-direction: column; gap: 0.25rem; }
+	.filter-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+	.filter-input { padding: 0.35rem 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 0.85rem; font-family: inherit; }
+	.filter-input:focus { border-color: var(--accent); outline: none; }
 	.games-list { display: flex; flex-direction: column; gap: 1rem; }
 	.game-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 	.game-card__header { display: flex; justify-content: space-between; align-items: flex-start; padding: 1.25rem; cursor: pointer; width: 100%; background: none; border: none; color: var(--fg); text-align: left; font-family: inherit; font-size: inherit; gap: 1rem; }

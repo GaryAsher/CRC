@@ -73,23 +73,25 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 
 		const { data: { user } } = await profileCheck.auth.getUser();
 		if (user) {
-			// Check runner_profiles
+			// Check runner_profiles (approved users)
 			const { data: profile } = await profileCheck
 				.from('runner_profiles')
 				.select('runner_id')
 				.eq('user_id', user.id)
 				.maybeSingle();
 
-			// Check pending_profiles
-			const { data: pending } = await profileCheck
-				.from('pending_profiles')
-				.select('id')
-				.eq('user_id', user.id)
-				.maybeSingle();
+			if (!profile) {
+				// Check pending_profiles for profile completion
+				const { data: pending } = await profileCheck
+					.from('pending_profiles')
+					.select('has_profile')
+					.eq('user_id', user.id)
+					.maybeSingle();
 
-			if (!profile && !pending) {
-				// Brand new user — send to profile creation
-				redirect(303, '/profile/create');
+				if (!pending || !pending.has_profile) {
+					// No profile or stub only — send to profile creation
+					redirect(303, '/profile/create');
+				}
 			}
 		}
 	}

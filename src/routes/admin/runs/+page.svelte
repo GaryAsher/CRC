@@ -17,6 +17,10 @@
 	let loading = $state(false);
 	let statusFilter = $state<RunStatus>('pending');
 	let gameFilter = $state('');
+	let dateFrom = $state('');
+	let dateTo = $state('');
+	let activeGameFilter = $state<'all' | 'active' | 'no-page'>('all');
+	let activeGameIds = $state<Set<string>>(new Set());
 	let expandedId = $state<string | null>(null);
 	let processingId = $state<string | null>(null);
 	let actionMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -35,6 +39,10 @@
 		let result = runs;
 		if (statusFilter !== 'all') result = result.filter(r => r.status === statusFilter);
 		if (gameFilter) result = result.filter(r => r.game_id === gameFilter);
+		if (dateFrom) result = result.filter(r => r.submitted_at >= dateFrom);
+		if (dateTo) result = result.filter(r => r.submitted_at <= dateTo + 'T23:59:59');
+		if (activeGameFilter === 'active') result = result.filter(r => activeGameIds.has(r.game_id));
+		if (activeGameFilter === 'no-page') result = result.filter(r => !activeGameIds.has(r.game_id));
 		return result;
 	});
 
@@ -110,6 +118,13 @@
 			}
 		} catch { /* ignore */ }
 		loading = false;
+	}
+
+	async function loadActiveGames() {
+		try {
+			const { data } = await supabase.from('games').select('game_id');
+			if (data) activeGameIds = new Set(data.map((g: any) => g.game_id));
+		} catch { /* ignore */ }
 	}
 
 	// ── Actions ───────────────────────────────────────────────────────────────
@@ -194,7 +209,7 @@
 				isVerifier = !!(role?.verifier && !role?.admin);
 				roleLabel = role?.admin ? 'Admin' : role?.verifier ? 'Verifier' : '';
 				checking = false;
-				if (authorized) loadRuns();
+				if (authorized) { loadRuns(); loadActiveGames(); }
 			}
 		});
 		return unsub;
@@ -248,6 +263,27 @@
 					</select>
 					<button class="btn btn--small" onclick={loadRuns}>↻ Refresh</button>
 				</div>
+			</div>
+			<div class="filters__advanced">
+				<div class="filter-group">
+					<label class="filter-label">Active Game</label>
+					<select class="filter-select" bind:value={activeGameFilter}>
+						<option value="all">All</option>
+						<option value="active">Has game page</option>
+						<option value="no-page">No game page</option>
+					</select>
+				</div>
+				<div class="filter-group">
+					<label class="filter-label">Date From</label>
+					<input type="date" class="filter-input" bind:value={dateFrom} />
+				</div>
+				<div class="filter-group">
+					<label class="filter-label">Date To</label>
+					<input type="date" class="filter-input" bind:value={dateTo} />
+				</div>
+				{#if activeGameFilter !== 'all' || dateFrom || dateTo}
+					<button class="btn btn--small" onclick={() => { activeGameFilter = 'all'; dateFrom = ''; dateTo = ''; }}>✕ Clear</button>
+				{/if}
 			</div>
 		</div>
 
@@ -413,6 +449,11 @@
 	.filter-tab:hover { border-color: var(--fg); color: var(--fg); }
 	.filter-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
 	.filter-tab__count { display: inline-block; background: rgba(255,255,255,0.25); padding: 0 6px; border-radius: 10px; font-size: 0.75rem; margin-left: 4px; font-weight: 700; }
+	.filters__advanced { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+	.filter-group { display: flex; flex-direction: column; gap: 0.25rem; }
+	.filter-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+	.filter-select, .filter-input { padding: 0.35rem 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 0.85rem; font-family: inherit; }
+	.filter-select:focus, .filter-input:focus { border-color: var(--accent); outline: none; }
 	.filters__controls { display: flex; gap: 0.5rem; align-items: center; }
 	.filters__controls select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.85rem; color: var(--fg); }
 
