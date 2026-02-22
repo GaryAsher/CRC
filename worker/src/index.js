@@ -63,7 +63,14 @@ function sanitizeInput(str, maxLength = 500) {
 /** Validate that a value looks like an integer ID (Item 11) */
 function isValidId(id) {
   if (typeof id === 'number') return Number.isInteger(id) && id > 0;
-  if (typeof id === 'string') return /^\d+$/.test(id) && parseInt(id) > 0;
+  if (typeof id === 'string') {
+    // Accept positive integers
+    if (/^\d+$/.test(id) && parseInt(id) > 0) return true;
+    // Accept UUIDs
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return true;
+    // Accept slug-style IDs (e.g. "gary-asher", "hades-2")
+    if (/^[a-z0-9][a-z0-9-]{1,60}[a-z0-9]$/i.test(id)) return true;
+  }
   return false;
 }
 
