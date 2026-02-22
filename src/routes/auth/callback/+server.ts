@@ -61,5 +61,38 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 
 	// Security: only allow relative paths to prevent open redirect
 	const safePath = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+
+	// Check if user has a profile — if not, send them to create one
+	if (code) {
+		const profileCheck = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+			cookies: {
+				getAll: () => cookies.getAll(),
+				setAll: () => {} // read-only for this check
+			}
+		});
+
+		const { data: { user } } = await profileCheck.auth.getUser();
+		if (user) {
+			// Check runner_profiles
+			const { data: profile } = await profileCheck
+				.from('runner_profiles')
+				.select('runner_id')
+				.eq('user_id', user.id)
+				.maybeSingle();
+
+			// Check pending_profiles
+			const { data: pending } = await profileCheck
+				.from('pending_profiles')
+				.select('id')
+				.eq('user_id', user.id)
+				.maybeSingle();
+
+			if (!profile && !pending) {
+				// Brand new user — send to profile creation
+				redirect(303, '/profile/create');
+			}
+		}
+	}
+
 	redirect(303, safePath);
 };

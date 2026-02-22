@@ -53,10 +53,18 @@
 			const token = (await supabase.auth.getSession()).data.session?.access_token;
 			if (!token) { profiles = []; loading = false; return; }
 			const res = await fetch(
-				`${PUBLIC_SUPABASE_URL}/rest/v1/runner_profiles?order=created_at.desc&limit=200`,
+				`${PUBLIC_SUPABASE_URL}/rest/v1/pending_profiles?order=submitted_at.desc&limit=200`,
 				{ headers: { 'apikey': PUBLIC_SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` } }
 			);
-			if (res.ok) profiles = await res.json();
+			if (res.ok) {
+				const raw = await res.json();
+				// Normalize column names to match template expectations
+				profiles = raw.map((p: any) => ({
+					...p,
+					runner_id: p.requested_runner_id,
+					created_at: p.submitted_at,
+				}));
+			}
 		} catch { /* ignore */ }
 		loading = false;
 	}
