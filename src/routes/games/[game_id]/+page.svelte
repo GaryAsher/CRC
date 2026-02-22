@@ -3,6 +3,8 @@
 	import { formatDate } from '$lib/utils';
 	import { session } from '$stores/auth';
 	import { supabase } from '$lib/supabase';
+	import { checkBannedTerms } from '$lib/utils/banned-terms';
+	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 	let { data } = $props();
 	const game = $derived(data.game);
@@ -48,8 +50,56 @@
 	let suggestError = $state('');
 	let suggestSuccess = $state(false);
 
+	// Image upload state
+	let suggestImages = $state<File[]>([]);
+	let imagePreviewUrls = $state<string[]>([]);
+	const MAX_IMAGES = 5;
+	const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+	const ALLOWED_TYPES = ['image/png', 'image/jpg', 'image/jpeg'];
+
+	// Banned terms validation
+	const suggestBannedWarning = $derived(checkBannedTerms(suggestDetails));
+
+	function handleImageSelect(e: Event) {
+		const input = e.target as HTMLInputElement;
+		if (!input.files) return;
+
+		const newFiles = Array.from(input.files);
+		let errorMsg = '';
+
+		for (const file of newFiles) {
+			if (suggestImages.length >= MAX_IMAGES) {
+				errorMsg = `Maximum ${MAX_IMAGES} images allowed.`;
+				break;
+			}
+			if (!ALLOWED_TYPES.includes(file.type)) {
+				errorMsg = `${file.name}: Only PNG and JPG files are allowed.`;
+				continue;
+			}
+			if (file.size > MAX_FILE_SIZE) {
+				errorMsg = `${file.name}: File exceeds 2MB limit.`;
+				continue;
+			}
+			suggestImages = [...suggestImages, file];
+			imagePreviewUrls = [...imagePreviewUrls, URL.createObjectURL(file)];
+		}
+
+		if (errorMsg) suggestError = errorMsg;
+		input.value = ''; // Reset input so same file can be re-selected
+	}
+
+	function removeImage(index: number) {
+		URL.revokeObjectURL(imagePreviewUrls[index]);
+		suggestImages = suggestImages.filter((_, i) => i !== index);
+		imagePreviewUrls = imagePreviewUrls.filter((_, i) => i !== index);
+	}
+
 	async function submitSuggestion(e: Event) {
 		e.preventDefault();
+		if (suggestBannedWarning) {
+			suggestError = suggestBannedWarning;
+			return;
+		}
 		suggestSubmitting = true;
 		suggestError = '';
 
@@ -57,7 +107,39 @@
 			const { data: userData } = await supabase.auth.getUser();
 			if (!userData?.user) throw new Error('Not signed in');
 
-			const { error } = await supabase.from('game_update_requests').insert({
+			// Upload images to Supabase Storage
+			const uploadedUrls: string[] = [];
+			if (suggestImages.length > 0) {
+				const token = (await supabase.auth.getSession()).data.session?.access_token;
+				if (!token) throw new Error('Not authenticated');
+
+				for (const file of suggestImages) {
+					const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+					const path = `${userData.user.id}/${Date.now()}_${crypto.randomUUID().slice(0, 8)}.${ext}`;
+
+					const uploadRes = await fetch(
+						`${PUBLIC_SUPABASE_URL}/storage/v1/object/user_game_update_images/${path}`,
+						{
+							method: 'POST',
+							headers: {
+								'Authorization': `Bearer ${token}`,
+								'apikey': PUBLIC_SUPABASE_ANON_KEY,
+								'Content-Type': file.type,
+							},
+							body: file,
+						}
+					);
+
+					if (!uploadRes.ok) {
+						const err = await uploadRes.json().catch(() => ({}));
+						throw new Error(err.message || `Image upload failed (${uploadRes.status})`);
+					}
+
+					uploadedUrls.push(`${PUBLIC_SUPABASE_URL}/storage/v1/object/public/user_game_update_images/${path}`);
+				}
+			}
+
+			const insertData: Record<string, any> = {
 				game_id: game.game_id,
 				game_name: game.game_name,
 				user_id: userData.user.id,
@@ -66,7 +148,10 @@
 				details: suggestDetails.trim(),
 				status: 'pending',
 				page_url: `/games/${game.game_id}`
-			});
+			};
+			if (uploadedUrls.length > 0) insertData.image_urls = uploadedUrls;
+
+			const { error } = await supabase.from('game_update_requests').insert(insertData);
 
 			if (error) throw error;
 			suggestSuccess = true;
@@ -83,6 +168,9 @@
 		suggestDetails = '';
 		suggestSuccess = false;
 		suggestError = '';
+		imagePreviewUrls.forEach(url => URL.revokeObjectURL(url));
+		suggestImages = [];
+		imagePreviewUrls = [];
 	}
 </script>
 
@@ -363,11 +451,42 @@
 				<p class="form-help">{suggestDetails.length}/1000</p>
 			</div>
 
+			<!-- Image Upload -->
+			<div class="suggest-form__field">
+				<label class="form-label">Attach screenshots <span class="form-help-inline">(optional, max {MAX_IMAGES}, PNG/JPG, 2MB each)</span></label>
+				{#if imagePreviewUrls.length > 0}
+					<div class="suggest-previews">
+						{#each imagePreviewUrls as url, i}
+							<div class="suggest-preview">
+								<img src={url} alt="Preview {i + 1}" />
+								<button type="button" class="suggest-preview__remove" onclick={() => removeImage(i)} title="Remove">✕</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+				{#if suggestImages.length < MAX_IMAGES}
+					<label class="suggest-upload-btn">
+						📎 {suggestImages.length > 0 ? 'Add more' : 'Choose images'}
+						<input
+							type="file"
+							accept=".png,.jpg,.jpeg"
+							multiple
+							onchange={handleImageSelect}
+							style="display:none"
+						/>
+					</label>
+				{/if}
+			</div>
+
+			{#if suggestBannedWarning}
+				<div class="suggest-message suggest-message--error">{suggestBannedWarning}</div>
+			{/if}
+
 			{#if suggestError}
 				<div class="suggest-message suggest-message--error">{suggestError}</div>
 			{/if}
 
-			<button type="submit" class="btn btn--primary" disabled={suggestSubmitting}>
+			<button type="submit" class="btn btn--primary" disabled={suggestSubmitting || !!suggestBannedWarning}>
 				{#if suggestSubmitting}
 					<span class="spinner spinner--small"></span> Submitting...
 				{:else}
@@ -522,6 +641,14 @@
 	}
 	.suggest-success span:first-child { font-size: 1.5rem; }
 	.suggest-success p { margin: 0.25rem 0 0; font-size: 0.85rem; }
+	.suggest-previews { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+	.suggest-preview { position: relative; width: 80px; height: 80px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+	.suggest-preview img { width: 100%; height: 100%; object-fit: cover; }
+	.suggest-preview__remove { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(0,0,0,0.7); color: #fff; font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+	.suggest-preview__remove:hover { background: #ef4444; }
+	.suggest-upload-btn { display: inline-block; padding: 0.4rem 0.75rem; border: 1px dashed var(--border); border-radius: 6px; font-size: 0.85rem; color: var(--text-muted); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+	.suggest-upload-btn:hover { border-color: var(--accent); color: var(--fg); }
+	.form-help-inline { font-size: 0.8rem; color: var(--text-muted); font-weight: normal; }
 	.btn--primary { background: var(--accent); color: white; border: 1px solid var(--accent); }
 	.spinner--small { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; display: inline-block; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 0.25rem; }
 	@keyframes spin { to { transform: rotate(360deg); } }

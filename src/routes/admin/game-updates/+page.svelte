@@ -123,6 +123,15 @@
 										<span class="tag tag--s-{req.status}">{req.status}</span>
 									</div>
 									{#if req.details}<div class="req__details">{req.details}</div>{/if}
+									{#if req.image_urls?.length}
+										<div class="req__images">
+											{#each req.image_urls as url, i}
+												<a href={url} target="_blank" rel="noopener" class="req__img-link">
+													<img src={url} alt="Attachment {i + 1}" class="req__img" />
+												</a>
+											{/each}
+										</div>
+									{/if}
 									<div class="req__meta">
 										<span>By: {#if req.runner_id}<a href="/runners/{req.runner_id}">{req.runner_id}</a>{:else}Anonymous{/if}</span>
 										{#if req.created_at}<span>{fmtDate(req.created_at)}</span>{/if}
@@ -189,5 +198,9 @@
 	.req__meta { display: flex; gap: 0.75rem; flex-wrap: wrap; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; }
 	.req__meta a { color: var(--accent); text-decoration: none; } .req__meta a:hover { text-decoration: underline; }
 	.req__actions { display: flex; gap: 0.5rem; }
+	.req__images { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+	.req__img-link { display: block; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); transition: border-color 0.15s; }
+	.req__img-link:hover { border-color: var(--accent); }
+	.req__img { width: 100px; height: 100px; object-fit: cover; display: block; }
 	.toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--accent); padding: 0.75rem 1.5rem; border-radius: 8px; z-index: 1000; }
 </style>
