@@ -867,18 +867,18 @@
 
 	/* Tabs */
 	.edit-tabs {
-		display: flex; gap: 0; border-bottom: 2px solid var(--border);
+		display: flex; gap: 0; border-bottom: 1px solid var(--border);
 		margin-bottom: 1.5rem; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
 	}
 	.edit-tabs::-webkit-scrollbar { display: none; }
 	.edit-tab {
-		padding: 0.6rem 1rem; background: none; border: none;
-		border-bottom: 2px solid transparent; margin-bottom: -2px;
-		cursor: pointer; font-size: 0.9rem; font-weight: 600;
-		color: var(--muted); white-space: nowrap;
+		padding: 0.75rem 1.25rem; background: none; border: none;
+		border-bottom: 2px solid transparent;
+		cursor: pointer; font-size: 0.9rem; font-family: inherit;
+		color: var(--text-muted); white-space: nowrap;
 	}
 	.edit-tab:hover { color: var(--fg); }
-	.edit-tab--active { color: var(--accent); border-bottom-color: var(--accent); }
+	.edit-tab--active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
 
 	/* Card for tab content */
 	.tab-card { margin-bottom: 0; }

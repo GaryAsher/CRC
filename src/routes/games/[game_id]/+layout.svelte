@@ -125,7 +125,10 @@
 		border-bottom: 1px solid var(--border);
 		margin-bottom: 1.5rem;
 		overflow-x: auto;
+		scrollbar-width: none;
+		-ms-overflow-style: none;
 	}
+	.game-tabs::-webkit-scrollbar { display: none; }
 	.game-tab {
 		padding: 0.75rem 1.25rem;
 		color: var(--text-muted);
