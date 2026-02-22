@@ -92,6 +92,7 @@
 					href={tab.href}
 					class="game-tab"
 					class:game-tab--active={isActiveTab(tab.href)}
+					data-sveltekit-noscroll
 				>
 					{tab.label}
 				</a>
