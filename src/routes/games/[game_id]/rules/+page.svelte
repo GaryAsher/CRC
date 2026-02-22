@@ -18,11 +18,11 @@
 		return cats;
 	});
 
-	const hasCharacters = $derived(game.character_column?.enabled && game.characters_data?.length > 0);
+	const hasCharacters = $derived(game.character_column?.enabled && (game.characters_data?.length ?? 0) > 0);
 	const characterLabel = $derived(game.character_column?.label || 'Character');
-	const hasChallenges = $derived(game.challenges_data?.length > 0);
-	const hasRestrictions = $derived(game.restrictions_data?.length > 0);
-	const hasGlitches = $derived(game.glitches_data?.length > 0);
+	const hasChallenges = $derived((game.challenges_data?.length ?? 0) > 0);
+	const hasRestrictions = $derived((game.restrictions_data?.length ?? 0) > 0);
+	const hasGlitches = $derived((game.glitches_data?.length ?? 0) > 0);
 	const showRuleBuilder = $derived(allCategories.length > 0 && hasChallenges);
 
 	// Selections

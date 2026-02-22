@@ -156,6 +156,7 @@ export interface RunnerSocials {
 	instagram?: string;
 	speedruncom?: string;
 	steam?: string;
+	other?: string[];
 }
 
 export interface Runner {

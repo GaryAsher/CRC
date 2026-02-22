@@ -2,6 +2,7 @@
 	import { user } from '$stores/auth';
 	import { supabase } from '$lib/supabase';
 	import { sanitizeText } from '$lib/utils/markdown';
+	import { checkBannedTerms } from '$lib/utils/banned-terms';
 	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 	import AuthGuard from '$components/auth/AuthGuard.svelte';
 
@@ -72,6 +73,28 @@
 	// ── Bio character count ─────────────────────────────────────
 	let bioCount = $derived(bio.length);
 
+	// ── Banned terms validation ──────────────────────────────────
+	const bannedTermsWarning = $derived.by(() => {
+		const fields = [
+			{ label: 'Display name', value: displayName },
+			{ label: 'Bio', value: bio },
+			{ label: 'Status message', value: statusMessage },
+			...goals.flatMap((g, i) => [
+				{ label: `Goal ${i + 1} title`, value: g.title },
+				{ label: `Goal ${i + 1} description`, value: g.description },
+			]),
+			...highlights.flatMap((h, i) => [
+				{ label: `Highlight ${i + 1} category`, value: h.category },
+				{ label: `Highlight ${i + 1} achievement`, value: h.achievement },
+			]),
+		];
+		for (const f of fields) {
+			const result = checkBannedTerms(f.value);
+			if (result) return `${f.label}: ${result}`;
+		}
+		return null;
+	});
+
 	// ── Load existing profile ───────────────────────────────────
 	$effect(() => {
 		if ($user) loadProfile();
@@ -129,6 +152,10 @@
 	// ── Save ────────────────────────────────────────────────────
 	async function handleSave() {
 		if (!$user) return;
+		if (bannedTermsWarning) {
+			msg = { type: 'error', text: bannedTermsWarning };
+			return;
+		}
 		saving = true;
 		msg = null;
 
@@ -776,10 +803,13 @@
 
 				<!-- Save Button (visible on all tabs) -->
 				<div class="form-actions">
+					{#if bannedTermsWarning}
+						<div class="alert alert--error">{bannedTermsWarning}</div>
+					{/if}
 					<button
 						class="btn btn--primary"
 						onclick={handleSave}
-						disabled={saving || !displayName.trim()}
+						disabled={saving || !displayName.trim() || !!bannedTermsWarning}
 					>
 						{saving ? 'Saving...' : 'Save Changes'}
 					</button>

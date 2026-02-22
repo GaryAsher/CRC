@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { PUBLIC_WORKER_URL, PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
 	import { user } from '$stores/auth';
+	import { checkBannedTerms } from '$lib/utils/banned-terms';
 
 	// ── Form State ────────────────────────────────────────────────────────────
 	let gameName = $state('');
@@ -56,7 +57,22 @@
 		});
 	}
 
-	let canSubmit = $derived(gameName.trim() && turnstileToken && !submitting);
+	const bannedTermsWarning = $derived.by(() => {
+		const fields = [
+			{ label: 'Game name', value: gameName },
+			{ label: 'Description', value: description },
+			{ label: 'Categories', value: categories },
+			{ label: 'Rules', value: generalRules },
+			{ label: 'Submitter handle', value: submitterHandle },
+		];
+		for (const f of fields) {
+			const result = checkBannedTerms(f.value);
+			if (result) return `${f.label}: ${result}`;
+		}
+		return null;
+	});
+
+	let canSubmit = $derived(gameName.trim() && turnstileToken && !submitting && !bannedTermsWarning);
 
 	async function handleSubmit() {
 		if (!canSubmit) return;
@@ -148,6 +164,9 @@
 				</div>
 
 				<div class="form-actions">
+					{#if bannedTermsWarning}
+						<div class="alert alert--error">{bannedTermsWarning}</div>
+					{/if}
 					<button class="btn btn--submit" onclick={handleSubmit} disabled={!canSubmit}>
 						{submitting ? 'Submitting...' : 'Submit Game Request'}
 					</button>

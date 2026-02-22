@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { user } from '$stores/auth';
 	import { supabase } from '$lib/supabase';
+	import { checkBannedTerms } from '$lib/utils/banned-terms';
 	import AuthGuard from '$components/auth/AuthGuard.svelte';
 
 	// ── State ─────────────────────────────────────────────────────────────────
@@ -30,6 +31,19 @@
 
 	let bioCount = $derived(bio.length);
 	let runnerIdPreview = $derived(runnerId || 'your-id');
+
+	// ── Banned terms validation ──────────────────────────────────
+	const bannedTermsWarning = $derived.by(() => {
+		const fields = [
+			{ label: 'Display name', value: displayName },
+			{ label: 'Bio', value: bio },
+		];
+		for (const f of fields) {
+			const result = checkBannedTerms(f.value);
+			if (result) return `${f.label}: ${result}`;
+		}
+		return null;
+	});
 
 	// ── Submit ────────────────────────────────────────────────────────────────
 	let submitting = $state(false);
@@ -148,6 +162,10 @@
 		}
 		if (!displayName.trim()) {
 			message = { type: 'error', text: 'Display Name is required.' };
+			return;
+		}
+		if (bannedTermsWarning) {
+			message = { type: 'error', text: bannedTermsWarning };
 			return;
 		}
 
@@ -363,7 +381,10 @@
 						</div>
 
 						<div class="profile-form__actions">
-							<button type="button" class="btn btn--primary" onclick={handleSubmit} disabled={submitting}>
+							{#if bannedTermsWarning}
+								<p class="form-message form-message--error">{bannedTermsWarning}</p>
+							{/if}
+							<button type="button" class="btn btn--primary" onclick={handleSubmit} disabled={submitting || !!bannedTermsWarning}>
 								{submitting ? '⏳ Submitting...' : 'Submit for Review'}
 							</button>
 						</div>
