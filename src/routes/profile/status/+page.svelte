@@ -16,7 +16,7 @@
 
 		try {
 			const { data: profile, error } = await supabase
-				.from('runner_profiles')
+				.from('profiles')
 				.select('runner_id, display_name, status, created_at, rejection_reason')
 				.eq('user_id', $user.id)
 				.single();

@@ -10,7 +10,7 @@ export async function getAccessToken(): Promise<string | null> {
 }
 
 /**
- * Check if the current user is an admin by querying runner_profiles.
+ * Check if the current user is an admin by querying profiles.
  * Returns { admin, verifier, runnerId } or null if not authenticated.
  */
 export async function checkAdminRole(): Promise<{
@@ -23,9 +23,9 @@ export async function checkAdminRole(): Promise<{
 
 	const userId = session.user.id;
 
-	// Query runner_profiles for admin status
+	// Query profiles for admin status
 	const res = await fetch(
-		`${PUBLIC_SUPABASE_URL}/rest/v1/runner_profiles?user_id=eq.${userId}&select=is_admin,runner_id`,
+		`${PUBLIC_SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}&select=is_admin,is_super_admin,runner_id`,
 		{
 			headers: {
 				'apikey': PUBLIC_SUPABASE_ANON_KEY,
@@ -37,17 +37,18 @@ export async function checkAdminRole(): Promise<{
 	if (res.ok) {
 		const data = await res.json();
 		if (data.length > 0) {
+			const isAdmin = data[0].is_admin === true || data[0].is_super_admin === true;
 			return {
-				admin: data[0].is_admin === true,
+				admin: isAdmin,
 				verifier: false,
 				runnerId: data[0].runner_id
 			};
 		}
 	}
 
-	// Check moderators table
-	const modRes = await fetch(
-		`${PUBLIC_SUPABASE_URL}/rest/v1/moderators?user_id=eq.${userId}&select=can_manage_moderators,assigned_games`,
+	// Check if user is a game verifier (from role_game_verifiers)
+	const vRes = await fetch(
+		`${PUBLIC_SUPABASE_URL}/rest/v1/role_game_verifiers?user_id=eq.${userId}&select=game_id&limit=1`,
 		{
 			headers: {
 				'apikey': PUBLIC_SUPABASE_ANON_KEY,
@@ -56,14 +57,10 @@ export async function checkAdminRole(): Promise<{
 		}
 	);
 
-	if (modRes.ok) {
-		const modData = await modRes.json();
-		if (modData.length > 0) {
-			return {
-				admin: modData[0].can_manage_moderators === true,
-				verifier: true,
-				runnerId: null
-			};
+	if (vRes.ok) {
+		const vData = await vRes.json();
+		if (vData.length > 0) {
+			return { admin: false, verifier: true, runnerId: null };
 		}
 	}
 

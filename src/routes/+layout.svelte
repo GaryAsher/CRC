@@ -23,7 +23,7 @@
 			if (!sess) return;
 
 			const res = await fetch(
-				`${PUBLIC_SUPABASE_URL}/rest/v1/runner_profiles?user_id=eq.${sess.user.id}&select=theme_settings`,
+				`${PUBLIC_SUPABASE_URL}/rest/v1/profiles?user_id=eq.${sess.user.id}&select=theme_settings`,
 				{
 					headers: {
 						'apikey': PUBLIC_SUPABASE_ANON_KEY,

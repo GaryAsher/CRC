@@ -9,7 +9,7 @@
 	let panelOpen = $state(false);
 	let counts = $state<Record<string, number>>({});
 
-	// Determine if user is super admin (is_admin on runner_profiles)
+	// Determine if user is super admin (is_admin on profiles)
 	let isSuperAdmin = $derived(role?.admin === true);
 	let isAdmin = $derived(role?.admin === true);
 	let isVerifier = $derived(role?.verifier === true);

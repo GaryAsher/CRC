@@ -73,7 +73,7 @@
 	async function checkServices() {
 		// Supabase
 		try {
-			const { error } = await supabase.from('runner_profiles').select('runner_id').limit(1);
+			const { error } = await supabase.from('profiles').select('runner_id').limit(1);
 			serviceStatus.supabase = error ? { ok: false, label: 'Error: ' + error.message } : { ok: true, label: 'OK' };
 		} catch { serviceStatus.supabase = { ok: false, label: 'Unreachable' }; }
 		// Auth

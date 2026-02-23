@@ -59,9 +59,9 @@
 		if (!$user) return;
 
 		try {
-			// 1. Check runner_profiles — already approved
+			// 1. Check profiles — already approved
 			const { data: approved } = await supabase
-				.from('runner_profiles')
+				.from('profiles')
 				.select('runner_id, status')
 				.eq('user_id', $user.id)
 				.maybeSingle();
@@ -136,9 +136,9 @@
 
 		checkTimeout = setTimeout(async () => {
 			try {
-				// Check runner_profiles
+				// Check profiles
 				const { data: rpData } = await supabase
-					.from('runner_profiles')
+					.from('profiles')
 					.select('runner_id')
 					.eq('runner_id', value)
 					.maybeSingle();
@@ -235,9 +235,9 @@
 			if (error) throw error;
 
 			if (isPreApproved) {
-				// Already approved — create runner_profiles row directly
+				// Already approved — create profiles row directly
 				const { error: rpError } = await supabase
-					.from('runner_profiles')
+					.from('profiles')
 					.insert({
 						user_id: $user.id,
 						runner_id: finalId,
@@ -250,7 +250,7 @@
 						status: 'approved'
 					});
 
-				if (rpError) console.error('Failed to create runner_profiles:', rpError);
+				if (rpError) console.error('Failed to create profiles:', rpError);
 
 				message = { type: 'success', text: 'Profile created! Redirecting...' };
 				setTimeout(() => goto(`/runners/${finalId}`), 1500);

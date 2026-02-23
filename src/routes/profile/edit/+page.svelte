@@ -105,7 +105,7 @@
 		loading = true;
 		try {
 			const { data: profile, error } = await supabase
-				.from('runner_profiles')
+				.from('profiles')
 				.select('runner_id, display_name, pronouns, location, bio, status_message, avatar_url, banner_url, socials, personal_goals, featured_runs, other_links_pending, status')
 				.eq('user_id', $user!.id)
 				.maybeSingle();
@@ -208,7 +208,7 @@
 			if (!sess) throw new Error('Not authenticated. Please sign in again.');
 
 			const res = await fetch(
-				`${PUBLIC_SUPABASE_URL}/rest/v1/runner_profiles?user_id=eq.${sess.user.id}`,
+				`${PUBLIC_SUPABASE_URL}/rest/v1/profiles?user_id=eq.${sess.user.id}`,
 				{
 					method: 'PATCH',
 					headers: {

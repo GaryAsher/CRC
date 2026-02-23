@@ -141,7 +141,7 @@
 			if (!userData?.user) throw new Error('You must be signed in to submit a run.');
 
 			const { data: profile } = await supabase
-				.from('runner_profiles')
+				.from('profiles')
 				.select('runner_id, status')
 				.eq('user_id', userData.user.id)
 				.single();

@@ -213,23 +213,24 @@ async function verifySupabaseToken(env, accessToken) {
   return res.json();
 }
 
-/** Check if user is admin (is_admin in runner_profiles OR can_manage_moderators in moderators) */
+/** Check if user is admin (is_admin or is_super_admin in profiles) */
 async function isAdmin(env, userId) {
-  // Check runner_profiles.is_admin
   const profile = await supabaseQuery(env,
-    `runner_profiles?user_id=eq.${encodeURIComponent(userId)}&select=is_admin,runner_id`, { method: 'GET' });
+    `profiles?user_id=eq.${encodeURIComponent(userId)}&select=is_admin,is_super_admin,runner_id`, { method: 'GET' });
   if (profile.ok && Array.isArray(profile.data) && profile.data.length > 0) {
-    if (profile.data[0].is_admin === true) return { admin: true, runnerId: profile.data[0].runner_id };
+    const p = profile.data[0];
+    if (p.is_admin === true || p.is_super_admin === true) {
+      return { admin: true, runnerId: p.runner_id };
+    }
   }
 
-  // Check moderators table
-  const mod = await supabaseQuery(env,
-    `moderators?user_id=eq.${encodeURIComponent(userId)}&select=can_manage_moderators,assigned_games`, { method: 'GET' });
-  if (mod.ok && Array.isArray(mod.data) && mod.data.length > 0) {
+  // Check role_game_verifiers
+  const verifier = await supabaseQuery(env,
+    `role_game_verifiers?user_id=eq.${encodeURIComponent(userId)}&select=game_id&limit=1`, { method: 'GET' });
+  if (verifier.ok && Array.isArray(verifier.data) && verifier.data.length > 0) {
     return {
-      admin: mod.data[0].can_manage_moderators === true,
+      admin: false,
       verifier: true,
-      assignedGames: mod.data[0].assigned_games || [],
       runnerId: profile.data?.[0]?.runner_id || null,
     };
   }
@@ -660,7 +661,7 @@ async function handleApproveProfile(body, env, request) {
   const now = new Date().toISOString();
 
   if (runnerId) {
-    // Full profile — create runners + runner_profiles rows
+    // Full profile — create runners + profiles rows
     const runnersUpsert = await supabaseQuery(env, 'runners', {
       method: 'POST',
       headers: {
@@ -687,8 +688,8 @@ async function handleApproveProfile(body, env, request) {
       return jsonResponse({ error: 'Failed to approve profile. Please try again.' }, 500, env, request);
     }
 
-    // Upsert into runner_profiles (create the approved profile row)
-    const rpUpsert = await supabaseQuery(env, 'runner_profiles', {
+    // Upsert into profiles (create the approved profile row)
+    const rpUpsert = await supabaseQuery(env, 'profiles', {
       method: 'POST',
       headers: {
         Prefer: 'resolution=merge-duplicates,return=representation',
@@ -710,7 +711,7 @@ async function handleApproveProfile(body, env, request) {
     });
 
     if (!rpUpsert.ok) {
-      console.error('Failed to upsert runner_profiles:', rpUpsert.data);
+      console.error('Failed to upsert profiles:', rpUpsert.data);
     }
   }
   // If no runnerId, we just mark pending_profiles as approved below.
@@ -863,7 +864,7 @@ async function handleApproveGame(body, env, request) {
   let submitterRunnerId = null;
   if (game.submitter_user_id) {
     const profileResult = await supabaseQuery(env,
-      `runner_profiles?user_id=eq.${encodeURIComponent(game.submitter_user_id)}&select=runner_id`,
+      `profiles?user_id=eq.${encodeURIComponent(game.submitter_user_id)}&select=runner_id`,
       { method: 'GET' });
     if (profileResult.ok && profileResult.data?.length) {
       submitterRunnerId = profileResult.data[0].runner_id;
@@ -1017,7 +1018,7 @@ async function handleDataExport(body, env, request) {
 
   // 1. Profile
   const profile = await supabaseQuery(env,
-    `runner_profiles?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
+    `profiles?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
   exportData.sections.profile = profile.ok ? (profile.data || []) : [];
 
   // 2. Pending profiles (in-progress profile edits)
@@ -1071,13 +1072,13 @@ async function handleDataExport(body, env, request) {
   // 9. Profile audit log (actions performed on this user's profile)
   if (runnerId) {
     const audit = await supabaseQuery(env,
-      `profile_audit_log?runner_id=eq.${encodeURIComponent(runnerId)}&select=*`, { method: 'GET' });
+      `audit_profile_log?runner_id=eq.${encodeURIComponent(runnerId)}&select=*`, { method: 'GET' });
     exportData.sections.audit_log = audit.ok ? (audit.data || []) : [];
   }
 
   // 10. Moderator record (if they are one)
   const modRecord = await supabaseQuery(env,
-    `moderators?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
+    `profiles?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
   if (modRecord.ok && modRecord.data?.length > 0) {
     exportData.sections.moderator_record = modRecord.data;
   }

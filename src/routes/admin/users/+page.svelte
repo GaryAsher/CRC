@@ -33,7 +33,7 @@
 	async function loadUsers() {
 		loading = true;
 		try {
-			const { data, error } = await supabase.from('runner_profiles').select('*').order('created_at', { ascending: false });
+			const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
 			if (error) throw error;
 			users = data || [];
 		} catch (e: any) { users = []; }

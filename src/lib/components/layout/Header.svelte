@@ -9,10 +9,7 @@
 	let mobileOpen = $state(false);
 
 	// ─── Profile info (fetched client-side when signed in) ────
-	// Schema reality:
-	//   runner_profiles: runner_id, is_admin, role  (row exists = approved)
-	//   pending_profiles: user_id, status           (row exists = pending)
-	//   moderators: user_id, role, can_manage_moderators
+	// Schema: profiles table is the single source of truth for user data + roles
 	let profileInfo = $state<{
 		runner_id: string | null;
 		profileState: 'active' | 'pending' | 'none';
@@ -21,7 +18,7 @@
 	} | null>(null);
 	let profileLoaded = $state(false);
 
-	// Fetch runner profile when user changes
+	// Fetch profile when user changes
 	$effect(() => {
 		const currentUser = $user;
 		if (!currentUser) {
@@ -32,29 +29,29 @@
 
 		(async () => {
 			try {
-				// 1. Check runner_profiles for this user
+				// 1. Check profiles for this user
 				const { data: profile } = await supabase
-					.from('runner_profiles')
-					.select('runner_id, is_admin, role, status')
+					.from('profiles')
+					.select('runner_id, is_admin, is_super_admin, status')
 					.eq('user_id', currentUser.id)
 					.maybeSingle();
 
 				if (profile?.runner_id && profile.status === 'approved') {
-					// Profile is approved
-					const { data: mod } = await supabase
-						.from('moderators')
-						.select('role')
+					// Check if user is a game verifier
+					const { data: verifierRole } = await supabase
+						.from('role_game_verifiers')
+						.select('id')
 						.eq('user_id', currentUser.id)
+						.limit(1)
 						.maybeSingle();
 
 					profileInfo = {
 						runner_id: profile.runner_id,
 						profileState: 'active',
-						is_admin: profile.is_admin === true,
-						is_verifier: !!mod
+						is_admin: profile.is_admin === true || profile.is_super_admin === true,
+						is_verifier: !!verifierRole
 					};
 				} else if (profile?.runner_id) {
-					// Profile exists but is pending/rejected
 					profileInfo = {
 						runner_id: profile.runner_id,
 						profileState: 'pending',
@@ -62,7 +59,7 @@
 						is_verifier: false
 					};
 				} else {
-					// No runner_profiles row — check pending_profiles
+					// No profiles row — check pending_profiles
 					const { data: pending } = await supabase
 						.from('pending_profiles')
 						.select('id, has_profile')

@@ -202,7 +202,7 @@ export async function getRunCountForRunner(supabase: SupabaseClient, runnerId: s
 
 export async function getAchievements(supabase: SupabaseClient): Promise<Achievement[]> {
 	const { data, error } = await supabase
-		.from('achievements')
+		.from('game_achievements')
 		.select('*')
 		.eq('status', 'approved');
 
@@ -215,7 +215,7 @@ export async function getAchievements(supabase: SupabaseClient): Promise<Achieve
 
 export async function getAchievementsForGame(supabase: SupabaseClient, gameId: string): Promise<Achievement[]> {
 	const { data, error } = await supabase
-		.from('achievements')
+		.from('game_achievements')
 		.select('*')
 		.eq('game_id', gameId)
 		.eq('status', 'approved');
@@ -229,7 +229,7 @@ export async function getAchievementsForGame(supabase: SupabaseClient, gameId: s
 
 export async function getAchievementsForRunner(supabase: SupabaseClient, runnerId: string): Promise<Achievement[]> {
 	const { data, error } = await supabase
-		.from('achievements')
+		.from('game_achievements')
 		.select('*')
 		.eq('runner_id', runnerId)
 		.eq('status', 'approved');
@@ -278,7 +278,7 @@ export async function getCounts(supabase: SupabaseClient) {
 		supabase.from('games').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
 		supabase.from('runners').select('*', { count: 'exact', head: true }),
 		supabase.from('runs').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
-		supabase.from('achievements').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
+		supabase.from('game_achievements').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
 		supabase.from('teams').select('*', { count: 'exact', head: true })
 	]);
 

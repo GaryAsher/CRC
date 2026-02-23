@@ -46,7 +46,7 @@
 		// 1. Supabase Database
 		const dbStart = performance.now();
 		try {
-			const { data, error } = await supabase.from('runner_profiles').select('runner_id', { count: 'exact' });
+			const { data, error } = await supabase.from('profiles').select('runner_id', { count: 'exact' });
 			const latency = Math.round(performance.now() - dbStart);
 			if (error) throw error;
 			services[0] = { ...services[0], status: 'ok', detail: `Connected (${latency}ms)`, latency };
@@ -68,7 +68,7 @@
 		services = [...services];
 
 		// Table counts
-		const tables = ['runner_profiles', 'pending_runs', 'pending_games', 'game_update_requests', 'moderators'];
+		const tables = ['profiles', 'pending_runs', 'pending_games', 'game_update_requests', 'role_game_verifiers'];
 		let totalRows = 0;
 		const stats: TableStat[] = [];
 		for (const table of tables) {

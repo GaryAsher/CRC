@@ -115,7 +115,7 @@
 			if (!sess) { syncStatus = 'error'; return; }
 
 			const res = await fetch(
-				`${PUBLIC_SUPABASE_URL}/rest/v1/runner_profiles?user_id=eq.${sess.user.id}`,
+				`${PUBLIC_SUPABASE_URL}/rest/v1/profiles?user_id=eq.${sess.user.id}`,
 				{
 					method: 'PATCH',
 					headers: {
@@ -162,7 +162,7 @@
 				const { data: { session: sess } } = await supabase.auth.getSession();
 				if (sess) {
 					const res = await fetch(
-						`${PUBLIC_SUPABASE_URL}/rest/v1/runner_profiles?user_id=eq.${sess.user.id}&select=theme_settings`,
+						`${PUBLIC_SUPABASE_URL}/rest/v1/profiles?user_id=eq.${sess.user.id}&select=theme_settings`,
 						{
 							headers: {
 								'apikey': PUBLIC_SUPABASE_ANON_KEY,
