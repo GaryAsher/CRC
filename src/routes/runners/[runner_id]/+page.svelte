@@ -93,12 +93,20 @@
 					{@const repCode = socials.representing || ''}
 					{@const locCountry = getCountry(runner.location)}
 					{@const repCountry = repCode ? getCountry(repCode) : null}
-					{@const displayFlag = repCountry?.flag || locCountry?.flag || ''}
 					{@const displayName2 = locCountry?.name || runner.location}
 					<p class="muted runner-location">
-						{#if displayFlag}{displayFlag}{:else}📍{/if} {displayName2}
+						{#if locCountry}
+							<img class="flag-img" src="https://flagcdn.com/w40/{locCountry.code.toLowerCase()}.png" alt="{locCountry.name} flag" width="20" height="15" />
+						{:else}
+							📍
+						{/if}
+						{displayName2}
 						{#if repCountry && repCountry.code !== locCountry?.code}
-							<span class="runner-representing" title="Representing {repCountry.name}">· Representing {repCountry.flag} {repCountry.name}</span>
+							<span class="runner-representing">
+								· Representing
+								<img class="flag-img" src="https://flagcdn.com/w40/{repCountry.code.toLowerCase()}.png" alt="{repCountry.name} flag" width="20" height="15" />
+								{repCountry.name}
+							</span>
 						{/if}
 					</p>
 				{/if}
@@ -150,47 +158,43 @@
 
 	<!-- OVERVIEW TAB -->
 	{#if activeTab === 'overview'}
-		<!-- Top row: About (left) + Highlights (right) -->
-		{#if (runner.bio || runner.content) || runner.featured_runs?.length}
-			<div class="overview-top">
-				{#if runner.bio || runner.content}
-					<section class="runner-bio card overview-about">
-						<h2>About</h2>
-						{#if runner.content}
-							<div class="md">{@html renderMarkdown(runner.content)}</div>
-						{:else}
-							<p>{runner.bio}</p>
-						{/if}
-					</section>
-				{/if}
-
-				{#if runner.featured_runs?.length}
-					<section class="runner-highlights overview-highlights">
-						<h2>📌 Highlights</h2>
-						<div class="highlights-grid">
-							{#each runner.featured_runs as fr}
-								{@const frGame = data.allGames.find(g => g.game_id === fr.game_id)}
-								{@const thumb = fr.video_url ? getVideoThumbnail(fr.video_url) : null}
-								<div class="highlight-card">
-									{#if thumb}
-										<div class="highlight-card__bg" style="background-image: url('{thumb}')"></div>
-									{:else if frGame?.cover}
-										<div class="highlight-card__bg" style="background-image: url('{frGame.cover}')"></div>
-									{/if}
-									<div class="highlight-card__overlay">
-										<div class="highlight-card__game">{frGame?.game_name || fr.game_id}</div>
-										<div class="highlight-card__category">{fr.category}</div>
-										{#if fr.achievement}<div class="highlight-card__note">{fr.achievement}</div>{/if}
-										{#if fr.video_url && fr.video_approved}
-											<a href={fr.video_url} target="_blank" rel="noopener" class="highlight-card__video">▶ Watch</a>
-										{/if}
-									</div>
-								</div>
-							{/each}
+		<!-- Highlights: full-width horizontal row, then About full-width below -->
+		{#if runner.featured_runs?.length}
+			<section class="runner-highlights">
+				<h2>📌 Highlights</h2>
+				<div class="highlights-grid">
+					{#each runner.featured_runs as fr}
+						{@const frGame = data.allGames.find(g => g.game_id === fr.game_id)}
+						{@const thumb = fr.video_url ? getVideoThumbnail(fr.video_url) : null}
+						<div class="highlight-card">
+							{#if thumb}
+								<div class="highlight-card__bg" style="background-image: url('{thumb}')"></div>
+							{:else if frGame?.cover}
+								<div class="highlight-card__bg" style="background-image: url('{frGame.cover}')"></div>
+							{/if}
+							<div class="highlight-card__overlay">
+								<div class="highlight-card__game">{frGame?.game_name || fr.game_id}</div>
+								<div class="highlight-card__category">{fr.category}</div>
+								{#if fr.achievement}<div class="highlight-card__note">{fr.achievement}</div>{/if}
+								{#if fr.video_url && fr.video_approved}
+									<a href={fr.video_url} target="_blank" rel="noopener" class="highlight-card__video">▶ Watch</a>
+								{/if}
+							</div>
 						</div>
-					</section>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		{#if runner.bio || runner.content}
+			<section class="runner-bio card">
+				<h2>About</h2>
+				{#if runner.content}
+					<div class="md">{@html renderMarkdown(runner.content)}</div>
+				{:else}
+					<p>{runner.bio}</p>
 				{/if}
-			</div>
+			</section>
 		{/if}
 
 		<!-- Contributions in Overview -->
@@ -533,6 +537,7 @@
 	.runner-pronouns { font-size: 0.8em; font-weight: 400; color: var(--text-muted); }
 	.runner-location, .runner-status { margin: 0.15rem 0 0; font-size: 0.85rem; }
 	.runner-representing { opacity: 0.75; font-size: 0.8rem; }
+	.flag-img { display: inline-block; vertical-align: middle; border-radius: 2px; margin-right: 0.2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
 	.runner-meta-line { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.35rem; }
 	.runner-joined { font-size: 0.8rem; color: var(--text-muted); }
 	.runner-team-badges { display: flex; gap: 0.5rem; flex-wrap: wrap; }
@@ -559,13 +564,9 @@
 	/* Highlights */
 	.runner-highlights { margin-bottom: 1.5rem; }
 	.runner-highlights h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
-	/* Overview two-column layout */
-	.overview-top { display: grid; grid-template-columns: 4fr 1fr; gap: 1.5rem; margin-bottom: 1rem; align-items: start; }
-	.overview-about { margin: 0; }
-	.overview-highlights { margin: 0; }
-	@media (max-width: 768px) { .overview-top { grid-template-columns: 1fr; } }
 
-	.highlights-grid { display: flex; flex-direction: column; gap: 0.75rem; }
+	.highlights-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+	@media (max-width: 768px) { .highlights-grid { grid-template-columns: 1fr; } }
 	.highlight-card { position: relative; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; border: 2px solid var(--accent); background: var(--surface); }
 	.highlight-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform 0.3s ease; }
 	.highlight-card:hover .highlight-card__bg { transform: scale(1.05); }
