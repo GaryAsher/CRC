@@ -206,17 +206,6 @@
 	<h1>Theme Customization</h1>
 	<p class="muted mb-3">Personalize your CRC experience. Changes show in the preview — click Save to apply.</p>
 
-	<!-- Sync Status -->
-	<div class="sync-status sync-status--{syncStatus}">
-		<span>
-			{#if syncStatus === 'synced'}&#9989; Saved{signedIn ? ' & synced to account' : ''}
-			{:else if syncStatus === 'saving'}Saving...
-			{:else if syncStatus === 'error'}&#9888;&#65039; Sync failed — saved locally
-			{:else}&#9998;&#65039; {hasUnsavedChanges ? 'Unsaved changes' : (signedIn ? 'No changes' : 'Sign in to sync across devices')}
-			{/if}
-		</span>
-	</div>
-
 	<div class="theme-layout">
 		<!-- Settings Panel -->
 		<div class="theme-settings">
@@ -368,6 +357,13 @@
 			</div>
 
 			<div class="theme-actions mt-3">
+				<span class="sync-status sync-status--{syncStatus}">
+					{#if syncStatus === 'synced'}&#9989; Saved{signedIn ? ' & synced to account' : ''}
+					{:else if syncStatus === 'saving'}Saving...
+					{:else if syncStatus === 'error'}&#9888;&#65039; Sync failed — saved locally
+					{:else}&#9998;&#65039; {hasUnsavedChanges ? 'Unsaved changes' : (signedIn ? 'No changes' : 'Sign in to sync across devices')}
+					{/if}
+				</span>
 				<button class="btn" onclick={resetTheme} disabled={!hasUnsavedChanges}>Reset</button>
 				<button class="btn btn--primary" onclick={saveTheme} disabled={!hasUnsavedChanges && syncStatus === 'synced'}>Save Theme</button>
 			</div>
@@ -384,7 +380,7 @@
 	.btn--primary:hover:not(:disabled) { opacity: 0.9; color: white; }
 	.btn--small { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
 
-	.sync-status { padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1.5rem; display: inline-block; }
+	.sync-status { padding: 0.35rem 0.75rem; border-radius: 8px; font-size: 0.85rem; white-space: nowrap; }
 	.sync-status--synced { background: rgba(16, 185, 129, 0.1); color: #10b981; }
 	.sync-status--unsaved { background: rgba(234, 179, 8, 0.1); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.2); }
 	.sync-status--saving { background: rgba(234, 179, 8, 0.1); color: #eab308; }
@@ -424,7 +420,7 @@
 	.bg-preview img { width: 100%; height: 100%; object-fit: cover; }
 
 	/* Preview */
-	.theme-preview { position: sticky; top: 1rem; align-self: start; }
+	.theme-preview { position: sticky; top: 5.5rem; align-self: start; }
 	.preview-font-info { font-size: 0.8rem; margin-bottom: 0.75rem; }
 	.preview-box { border-radius: 12px; border: 1px solid var(--border); padding: 0; color: #e0e0e0; overflow: hidden; position: relative; background: var(--preview-bg); }
 	.preview-bg-image { position: absolute; inset: 0; background-size: cover; background-position: center; pointer-events: none; }
@@ -448,7 +444,8 @@
 	.preview-tag--glitch { background: rgba(16, 185, 129, 0.12); color: #10b981; }
 	.preview-tag--verified { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
 
-	.theme-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+	.theme-actions { display: flex; gap: 0.75rem; align-items: center; }
+	.theme-actions .sync-status { margin-right: auto; }
 
 	@media (max-width: 768px) {
 		.theme-layout { grid-template-columns: 1fr; }
