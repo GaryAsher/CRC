@@ -16,8 +16,11 @@ export function formatDate(dateInput: string | Date): string {
 	if (dateInput instanceof Date) {
 		date = dateInput;
 	} else {
-		// Append time to avoid timezone shifting on date-only strings
-		date = new Date(dateInput + 'T00:00:00');
+		// If it's a date-only string (YYYY-MM-DD), append time to avoid timezone shift
+		// If it already has a time component, parse as-is
+		date = dateInput.includes('T') || dateInput.includes(' ')
+			? new Date(dateInput)
+			: new Date(dateInput + 'T00:00:00');
 	}
 
 	if (isNaN(date.getTime())) return '';

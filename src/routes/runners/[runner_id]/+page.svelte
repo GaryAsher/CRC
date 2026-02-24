@@ -548,7 +548,7 @@
 	.runner-highlights { margin-bottom: 1.5rem; }
 	.runner-highlights h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
 	/* Overview two-column layout */
-	.overview-top { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1rem; }
+	.overview-top { display: grid; grid-template-columns: 3fr 2fr; gap: 1.5rem; margin-bottom: 1rem; align-items: start; }
 	.overview-about { margin: 0; }
 	.overview-highlights { margin: 0; }
 	@media (max-width: 768px) { .overview-top { grid-template-columns: 1fr; } }
