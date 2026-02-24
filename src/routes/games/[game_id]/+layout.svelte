@@ -120,30 +120,6 @@
 		color: var(--fg);
 	}
 	.game-tabs {
-		display: flex;
-		gap: 0;
-		border-bottom: 1px solid var(--border);
 		margin-bottom: 1.5rem;
-		overflow-x: auto;
-		scrollbar-width: none;
-		-ms-overflow-style: none;
-	}
-	.game-tabs::-webkit-scrollbar { display: none; }
-	.game-tab {
-		padding: 0.75rem 1.25rem;
-		color: var(--text-muted);
-		text-decoration: none;
-		border-bottom: 2px solid transparent;
-		white-space: nowrap;
-		font-size: 0.9rem;
-		transition: color 0.15s, border-color 0.15s;
-	}
-	.game-tab:hover {
-		color: var(--fg);
-	}
-	.game-tab--active {
-		color: var(--accent);
-		border-bottom-color: var(--accent);
-		font-weight: 600;
 	}
 </style>

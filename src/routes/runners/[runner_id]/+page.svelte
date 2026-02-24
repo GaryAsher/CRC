@@ -27,6 +27,14 @@
 		}).length
 	);
 	const miniRunCount = $derived(data.runs.length - fullRunCount);
+
+	// Split personal goals into completed vs in-progress
+	const completedGoals = $derived(
+		(runner.personal_goals || []).filter((g: any) => g.completed)
+	);
+	const inProgressGoals = $derived(
+		(runner.personal_goals || []).filter((g: any) => !g.completed)
+	);
 </script>
 
 <svelte:head>
@@ -193,7 +201,35 @@
 			</div>
 		{/if}
 
-		{#if !runner.bio && !runner.content && !runner.contributions?.length && overviewCreditedGames.length === 0}
+		{#if inProgressGoals.length > 0}
+			<div class="card mt-section">
+				<h2>🎯 Goals In Progress</h2>
+				<div class="personal-goals-list">
+					{#each inProgressGoals as goal}
+						<div class="personal-goal-item">
+							<div class="personal-goal-item__icon">{goal.icon || '🎯'}</div>
+							<div class="personal-goal-item__content">
+								<div class="personal-goal-item__header">
+									<h4>{goal.title}</h4>
+									<span class="goal-status goal-status--progress">In Progress</span>
+								</div>
+								{#if goal.description}<p class="muted">{goal.description}</p>{/if}
+								{#if goal.game}<span class="personal-goal-item__game">{goal.game}</span>{/if}
+								{#if goal.total && goal.total > 0}
+									{@const pct = Math.round(((goal.current || 0) / goal.total) * 100)}
+									<div class="personal-goal-item__progress">
+										<div class="progress-bar"><div class="progress-bar__fill" style="width: {pct}%"></div></div>
+										<span class="progress-bar__text">{goal.current || 0} / {goal.total}</span>
+									</div>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
+		{#if !runner.bio && !runner.content && !runner.contributions?.length && overviewCreditedGames.length === 0 && inProgressGoals.length === 0}
 			<div class="card"><p class="muted">No overview information yet.</p></div>
 		{/if}
 	{/if}
@@ -374,41 +410,30 @@
 			{/if}
 		</div>
 
-		<!-- Personal Goals -->
+		<!-- Completed Personal Goals -->
 		<div class="card mt-section">
-			<h2>🎯 Personal Goals</h2>
-			<p class="muted mb-2">Self-set challenges and personal milestones.</p>
+			<h2>🎯 Completed Goals</h2>
+			<p class="muted mb-2">Personal milestones achieved.</p>
 
-			{#if runner.personal_goals?.length}
+			{#if completedGoals.length > 0}
 				<div class="personal-goals-list">
-					{#each runner.personal_goals as goal}
+					{#each completedGoals as goal}
 						<div class="personal-goal-item">
 							<div class="personal-goal-item__icon">{goal.icon || '🎯'}</div>
 							<div class="personal-goal-item__content">
 								<div class="personal-goal-item__header">
 									<h4>{goal.title}</h4>
-									{#if goal.completed}
-										<span class="goal-status goal-status--completed">✓ Completed</span>
-									{:else}
-										<span class="goal-status goal-status--progress">In Progress</span>
-									{/if}
+									<span class="goal-status goal-status--completed">✓ Completed</span>
 								</div>
 								{#if goal.description}<p class="muted">{goal.description}</p>{/if}
 								{#if goal.game}<span class="personal-goal-item__game">{goal.game}</span>{/if}
-								{#if goal.total && goal.total > 0}
-									{@const pct = Math.round(((goal.current || 0) / goal.total) * 100)}
-									<div class="personal-goal-item__progress">
-										<div class="progress-bar"><div class="progress-bar__fill" style="width: {pct}%"></div></div>
-										<span class="progress-bar__text">{goal.current || 0} / {goal.total}</span>
-									</div>
-								{/if}
 								{#if goal.date_completed}<span class="muted personal-goal-item__date">Completed: {goal.date_completed}</span>{/if}
 							</div>
 						</div>
 					{/each}
 				</div>
 			{:else}
-				<p class="muted">No personal goals set yet.</p>
+				<p class="muted">No personal goals completed yet.</p>
 			{/if}
 		</div>
 	{/if}
@@ -499,7 +524,8 @@
 	.runner-highlights h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
 	.highlights-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
 	.highlight-card { position: relative; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; border: 2px solid var(--accent); background: var(--surface); }
-	.highlight-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+	.highlight-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform 0.3s ease; }
+	.highlight-card:hover .highlight-card__bg { transform: scale(1.05); }
 	.highlight-card__overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 100%); display: flex; flex-direction: column; justify-content: flex-end; padding: 0.75rem; }
 	.highlight-card__game { font-size: 0.75rem; color: rgba(255,255,255,0.7); }
 	.highlight-card__category { font-weight: 700; font-size: 0.95rem; color: #fff; }
@@ -508,15 +534,6 @@
 	.highlight-card__video:hover { text-decoration: underline; opacity: 1; }
 
 	/* Tabs */
-	.runner-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; gap: 0; scrollbar-width: none; -ms-overflow-style: none; }
-	.runner-tabs::-webkit-scrollbar { display: none; }
-	.tab {
-		padding: 0.75rem 1.25rem; background: none; border: none; border-bottom: 2px solid transparent;
-		color: var(--text-muted); cursor: pointer; font-size: 0.9rem; font-family: inherit; white-space: nowrap;
-	}
-	.tab:hover { color: var(--fg); }
-	.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
-
 	/* Stats Card */
 	.runner-stats-card { display: flex; gap: 1rem; margin-bottom: 1rem; padding: 1rem 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; flex-wrap: wrap; }
 	.runner-stat { display: flex; flex-direction: column; align-items: center; padding: 0 1rem; border-right: 1px solid var(--border); }
@@ -622,7 +639,8 @@
 	/* Credits Grid */
 	.credits-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; }
 	.credit-game-card { position: relative; display: block; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; text-decoration: none; color: #fff; background: var(--surface); }
-	.credit-game-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+	.credit-game-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform 0.3s ease; }
+	.credit-game-card:hover .credit-game-card__bg { transform: scale(1.05); }
 	.credit-game-card__overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 100%); display: flex; flex-direction: column; justify-content: flex-end; padding: 0.5rem; }
 	.credit-game-card__name { font-weight: 600; font-size: 0.85rem; }
 	.credit-game-card__role { font-size: 0.7rem; color: var(--accent); }

@@ -1,6 +1,6 @@
 # CRC Development Handoff — Context for New AI Assistants
 
-**Last updated:** 2026-02-20
+**Last updated:** 2026-02-24
 **Purpose:** This document supplements `CLAUDE.md` (in the repo root) with lessons learned from active development sessions. Read `CLAUDE.md` first, then this document.
 
 ---
@@ -30,11 +30,18 @@ WHERE tablename = 'your_table_name';
 
 ---
 
-## 2. Actual Database Schema (Verified)
+## 2. Database Schema (Current — Feb 2026)
 
-These column lists were confirmed by querying `information_schema.columns` directly:
+### Recent Migration (Feb 24, 2026)
+Tables were renamed and consolidated:
+- `runner_profiles` → **`profiles`** (the canonical user data table)
+- `achievements` → **`game_achievements`**
+- `ticket_messages` → **`support_messages`**
+- `profile_audit_log` → **`audit_profile_log`**
+- **`moderators`** → DROPPED (replaced by role tables + `profiles.is_admin`)
+- New: **`role_game_moderators`**, **`role_game_verifiers`** (role assignment tables)
 
-### `runner_profiles` (approved profiles — row existence = approved)
+### `profiles` (approved profiles — single source of truth)
 | Column | Type | Notes |
 |-|-|-|
 | id | uuid | PK |
@@ -50,30 +57,18 @@ These column lists were confirmed by querying `information_schema.columns` direc
 | featured_runs | jsonb | |
 | badges | jsonb | |
 | is_public | boolean | |
-| is_admin | boolean | **This is the admin flag** |
+| is_admin | boolean | **Admin flag** |
+| is_super_admin | boolean | **Super admin flag** |
 | role | text | |
 | verified_games | ARRAY | |
 | theme_settings | jsonb | Custom theme data |
-| membership_tier | text | |
-| membership_expires | timestamptz | |
-| other_links_pending | ARRAY | |
-| achievements | jsonb | |
 | contributions | jsonb | |
-| status_message | text | |
 | personal_goals | jsonb | |
 | banner_url | text | |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
-| approved_at | timestamptz | |
-| approved_by | uuid | |
+| status | text | 'approved', 'pending', etc. |
+| created_at / updated_at / approved_at | timestamptz | |
 
-**Key insight:** There is NO `status` column on `runner_profiles`. If a row exists, the profile is approved. Pending profiles live in `pending_profiles`.
-
-RLS policies:
-- SELECT: own row only (`auth.uid() = user_id`)
-- INSERT: own row only
-- UPDATE: own row only
-- DELETE: admins/moderators only
+**Key insight:** `profiles` now has a `status` column. Row with `status = 'approved'` means the profile is live.
 
 ### `pending_profiles` (awaiting approval)
 | Column | Type |
@@ -82,49 +77,40 @@ RLS policies:
 | user_id | uuid |
 | requested_runner_id | text |
 | display_name | text |
-| pronouns, location, bio, avatar_url | text |
-| socials | jsonb |
-| games | ARRAY |
-| status | USER-DEFINED (enum) |
-| rejection_reason | text |
-| submitted_at | timestamptz |
-| reviewed_at, reviewed_by, reviewer_notes | ... |
+| has_profile | boolean |
+| status | enum (pending/approved/rejected) |
+| submitted_at / reviewed_at | timestamptz |
 
-### `runners` (public-facing runner data)
-| Column | Type |
-|-|-|
-| runner_id | text | PK slug |
-| runner_name | text |
-| display_name | text |
-| avatar | text |
-| joined_date | date |
-| pronouns, location | text |
-| status | text | Freeform (e.g. "test status 33") — NOT an enum |
-| hidden | boolean |
-| bio | text |
-| accent_color, cover_position, banner | text |
-| is_admin | boolean |
-| can_view_test_content | boolean |
-| socials | jsonb |
-| featured_runs | jsonb |
-| personal_goals, contributions | jsonb |
-| user_id | uuid |
+### `runners` (legacy public-facing data — still used by /runners page)
+**NOTE:** This table still exists and powers `getRunners()` in `src/lib/server/supabase.ts`. It will eventually be replaced by `profiles`, but that migration hasn't happened yet. Do NOT drop it.
 
-### `moderators`
+### `role_game_verifiers` / `role_game_moderators`
+Per-game role assignments. Each row grants a user a role for a specific game.
 | Column | Type |
 |-|-|
 | id | uuid |
 | user_id | uuid |
-| role | text |
-| can_approve_profiles | boolean |
-| can_reject_profiles | boolean |
-| can_suspend_profiles | boolean |
-| can_edit_any_profile | boolean |
-| can_manage_moderators | boolean |
-| assigned_games | ARRAY |
-| added_at | timestamptz |
-| added_by | uuid |
-| notes | text |
+| game_id | text |
+| assigned_by | uuid |
+| assigned_at | timestamptz |
+
+### Admin/Verifier Detection Pattern
+```typescript
+// Check profiles for admin
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('is_admin, is_super_admin')
+  .eq('user_id', userId)
+  .maybeSingle();
+
+// Check role_game_verifiers for verifier
+const { data: verifier } = await supabase
+  .from('role_game_verifiers')
+  .select('id')
+  .eq('user_id', userId)
+  .limit(1)
+  .maybeSingle();
+```
 
 ---
 
@@ -136,52 +122,24 @@ RLS policies:
 - Server-side queries via `locals.supabase` always have auth
 
 ### Client Side (nuances)
-- `src/lib/supabase.ts` creates a `createBrowserClient` with `autoRefreshToken: false` and `detectSessionInUrl: false`
+- `src/lib/supabase.ts` creates a `createBrowserClient`
 - The `$user` store (from `$stores/auth`) is hydrated from server session data
-- **Problem pattern:** `supabase.from('table').update(...)` may not reliably include the auth JWT
-- **Working pattern:** `admin.ts` uses `supabase.auth.getSession()` to get the access token, then raw `fetch()` with explicit `Authorization: Bearer ${token}` header
-
-### The Pattern That Works (use this for client-side DB writes):
-```typescript
-import { supabase } from '$lib/supabase';
-import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
-
-const { data: { session } } = await supabase.auth.getSession();
-if (!session) return;
-
-const res = await fetch(
-  `${PUBLIC_SUPABASE_URL}/rest/v1/runner_profiles?user_id=eq.${session.user.id}`,
-  {
-    method: 'PATCH',
-    headers: {
-      'apikey': PUBLIC_SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${session.access_token}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=minimal'
-    },
-    body: JSON.stringify({ column_name: value })
-  }
-);
-```
-
-### The Pattern That May Fail (avoid for writes):
-```typescript
-// This may not include auth token properly
-const { error } = await supabase
-  .from('runner_profiles')
-  .update({ column: value })
-  .eq('user_id', userId);
-```
+- **Working pattern for writes:** `admin.ts` uses `supabase.auth.getSession()` to get the access token, then raw `fetch()` with explicit `Authorization: Bearer ${token}` header
 
 ### Profile State Logic (Header.svelte)
-The Header determines profile state as follows:
-1. Query `runner_profiles` for `runner_id, is_admin, role` where `user_id = current user`
-2. If row exists → profile is **active** (approved). Link to `/runners/{runner_id}`
-3. If no row → query `pending_profiles` for `id` where `user_id = current user`
-4. If pending row exists → profile is **pending**. Link to `/profile/status`
-5. Otherwise → **no profile**. Link to `/profile/create`
+1. Query `profiles` for `runner_id, is_admin, is_super_admin, status` where `user_id = current user`
+2. If row with `runner_id` + `status = 'approved'` → **active**
+3. If row with `runner_id` but not approved → **pending**
+4. If no row → query `pending_profiles` for `has_profile`
+5. If `has_profile = true` → **pending**. Otherwise → **none** (needs setup)
 
-Admin status comes from `runner_profiles.is_admin`. Verifier status comes from the `moderators` table.
+### New User Flow
+1. User signs in via OAuth (Discord/Twitch)
+2. Auth callback creates `pending_profiles` stub
+3. Redirects to `/profile/setup` (lightweight: just runner_id + display_name)
+4. If pre-approved: profile row created immediately
+5. If not: waits for admin approval
+6. User can skip setup and explore, but can't submit runs without a runner_id
 
 ---
 
@@ -198,7 +156,7 @@ The project uses Svelte 5 runes. Common mistakes to avoid:
 | `on:click\|preventDefault` | `onclick={(e) => { e.preventDefault(); handler() }}` |
 | `<slot />` | `{@render children()}` with `let { children } = $props()` |
 
-**Event modifier syntax doesn't exist in Svelte 5.** `onpointerdown|preventDefault` will cause a build error. Always use the inline handler pattern.
+**Event modifier syntax doesn't exist in Svelte 5.**
 
 ---
 
@@ -207,8 +165,8 @@ The project uses Svelte 5 runes. Common mistakes to avoid:
 ### Global SCSS (`src/styles/`)
 - CSS custom properties: `--accent`, `--bg`, `--fg`, `--border`, `--panel`, `--surface`, `--muted`
 - Radius tokens: `--radius-sm`, `--radius-md`, `--radius-lg`
-- Focus: `--focus`, `--focus-2`
-- Existing component classes: `.az` (A-Z nav), `.tag-chip`, `.filter`, `.select`, `.card`, `.card-lift`, `.btn`, `.muted`
+- Tab styles in `_tabs.scss` are global and apply to `.runner-tabs .tab`, `.game-tabs .game-tab`, and `.edit-tabs .edit-tab` — all use the same folder-style appearance
+- Footer grid in `_footer.scss` uses 4-column layout (brand + Explore + Resources + Legal)
 
 ### Import Path Aliases
 - `$lib` → `src/lib`
@@ -224,74 +182,93 @@ The project uses Svelte 5 runes. Common mistakes to avoid:
 | What | Where |
 |-|-|
 | Auth store | `src/lib/stores/auth.ts` — exports `session`, `user`, `isLoading` |
-| Admin utilities | `src/lib/admin.ts` — `checkAdminRole()`, `fetchPending()`, `adminAction()`, `getAccessToken()` |
-| Browser Supabase | `src/lib/supabase.ts` — client with `persistSession: false` |
+| Admin utilities | `src/lib/admin.ts` — `checkAdminRole()`, `fetchPending()`, `adminAction()` |
+| Browser Supabase | `src/lib/supabase.ts` |
 | Server Supabase | `src/lib/server/supabase.ts` — query helpers |
-| Static data | `src/lib/server/data.ts` — YAML config loaders |
-| Types | `src/lib/types/index.ts` |
-| Filter utils | `src/lib/utils/filters.ts` — reusable filter functions |
-| A-Z nav | `src/lib/components/AzNav.svelte` |
-| Tag picker | `src/lib/components/TagPicker.svelte` |
+| Utility functions | `src/lib/utils/index.ts` — `isValidVideoUrl()`, `formatDate()`, etc. |
 | Header | `src/lib/components/layout/Header.svelte` |
-| Admin guard | `src/routes/admin/+layout.server.ts` — server-side auth check |
-| Admin panel | `src/routes/admin/+layout.svelte` — slide-out sidebar with role-based nav |
+| Footer | `src/lib/components/layout/Footer.svelte` |
+| A-Z nav | `src/lib/components/AzNav.svelte` |
+| Profile setup | `src/routes/profile/setup/+page.svelte` (lightweight onboarding) |
+| Profile create | `src/routes/profile/create/+page.svelte` (full form) |
+| CSP headers | `_headers` (Cloudflare Pages custom headers) |
+| Worker | `worker/src/index.js` (Cloudflare Worker for admin actions) |
 
 ---
 
-## 7. Current State & Pending Work
+## 7. Content Security Policy
 
-### Recently Completed
-- [x] A-Z navigation on Games and Runners pages
-- [x] Advanced filters on Games page (platform, genre, challenge TagPickers)
-- [x] Header profile link fix (correct tables, correct state logic)
-- [x] Admin panel sidebar (role-based slide-out on admin pages)
-- [x] Theme link in profile dropdown
-- [x] Theme save fix (explicit auth token pattern)
+CSP is defined in `_headers` at the repo root. Key `connect-src` entries:
+- `'self'` — same origin
+- `https://*.supabase.co` — Supabase API
+- `https://crc-run-submissions.280sauce.workers.dev` — Worker
+- `https://challenges.cloudflare.com` — Turnstile
+- `https://noembed.com` — Video URL metadata lookup
+
+If a new external API is added, its domain must be added to `connect-src` or client-side fetches will be blocked.
+
+---
+
+## 8. Allowed Video URLs
+
+Defined in `src/lib/utils/index.ts` → `isValidVideoUrl()`:
+- YouTube (youtube.com, m.youtube.com, youtu.be)
+- Twitch (twitch.tv, m.twitch.tv, player.twitch.tv)
+- Bilibili (bilibili.com)
+
+**Nicovideo was removed** per user request. HTTPS only.
+
+---
+
+## 9. Runner Profile Page Structure
+
+The runner profile at `/runners/[runner_id]` has 4 tabs:
+- **Overview** (default): About/bio, Highlights, Contributions, Game Credits, In-Progress Goals
+- **Run Statistics**: Stats cards, fun stats, game grid with detail drill-down
+- **Achievements**: Community achievements, Completed personal goals
+- **Activity**: Timeline of recent runs and achievements
+
+Game cards throughout the profile use a zoom-in hover effect on background images.
+
+---
+
+## 10. Current State & Recent Work
+
+### Recently Completed (Feb 23-24, 2026)
+- [x] Database reorganization (table renames, role tables, RLS cleanup)
+- [x] Frontend code migration to new table names (14 files)
+- [x] Worker updated for new table names
+- [x] RLS policy consolidation (no duplicates, no search_path warnings)
+- [x] Header redesign: centered search bar, theme toggle in user dropdown
+- [x] Minimal profile setup page (`/profile/setup`) with skip option
+- [x] Auth callback redirects to setup page with `?next=` return URL
+- [x] Run submit redirects to setup if no runner_id
+- [x] Search page reads `?q=` param from URL
+- [x] A-Z nav: clicking same letter no longer deselects
+- [x] Footer: 3-column grid layout (Explore, Resources, Legal)
+- [x] Unified folder-style tabs across runner profiles, game pages, and profile edit
+- [x] Video URL validation on profile edit highlights
+- [x] Video URL lookup (noembed) on profile edit highlights
+- [x] Personal goals split: completed → Achievements tab, in-progress → Overview tab
+- [x] Zoom-in hover effect on highlight cards and credit game cards
+- [x] Admin badge text color fix (white on accent)
+- [x] Nicovideo removed from allowed video URLs
+- [x] CSP updated to allow noembed.com
 
 ### Known Pending Tasks
-- [ ] **Profile Edit page** — Currently a basic form. Needs 5-tab rebuild matching Jekyll: Basic Info, Customize, Socials, Goals, Highlights. Should write to `runner_profiles` using the explicit auth fetch pattern.
-- [ ] **Admin Dashboard index** — Currently shows inline pending tabs. Jekyll had a card-grid navigation hub with stats counters. The sidebar panel now handles navigation, but the index could be improved to show at-a-glance stats.
-- [ ] Profile edit needs to handle the `socials` jsonb field (twitch, youtube, twitter, bluesky, instagram, speedruncom, steam, other links)
-- [ ] Profile edit needs `personal_goals` jsonb editor (icon, title, description, game, progress, completion status)
-- [ ] Profile edit needs `featured_runs` jsonb editor (pin up to 3 runs)
-- [ ] Avatar upload (needs Supabase Storage bucket — may not be set up yet; ask user)
-
-### Architecture Decisions Log
-- **Client-side filtering** for Games/Runners — all data loaded at once, filtered via `$derived`. Works fine at current scale (<100 games, <200 runners). Migrate to server-side if scale exceeds 1000+.
-- **Client-side profile query in Header** — runs once when user signs in, uses `$effect`. Avoids needing server-side profile data in every page load.
-- **Admin panel as layout component** — `admin/+layout.svelte` wraps all admin pages automatically. Role check via `checkAdminRole()` from `admin.ts`.
+- [ ] Migrate `/runners` page queries from `runners` table to `profiles` table
+- [ ] Drop `runners` table after migration
+- [ ] Global search feature (search across games, runners, runs, teams)
+- [ ] Profile page needs the full create form to still work for detailed profiles
+- [ ] Avatar upload (needs Supabase Storage bucket)
 
 ---
 
-## 8. Testing Workflow
-
-The user's development workflow:
-1. Extract provided files to `C:\Dev\CRC-main`
-2. Test locally with `pnpm dev`
-3. Push via git
-4. Cloudflare Pages auto-deploys
-5. Check Cloudflare build log for errors
-
-Common build failures:
-- Svelte 4 syntax in Svelte 5 project (event modifiers, `export let`, `$:`)
-- Querying non-existent columns (ask for schema first!)
-- `node:fs` or `node:path` usage (won't work on Cloudflare Workers)
-
----
-
-## 9. Key Contact Points
-
-- **Supabase Dashboard:** User can run SQL queries and share results
-- **Cloudflare Pages:** Build logs show exact errors with line numbers
-- **Browser Console:** F12 → Console shows runtime errors from client-side code
-- **Jekyll Archive:** Available at `/home/claude/jekyll-old/challenge-run-site-main/` in the AI workspace (if loaded from previous session)
-
----
-
-## 10. Communication Style
+## 11. Communication Style
 
 The user prefers:
-- **Ask before guessing.** It's always OK to ask for schema, error messages, or clarification. Never guess and deploy broken code.
+- **Ask before guessing.** Always OK to ask for schema, error messages, or clarification.
 - **Complete deliverables.** Provide full replacement files, not partial snippets.
-- **Honest about mistakes.** Own errors, explain the root cause, fix it.
+- **Honest about mistakes.** Own errors, explain root cause, fix it.
 - **Concise explanations.** Don't over-explain simple changes. Do explain architectural decisions.
+- **Update this doc every ~5 prompts** to keep it current.

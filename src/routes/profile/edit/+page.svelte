@@ -382,6 +382,40 @@
 		highlights[i] = { ...highlights[i], game_id: game.id, game_name: game.name };
 	}
 
+	// ── Video URL lookup for highlights ─────────────────────────
+	let videoMeta = $state<Record<number, { fetching: boolean; title: string; error: string }>>({});
+	let videoDebounces: Record<number, ReturnType<typeof setTimeout>> = {};
+
+	async function fetchHighlightVideoMeta(index: number, url: string) {
+		if (!videoMeta[index]) videoMeta[index] = { fetching: false, title: '', error: '' };
+		videoMeta[index].fetching = true;
+		videoMeta[index].title = '';
+		videoMeta[index].error = '';
+		try {
+			const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
+			if (!res.ok) throw new Error('Fetch failed');
+			const json = await res.json();
+			if (json.error) {
+				videoMeta[index] = { fetching: false, title: '', error: 'Could not retrieve video info.' };
+			} else {
+				videoMeta[index] = { fetching: false, title: json.title || '', error: '' };
+			}
+		} catch {
+			videoMeta[index] = { fetching: false, title: '', error: 'Could not retrieve video info.' };
+		}
+	}
+
+	function onHighlightVideoChange(index: number) {
+		const url = highlights[index]?.video_url || '';
+		if (videoDebounces[index]) clearTimeout(videoDebounces[index]);
+		if (!url || !isValidVideoUrl(url)) {
+			videoMeta[index] = { fetching: false, title: '', error: '' };
+			return;
+		}
+		videoMeta[index] = { fetching: true, title: '', error: '' };
+		videoDebounces[index] = setTimeout(() => fetchHighlightVideoMeta(index, url), 600);
+	}
+
 	// ── Other links helpers ─────────────────────────────────────
 	function addOtherLink() {
 		if (otherLinks.length >= 3) return;
@@ -799,11 +833,23 @@
 
 									<div class="fg">
 										<label class="fl" for="hl-video-{i}">Video URL</label>
-										<input id="hl-video-{i}" type="url" class="fi" bind:value={highlights[i].video_url} placeholder="https://youtube.com/watch?v=..." />
+										<input id="hl-video-{i}" type="url" class="fi" bind:value={highlights[i].video_url} oninput={() => onHighlightVideoChange(i)} placeholder="https://youtube.com/watch?v=..." />
 										{#if highlights[i].video_url && !isValidVideoUrl(highlights[i].video_url)}
-											<p class="fh" style="color: var(--danger, #ef4444);">Must be a valid YouTube, Twitch, Bilibili, or Nicovideo URL</p>
+											<p class="fh" style="color: var(--danger, #ef4444);">Must be a valid YouTube, Twitch, or Bilibili URL</p>
 										{:else}
-											<p class="fh">YouTube, Twitch, Bilibili, or Nicovideo links. May require moderator approval.</p>
+											<p class="fh">YouTube, Twitch, or Bilibili links. May require moderator approval.</p>
+										{/if}
+										{#if videoMeta[i]?.fetching}
+											<div class="video-meta"><span class="muted">Fetching video info...</span></div>
+										{/if}
+										{#if videoMeta[i]?.title}
+											<div class="video-meta video-meta--success">
+												<span>🎬</span>
+												<span class="video-meta__title">{videoMeta[i].title}</span>
+											</div>
+										{/if}
+										{#if videoMeta[i]?.error}
+											<div class="video-meta video-meta--warn"><span class="muted">{videoMeta[i].error}</span></div>
 										{/if}
 									</div>
 								</div>
@@ -883,20 +929,6 @@
 	.preview-pronouns { font-size: 0.85rem; }
 
 	/* Tabs */
-	.edit-tabs {
-		display: flex; gap: 0; border-bottom: 1px solid var(--border);
-		margin-bottom: 1.5rem; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
-	}
-	.edit-tabs::-webkit-scrollbar { display: none; }
-	.edit-tab {
-		padding: 0.75rem 1.25rem; background: none; border: none;
-		border-bottom: 2px solid transparent;
-		cursor: pointer; font-size: 0.9rem; font-family: inherit;
-		color: var(--text-muted); white-space: nowrap;
-	}
-	.edit-tab:hover { color: var(--fg); }
-	.edit-tab--active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
-
 	/* Card for tab content */
 	.tab-card { margin-bottom: 0; }
 	.card {
@@ -1027,4 +1059,10 @@
 	.typeahead__option:hover { background: var(--bg-hover); }
 	.typeahead__option--active { color: var(--accent); font-weight: 600; }
 	.typeahead__empty { padding: 0.5rem 0.65rem; color: var(--muted); font-size: 0.85rem; }
+
+	/* Video meta preview */
+	.video-meta { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.85rem; }
+	.video-meta--success { padding: 0.5rem 0.75rem; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; }
+	.video-meta--warn { padding: 0.4rem 0.75rem; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.15); border-radius: 6px; }
+	.video-meta__title { color: var(--fg); font-weight: 500; }
 </style>

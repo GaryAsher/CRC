@@ -106,8 +106,7 @@ export function isValidVideoUrl(url: string): boolean {
 			'twitch.tv',
 			'm.twitch.tv',
 			'player.twitch.tv',
-			'bilibili.com',
-			'nicovideo.jp'
+			'bilibili.com'
 		];
 		return allowedHosts.some((h) => host === h || host.endsWith('.' + h));
 	} catch {

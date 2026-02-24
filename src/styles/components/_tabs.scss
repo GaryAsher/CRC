@@ -13,9 +13,11 @@
 // ============================================================
 
 // ──────────────────────────────────────────────────────────
-// Tab Container
+// Tab Container (shared across runner, game, edit pages)
 // ──────────────────────────────────────────────────────────
-.runner-tabs {
+.runner-tabs,
+.game-tabs,
+.edit-tabs {
   display: flex;
   gap: 0.5rem;
   align-items: flex-end;
@@ -27,12 +29,21 @@
   background: var(--bg);
   padding: 0.75rem 0 0 0;
   border-bottom: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
+.runner-tabs::-webkit-scrollbar,
+.game-tabs::-webkit-scrollbar,
+.edit-tabs::-webkit-scrollbar { display: none; }
+
 // ──────────────────────────────────────────────────────────
-// Individual Tab Button
+// Individual Tab Button / Link
 // ──────────────────────────────────────────────────────────
-.runner-tabs .tab {
+.runner-tabs .tab,
+.game-tabs .game-tab,
+.edit-tabs .edit-tab {
   appearance: none;
   cursor: pointer;
   font: inherit;
@@ -48,9 +59,11 @@
 
   background: transparent;
   color: var(--text-dim);
+  text-decoration: none;
 
   font-weight: 650;
   opacity: 0.75;
+  white-space: nowrap;
 
   // Push tabs down to sit on container border
   margin-bottom: -1px;
@@ -62,14 +75,19 @@
     border-color 120ms ease;
 }
 
-.runner-tabs .tab:hover {
+.runner-tabs .tab:hover,
+.game-tabs .game-tab:hover,
+.edit-tabs .edit-tab:hover {
   background: var(--panel);
   color: var(--fg);
   opacity: 1;
+  text-decoration: none;
 }
 
 // Active Tab
-.runner-tabs .tab.active {
+.runner-tabs .tab.active,
+.game-tabs .game-tab--active,
+.edit-tabs .edit-tab--active {
   background: var(--bg);
   color: var(--fg);
   opacity: 1;
@@ -79,15 +97,23 @@
   box-shadow: none;
 }
 
-// Game page tabs (non-sticky)
-.page-width .runner-tabs.game-tabs {
+// Game page tabs (non-sticky, inside layout)
+.game-tabs {
   position: static;
   top: auto;
   z-index: auto;
-
   background: transparent;
   padding: 0;
-  margin: 0;
+}
+
+// Edit page tabs (non-sticky)
+.edit-tabs {
+  position: static;
+  top: auto;
+  z-index: auto;
+  background: transparent;
+  padding: 0;
+  margin-bottom: 1rem;
 }
 
 // Submit tab pushed to right
