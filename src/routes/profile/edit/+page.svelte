@@ -5,6 +5,21 @@
 	import { sanitizeText } from '$lib/utils/markdown';
 	import { checkBannedTerms } from '$lib/utils/banned-terms';
 	import { COUNTRIES, matchLocationToCode, getCountry } from '$lib/data/countries';
+
+	const PRIDE_FLAGS = [
+		{ label: 'Rainbow Pride', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Gay_Pride_Flag.svg/1280px-Gay_Pride_Flag.svg.png' },
+		{ label: 'Trans Pride', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Transgender_Pride_flag.svg/1280px-Transgender_Pride_flag.svg.png' },
+		{ label: 'Bisexual Pride', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Bisexual_flag.svg/1280px-Bisexual_flag.svg.png' },
+		{ label: 'Lesbian Pride', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Lesbian_pride_flag_2018.svg/1280px-Lesbian_pride_flag_2018.svg.png' },
+		{ label: 'Non-binary', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Nonbinary_flag.svg/1280px-Nonbinary_flag.svg.png' },
+		{ label: 'Pansexual', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Pansexual_Pride_Flag.svg/1280px-Pansexual_Pride_Flag.svg.png' },
+		{ label: 'Asexual', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Asexual_Pride_Flag.svg/1280px-Asexual_Pride_Flag.svg.png' },
+		{ label: 'Genderqueer', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Genderqueer_Pride_Flag.svg/1280px-Genderqueer_Pride_Flag.svg.png' },
+		{ label: 'Aromantic', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Aromantic_Pride_Flag.svg/1280px-Aromantic_Pride_Flag.svg.png' },
+		{ label: 'Progress Pride', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Progress_Pride_Flag.svg/1280px-Progress_Pride_Flag.svg.png' },
+		{ label: 'Intersex-Inclusive', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Intersex-inclusive_pride_flag.svg/1280px-Intersex-inclusive_pride_flag.svg.png' },
+		{ label: 'Genderfluid', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Genderfluidity_Pride-Flag.svg/1280px-Genderfluidity_Pride-Flag.svg.png' },
+	];
 	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 	import AuthGuard from '$components/auth/AuthGuard.svelte';
 
@@ -22,12 +37,19 @@
 	}
 
 	interface Highlight {
+		type: 'run' | 'playlist';
+		// run fields
 		game_id: string;
 		game_name: string;
 		category: string;
 		achievement: string;
 		video_url: string;
 		video_approved: boolean;
+		// playlist fields
+		title: string;
+		playlist_url: string;
+		cover_url: string;
+		description: string;
 	}
 
 	let { data } = $props();
@@ -420,9 +442,13 @@
 	}
 
 	// ── Highlights helpers ──────────────────────────────────────
-	function addHighlight() {
+	function addHighlight(type: 'run' | 'playlist' = 'run') {
 		if (highlights.length >= 3) return;
-		highlights = [...highlights, { game_id: '', game_name: '', category: '', achievement: '', video_url: '', video_approved: false }];
+		if (type === 'playlist') {
+			highlights = [...highlights, { type: 'playlist', game_id: '', game_name: '', category: '', achievement: '', video_url: '', video_approved: false, title: '', playlist_url: '', cover_url: '', description: '' }];
+		} else {
+			highlights = [...highlights, { type: 'run', game_id: '', game_name: '', category: '', achievement: '', video_url: '', video_approved: false, title: '', playlist_url: '', cover_url: '', description: '' }];
+		}
 	}
 
 	function removeHighlight(i: number) {
@@ -709,6 +735,26 @@
 							<p class="fh">Wide image displayed behind your avatar</p>
 						</div>
 
+						<!-- Pride flag presets -->
+						<div class="fg">
+							<label class="fl">🏳️‍🌈 Pride Flag Presets</label>
+							<div class="pride-grid">
+								{#each PRIDE_FLAGS as flag}
+									<button
+										type="button"
+										class="pride-swatch"
+										class:pride-swatch--active={bannerUrl === flag.url}
+										title={flag.label}
+										onclick={() => bannerUrl = bannerUrl === flag.url ? '' : flag.url}
+									>
+										<img src={flag.url} alt={flag.label} />
+										<span>{flag.label}</span>
+									</button>
+								{/each}
+							</div>
+							<p class="fh">Click to use as your banner. Click again to deselect.</p>
+						</div>
+
 						<!-- Theme link -->
 						<div class="fg">
 							<label class="fl">Colors & Theme</label>
@@ -917,7 +963,7 @@
 				{#if activeTab === 'highlights'}
 					<div class="card tab-card">
 						<h2>📌 Highlights</h2>
-						<p class="muted mb-3">Pin up to 3 of your best runs to the top of your profile.</p>
+						<p class="muted mb-3">Pin up to 3 highlights to the top of your profile — a single run or an entire playlist.</p>
 
 						{#if highlights.length === 0}
 							<p class="muted">No highlights yet. Add one below!</p>
@@ -926,62 +972,106 @@
 						{#each highlights as hl, i}
 							<div class="highlight-item">
 								<div class="highlight-item__header">
-									<span class="highlight-item__number">#{i + 1}</span>
-									<button type="button" class="highlight-item__remove" onclick={() => removeHighlight(i)}>✕</button>
+									<span class="highlight-item__number">
+										#{i + 1} — {hl.type === 'playlist' ? '🎬 Playlist' : '🎮 Single Run'}
+									</span>
+									<div class="highlight-item__header-actions">
+										<button
+											type="button"
+											class="btn btn--small"
+											class:btn--outline={hl.type !== 'run'}
+											onclick={() => highlights[i] = { ...highlights[i], type: 'run' }}
+										>🎮 Run</button>
+										<button
+											type="button"
+											class="btn btn--small"
+											class:btn--outline={hl.type !== 'playlist'}
+											onclick={() => highlights[i] = { ...highlights[i], type: 'playlist' }}
+										>🎬 Playlist</button>
+										<button type="button" class="highlight-item__remove" onclick={() => removeHighlight(i)}>✕</button>
+									</div>
 								</div>
 								<div class="highlight-item__body">
-									<div class="form-row">
-										<div class="fg fg--flex">
-											<label class="fl" for="hl-game-{i}">Game *</label>
-											<select id="hl-game-{i}" class="fi" value={hl.game_id} onchange={(e) => setHighlightGame(i, (e.target as HTMLSelectElement).value)}>
-												<option value="">Select a game...</option>
-												{#each gamesList as g}
-													<option value={g.id}>{g.name}</option>
-												{/each}
-											</select>
-										</div>
-									</div>
 
-									<div class="form-row">
-										<div class="fg fg--flex">
-											<label class="fl" for="hl-cat-{i}">Category</label>
-											<input id="hl-cat-{i}" type="text" class="fi" bind:value={highlights[i].category} maxlength="100" placeholder="e.g., All Bosses No Hit" />
+									{#if hl.type === 'playlist'}
+										<!-- Playlist mode -->
+										<div class="fg">
+											<label class="fl" for="hl-title-{i}">Playlist Title *</label>
+											<input id="hl-title-{i}" type="text" class="fi" bind:value={highlights[i].title} maxlength="100" placeholder="e.g., All My Hitless Runs" />
 										</div>
-										<div class="fg fg--flex">
-											<label class="fl" for="hl-ach-{i}">Achievement</label>
-											<input id="hl-ach-{i}" type="text" class="fi" bind:value={highlights[i].achievement} maxlength="100" placeholder="e.g., World First" />
+										<div class="fg">
+											<label class="fl" for="hl-playlist-{i}">Playlist URL *</label>
+											<input id="hl-playlist-{i}" type="url" class="fi" bind:value={highlights[i].playlist_url} placeholder="https://youtube.com/playlist?list=..." />
+											<p class="fh">YouTube playlist, Twitch collection, or any direct URL.</p>
 										</div>
-									</div>
-
-									<div class="fg">
-										<label class="fl" for="hl-video-{i}">Video URL</label>
-										<input id="hl-video-{i}" type="url" class="fi" bind:value={highlights[i].video_url} oninput={() => onHighlightVideoChange(i)} placeholder="https://youtube.com/watch?v=..." />
-										{#if highlights[i].video_url && !isValidVideoUrl(highlights[i].video_url)}
-											<p class="fh" style="color: var(--danger, #ef4444);">Must be a valid YouTube, Twitch, or Bilibili URL</p>
-										{:else}
-											<p class="fh">YouTube, Twitch, or Bilibili links. May require moderator approval.</p>
-										{/if}
-										{#if videoMeta[i]?.fetching}
-											<div class="video-meta"><span class="muted">Fetching video info...</span></div>
-										{/if}
-										{#if videoMeta[i]?.title}
-											<div class="video-meta video-meta--success">
-												<span>🎬</span>
-												<span class="video-meta__title">{videoMeta[i].title}</span>
+										<div class="fg">
+											<label class="fl" for="hl-desc-{i}">Description</label>
+											<textarea id="hl-desc-{i}" class="fi" bind:value={highlights[i].description} maxlength="200" rows="2" placeholder="What's in this playlist?"></textarea>
+										</div>
+										<div class="fg">
+											<label class="fl" for="hl-cover-{i}">Cover Image URL</label>
+											<input id="hl-cover-{i}" type="url" class="fi" bind:value={highlights[i].cover_url} placeholder="https://... (optional thumbnail)" />
+											<p class="fh">Optional — a thumbnail shown on your profile card. Leave blank for a default look.</p>
+										</div>
+									{:else}
+										<!-- Single run mode -->
+										<div class="form-row">
+											<div class="fg fg--flex">
+												<label class="fl" for="hl-game-{i}">Game *</label>
+												<select id="hl-game-{i}" class="fi" value={hl.game_id} onchange={(e) => setHighlightGame(i, (e.target as HTMLSelectElement).value)}>
+													<option value="">Select a game...</option>
+													{#each gamesList as g}
+														<option value={g.id}>{g.name}</option>
+													{/each}
+												</select>
 											</div>
-										{/if}
-										{#if videoMeta[i]?.error}
-											<div class="video-meta video-meta--warn"><span class="muted">{videoMeta[i].error}</span></div>
-										{/if}
-									</div>
+										</div>
+
+										<div class="form-row">
+											<div class="fg fg--flex">
+												<label class="fl" for="hl-cat-{i}">Category</label>
+												<input id="hl-cat-{i}" type="text" class="fi" bind:value={highlights[i].category} maxlength="100" placeholder="e.g., All Bosses No Hit" />
+											</div>
+											<div class="fg fg--flex">
+												<label class="fl" for="hl-ach-{i}">Achievement</label>
+												<input id="hl-ach-{i}" type="text" class="fi" bind:value={highlights[i].achievement} maxlength="100" placeholder="e.g., World First" />
+											</div>
+										</div>
+
+										<div class="fg">
+											<label class="fl" for="hl-video-{i}">Video URL</label>
+											<input id="hl-video-{i}" type="url" class="fi" bind:value={highlights[i].video_url} oninput={() => onHighlightVideoChange(i)} placeholder="https://youtube.com/watch?v=..." />
+											{#if highlights[i].video_url && !isValidVideoUrl(highlights[i].video_url)}
+												<p class="fh" style="color: var(--danger, #ef4444);">Must be a valid YouTube, Twitch, or Bilibili URL</p>
+											{:else}
+												<p class="fh">YouTube, Twitch, or Bilibili links. May require moderator approval.</p>
+											{/if}
+											{#if videoMeta[i]?.fetching}
+												<div class="video-meta"><span class="muted">Fetching video info...</span></div>
+											{/if}
+											{#if videoMeta[i]?.title}
+												<div class="video-meta video-meta--success">
+													<span>🎬</span>
+													<span class="video-meta__title">{videoMeta[i].title}</span>
+												</div>
+											{/if}
+											{#if videoMeta[i]?.error}
+												<div class="video-meta video-meta--warn"><span class="muted">{videoMeta[i].error}</span></div>
+											{/if}
+										</div>
+									{/if}
+
 								</div>
 							</div>
 						{/each}
 
 						{#if highlights.length < 3}
-							<button type="button" class="btn btn--small mt-3" onclick={addHighlight}>+ Add Highlight</button>
+							<div class="highlight-add-row">
+								<button type="button" class="btn btn--small mt-3" onclick={() => addHighlight('run')}>+ Add Run</button>
+								<button type="button" class="btn btn--small mt-3" onclick={() => addHighlight('playlist')}>+ Add Playlist</button>
+							</div>
 						{/if}
-						<p class="fh">Up to 3 highlights.</p>
+						<p class="fh">Up to 3 highlights. Mix and match runs and playlists.</p>
 					</div>
 				{/if}
 
@@ -1181,6 +1271,29 @@
 	.typeahead__option:hover { background: var(--bg-hover); }
 	.typeahead__option--active { color: var(--accent); font-weight: 600; }
 	.typeahead__empty { padding: 0.5rem 0.65rem; color: var(--muted); font-size: 0.85rem; }
+
+	/* Pride flag presets */
+	.pride-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+		gap: 0.5rem;
+		margin-top: 0.5rem;
+	}
+	.pride-swatch {
+		display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+		padding: 0.4rem; border-radius: 8px; border: 2px solid var(--border);
+		background: var(--surface); cursor: pointer; transition: border-color 0.15s;
+	}
+	.pride-swatch img { width: 100%; aspect-ratio: 5/3; object-fit: cover; border-radius: 4px; }
+	.pride-swatch span { font-size: 0.7rem; color: var(--muted); text-align: center; line-height: 1.2; }
+	.pride-swatch:hover { border-color: var(--accent); }
+	.pride-swatch--active { border-color: var(--accent); background: rgba(var(--accent-rgb, 99 102 241) / 0.1); }
+	.pride-swatch--active span { color: var(--accent); font-weight: 600; }
+
+	/* Highlight header with type toggle */
+	.highlight-item__header { flex-wrap: wrap; gap: 0.5rem; }
+	.highlight-item__header-actions { display: flex; align-items: center; gap: 0.4rem; }
+	.highlight-add-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
 	/* Video meta preview */
 	.video-meta { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.85rem; }

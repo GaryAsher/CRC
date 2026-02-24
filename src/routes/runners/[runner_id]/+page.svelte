@@ -164,23 +164,41 @@
 				<h2>📌 Highlights</h2>
 				<div class="highlights-grid">
 					{#each runner.featured_runs as fr}
-						{@const frGame = data.allGames.find(g => g.game_id === fr.game_id)}
-						{@const thumb = fr.video_url ? getVideoThumbnail(fr.video_url) : null}
-						<div class="highlight-card">
-							{#if thumb}
-								<div class="highlight-card__bg" style="background-image: url('{thumb}')"></div>
-							{:else if frGame?.cover}
-								<div class="highlight-card__bg" style="background-image: url('{frGame.cover}')"></div>
-							{/if}
-							<div class="highlight-card__overlay">
-								<div class="highlight-card__game">{frGame?.game_name || fr.game_id}</div>
-								<div class="highlight-card__category">{fr.category}</div>
-								{#if fr.achievement}<div class="highlight-card__note">{fr.achievement}</div>{/if}
-								{#if fr.video_url && fr.video_approved}
-									<a href={fr.video_url} target="_blank" rel="noopener" class="highlight-card__video">▶ Watch</a>
+						{#if fr.type === 'playlist'}
+							<div class="highlight-card">
+								{#if fr.cover_url}
+									<div class="highlight-card__bg" style="background-image: url('{fr.cover_url}')"></div>
+								{:else}
+									<div class="highlight-card__playlist-bg"></div>
 								{/if}
+								<div class="highlight-card__overlay">
+									<div class="highlight-card__game">🎬 Playlist</div>
+									<div class="highlight-card__category">{fr.title || 'Untitled Playlist'}</div>
+									{#if fr.description}<div class="highlight-card__note">{fr.description}</div>{/if}
+									{#if fr.playlist_url}
+										<a href={fr.playlist_url} target="_blank" rel="noopener" class="highlight-card__video">▶ View Playlist</a>
+									{/if}
+								</div>
 							</div>
-						</div>
+						{:else}
+							{@const frGame = data.allGames.find(g => g.game_id === fr.game_id)}
+							{@const thumb = fr.video_url ? getVideoThumbnail(fr.video_url) : null}
+							<div class="highlight-card">
+								{#if thumb}
+									<div class="highlight-card__bg" style="background-image: url('{thumb}')"></div>
+								{:else if frGame?.cover}
+									<div class="highlight-card__bg" style="background-image: url('{frGame.cover}')"></div>
+								{/if}
+								<div class="highlight-card__overlay">
+									<div class="highlight-card__game">{frGame?.game_name || fr.game_id}</div>
+									<div class="highlight-card__category">{fr.category}</div>
+									{#if fr.achievement}<div class="highlight-card__note">{fr.achievement}</div>{/if}
+									{#if fr.video_url && fr.video_approved}
+										<a href={fr.video_url} target="_blank" rel="noopener" class="highlight-card__video">▶ Watch</a>
+									{/if}
+								</div>
+							</div>
+						{/if}
 					{/each}
 				</div>
 			</section>
@@ -569,6 +587,8 @@
 	@media (max-width: 768px) { .highlights-grid { grid-template-columns: 1fr; } }
 	.highlight-card { position: relative; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; border: 2px solid var(--accent); background: var(--surface); }
 	.highlight-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform 0.3s ease; }
+	.highlight-card__playlist-bg { position: absolute; inset: 0; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
+	.highlight-card__playlist-bg::after { content: '🎬'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2.5rem; opacity: 0.3; }
 	.highlight-card:hover .highlight-card__bg { transform: scale(1.05); }
 	.highlight-card__overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 100%); display: flex; flex-direction: column; justify-content: flex-end; padding: 0.75rem; }
 	.highlight-card__game { font-size: 0.75rem; color: rgba(255,255,255,0.7); }
