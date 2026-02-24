@@ -543,7 +543,7 @@
 	/* Highlights */
 	.runner-highlights { margin-bottom: 1.5rem; }
 	.runner-highlights h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
-	.highlights-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; max-width: 70%; }
+	.highlights-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem;}
 	.highlight-card { position: relative; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; border: 2px solid var(--accent); background: var(--surface); }
 	.highlight-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform 0.3s ease; }
 	.highlight-card:hover .highlight-card__bg { transform: scale(1.05); }
