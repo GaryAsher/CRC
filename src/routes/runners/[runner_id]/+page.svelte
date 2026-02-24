@@ -8,7 +8,7 @@
 	const socials = $derived(runner.socials || {});
 
 	// Tab state
-	let activeTab = $state<'runs' | 'achievements' | 'contributions' | 'activity'>('runs');
+	let activeTab = $state<'overview' | 'runs' | 'achievements' | 'contributions' | 'activity'>('overview');
 
 	// Game detail view within runs tab — auto-select from query param if present
 	const initialGameId = $page.url.searchParams.get('game');
@@ -103,50 +103,100 @@
 		{/if}
 	</section>
 
-	<!-- Bio -->
-	{#if runner.bio || runner.content}
-		<section class="runner-bio card">
-			<h2>About</h2>
-			{#if runner.content}
-				<div class="md">{@html renderMarkdown(runner.content)}</div>
-			{:else}
-				<p>{runner.bio}</p>
-			{/if}
-		</section>
-	{/if}
-
-	<!-- Highlights -->
-	{#if runner.featured_runs?.length}
-		<section class="runner-highlights">
-			<h2>📌 Highlights</h2>
-			<div class="highlights-grid">
-				{#each runner.featured_runs as fr}
-					{@const frGame = data.allGames.find(g => g.game_id === fr.game_id)}
-					<div class="highlight-card">
-						{#if frGame?.cover}
-							<div class="highlight-card__bg" style="background-image: url('{frGame.cover}')"></div>
-						{/if}
-						<div class="highlight-card__overlay">
-							<div class="highlight-card__game">{frGame?.game_name || fr.game_id}</div>
-							<div class="highlight-card__category">{fr.category}</div>
-							{#if fr.achievement}<div class="highlight-card__note">{fr.achievement}</div>{/if}
-							{#if fr.video_url && fr.video_approved}
-								<a href={fr.video_url} target="_blank" rel="noopener" class="highlight-card__video">▶ Watch</a>
-							{/if}
-						</div>
-					</div>
-				{/each}
-			</div>
-		</section>
-	{/if}
-
 	<!-- Tabs Navigation -->
 	<nav class="runner-tabs">
+		<button class="tab" class:active={activeTab === 'overview'} onclick={() => activeTab = 'overview'}>Overview</button>
 		<button class="tab" class:active={activeTab === 'runs'} onclick={() => activeTab = 'runs'}>Run Statistics</button>
 		<button class="tab" class:active={activeTab === 'achievements'} onclick={() => activeTab = 'achievements'}>Achievements</button>
-		<button class="tab" class:active={activeTab === 'contributions'} onclick={() => activeTab = 'contributions'}>Contributions</button>
 		<button class="tab" class:active={activeTab === 'activity'} onclick={() => activeTab = 'activity'}>Activity</button>
 	</nav>
+
+	<!-- OVERVIEW TAB -->
+	{#if activeTab === 'overview'}
+		{#if runner.bio || runner.content}
+			<section class="runner-bio card">
+				<h2>About</h2>
+				{#if runner.content}
+					<div class="md">{@html renderMarkdown(runner.content)}</div>
+				{:else}
+					<p>{runner.bio}</p>
+				{/if}
+			</section>
+		{/if}
+
+		<!-- Highlights -->
+		{#if runner.featured_runs?.length}
+			<section class="runner-highlights">
+				<h2>📌 Highlights</h2>
+				<div class="highlights-grid">
+					{#each runner.featured_runs as fr}
+						{@const frGame = data.allGames.find(g => g.game_id === fr.game_id)}
+						<div class="highlight-card">
+							{#if frGame?.cover}
+								<div class="highlight-card__bg" style="background-image: url('{frGame.cover}')"></div>
+							{/if}
+							<div class="highlight-card__overlay">
+								<div class="highlight-card__game">{frGame?.game_name || fr.game_id}</div>
+								<div class="highlight-card__category">{fr.category}</div>
+								{#if fr.achievement}<div class="highlight-card__note">{fr.achievement}</div>{/if}
+								{#if fr.video_url && fr.video_approved}
+									<a href={fr.video_url} target="_blank" rel="noopener" class="highlight-card__video">▶ Watch</a>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		<!-- Contributions in Overview -->
+		{#if runner.contributions?.length}
+			<div class="card mt-section">
+				<h2>🛠️ Community Contributions</h2>
+				<div class="contributions-list">
+					{#each runner.contributions as c}
+						<div class="contribution-item">
+							<div class="contribution-icon">{c.icon || '📄'}</div>
+							<div class="contribution-info">
+								<h4>{c.title}</h4>
+								{#if c.description}<p class="muted">{c.description}</p>{/if}
+								{#if c.url}<a href={c.url} target="_blank" class="contribution-link">View →</a>{/if}
+							</div>
+							<span class="contribution-type">{c.type || 'Resource'}</span>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
+		<!-- Game Page Credits in Overview -->
+		{@const overviewCreditedGames = data.allGames.filter(g =>
+			(g as any).credits?.some((c: any) => c.runner_id === runner.runner_id)
+		)}
+		{#if overviewCreditedGames.length > 0}
+			<div class="card mt-section">
+				<h3>📋 Game Page Credits</h3>
+				<div class="credits-grid">
+					{#each overviewCreditedGames as cg}
+						{@const credit = (cg as any).credits?.find((c: any) => c.runner_id === runner.runner_id)}
+						<a href="/games/{cg.game_id}" class="credit-game-card">
+							{#if cg.cover}
+								<div class="credit-game-card__bg" style="background-image: url('{cg.cover}')"></div>
+							{/if}
+							<div class="credit-game-card__overlay">
+								<span class="credit-game-card__name">{cg.game_name}</span>
+								<span class="credit-game-card__role">{credit?.role || 'Contributor'}</span>
+							</div>
+						</a>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
+		{#if !runner.bio && !runner.content && !runner.contributions?.length && overviewCreditedGames.length === 0}
+			<div class="card"><p class="muted">No overview information yet.</p></div>
+		{/if}
+	{/if}
 
 	<!-- RUNS TAB -->
 	{#if activeTab === 'runs'}
@@ -359,59 +409,6 @@
 				</div>
 			{:else}
 				<p class="muted">No personal goals set yet.</p>
-			{/if}
-		</div>
-	{/if}
-
-	<!-- CONTRIBUTIONS TAB -->
-	{#if activeTab === 'contributions'}
-		<div class="card">
-			<h2>🛠️ Community Contributions</h2>
-			<p class="muted mb-2">Tools, guides, and resources.</p>
-
-			{#if runner.contributions?.length}
-				<div class="contributions-list">
-					{#each runner.contributions as c}
-						<div class="contribution-item">
-							<div class="contribution-icon">{c.icon || '📄'}</div>
-							<div class="contribution-info">
-								<h4>{c.title}</h4>
-								{#if c.description}<p class="muted">{c.description}</p>{/if}
-								{#if c.url}<a href={c.url} target="_blank" class="contribution-link">View →</a>{/if}
-							</div>
-							<span class="contribution-type">{c.type || 'Resource'}</span>
-						</div>
-					{/each}
-				</div>
-			{:else}
-				<p class="muted">No contributions listed yet.</p>
-			{/if}
-		</div>
-
-		<!-- Game Page Credits -->
-		{@const creditedGames = data.allGames.filter(g =>
-			(g as any).credits?.some((c: any) => c.runner_id === runner.runner_id)
-		)}
-		<div class="card mt-section">
-			<h3>📋 Game Page Credits</h3>
-			<p class="muted mb-2">Games where this runner is credited:</p>
-			{#if creditedGames.length > 0}
-				<div class="credits-grid">
-					{#each creditedGames as cg}
-						{@const credit = (cg as any).credits?.find((c: any) => c.runner_id === runner.runner_id)}
-						<a href="/games/{cg.game_id}" class="credit-game-card">
-							{#if cg.cover}
-								<div class="credit-game-card__bg" style="background-image: url('{cg.cover}')"></div>
-							{/if}
-							<div class="credit-game-card__overlay">
-								<span class="credit-game-card__name">{cg.game_name}</span>
-								<span class="credit-game-card__role">{credit?.role || 'Contributor'}</span>
-							</div>
-						</a>
-					{/each}
-				</div>
-			{:else}
-				<p class="muted">No credits found.</p>
 			{/if}
 		</div>
 	{/if}

@@ -15,7 +15,7 @@
 	let { activeLetter = $bindable('') }: Props = $props();
 
 	function select(letter: string) {
-		activeLetter = activeLetter === letter ? '' : letter;
+		activeLetter = letter;
 	}
 </script>
 

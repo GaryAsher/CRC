@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { user } from '$stores/auth';
 	import { supabase } from '$lib/supabase';
+	import { isValidVideoUrl } from '$lib/utils';
 	import { sanitizeText } from '$lib/utils/markdown';
 	import { checkBannedTerms } from '$lib/utils/banned-terms';
 	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
@@ -799,7 +800,11 @@
 									<div class="fg">
 										<label class="fl" for="hl-video-{i}">Video URL</label>
 										<input id="hl-video-{i}" type="url" class="fi" bind:value={highlights[i].video_url} placeholder="https://youtube.com/watch?v=..." />
-										<p class="fh">Videos not already on the site may require moderator approval.</p>
+										{#if highlights[i].video_url && !isValidVideoUrl(highlights[i].video_url)}
+											<p class="fh" style="color: var(--danger, #ef4444);">Must be a valid YouTube, Twitch, Bilibili, or Nicovideo URL</p>
+										{:else}
+											<p class="fh">YouTube, Twitch, Bilibili, or Nicovideo links. May require moderator approval.</p>
+										{/if}
 									</div>
 								</div>
 							</div>
