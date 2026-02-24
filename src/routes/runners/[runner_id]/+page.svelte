@@ -1,6 +1,24 @@
 <script lang="ts">
 	import { formatDate, formatTime } from '$lib/utils';
 	import { renderMarkdown } from '$lib/utils/markdown';
+
+	/** Extract a thumbnail URL from a video URL (YouTube, Twitch clips) */
+	function getVideoThumbnail(url: string): string | null {
+		if (!url) return null;
+		try {
+			const u = new URL(url);
+			// YouTube: youtube.com/watch?v=ID or youtu.be/ID
+			if (u.hostname.includes('youtube.com')) {
+				const id = u.searchParams.get('v');
+				if (id) return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+			}
+			if (u.hostname === 'youtu.be') {
+				const id = u.pathname.slice(1);
+				if (id) return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+			}
+		} catch { /* invalid URL */ }
+		return null;
+	}
 	import { page } from '$app/stores';
 
 	let { data } = $props();
@@ -29,17 +47,11 @@
 	const miniRunCount = $derived(data.runs.length - fullRunCount);
 
 	// Split personal goals into completed vs in-progress
-	// Handle: boolean true, string "true", or progress reaching total
-	function isGoalCompleted(g: any): boolean {
-		if (g.completed === true || g.completed === 'true') return true;
-		if (g.total > 0 && g.current >= g.total) return true;
-		return false;
-	}
 	const completedGoals = $derived(
-		(runner.personal_goals || []).filter(isGoalCompleted)
+		(runner.personal_goals || []).filter((g: any) => g.completed)
 	);
 	const inProgressGoals = $derived(
-		(runner.personal_goals || []).filter((g: any) => !isGoalCompleted(g))
+		(runner.personal_goals || []).filter((g: any) => !g.completed)
 	);
 </script>
 
@@ -127,49 +139,89 @@
 
 	<!-- OVERVIEW TAB -->
 	{#if activeTab === 'overview'}
-		<!-- Row 1: About + Highlights side-by-side -->
-		{@const hasAbout = !!(runner.bio || runner.content)}
-		{@const hasHighlights = !!(runner.featured_runs?.length)}
-		{#if hasAbout || hasHighlights}
-			<div class="overview-top-row" class:overview-top-row--single={!hasAbout || !hasHighlights}>
-				{#if hasAbout}
-					<section class="runner-bio card">
-						<h2>About</h2>
-						{#if runner.content}
-							<div class="md">{@html renderMarkdown(runner.content)}</div>
-						{:else}
-							<p>{runner.bio}</p>
-						{/if}
-					</section>
+		{#if runner.bio || runner.content}
+			<section class="runner-bio card">
+				<h2>About</h2>
+				{#if runner.content}
+					<div class="md">{@html renderMarkdown(runner.content)}</div>
+				{:else}
+					<p>{runner.bio}</p>
 				{/if}
+			</section>
+		{/if}
 
-				{#if hasHighlights}
-					<section class="runner-highlights card">
-						<h2>📌 Highlights</h2>
-						<div class="highlights-stack">
-							{#each runner.featured_runs as fr}
-								{@const frGame = data.allGames.find(g => g.game_id === fr.game_id)}
-								<div class="highlight-card">
-									{#if frGame?.cover}
-										<div class="highlight-card__bg" style="background-image: url('{frGame.cover}')"></div>
-									{/if}
-									<div class="highlight-card__overlay">
-										<div class="highlight-card__game">{frGame?.game_name || fr.game_id}</div>
-										<div class="highlight-card__category">{fr.category}</div>
-										{#if fr.achievement}<div class="highlight-card__note">{fr.achievement}</div>{/if}
-										{#if fr.video_url && fr.video_approved}
-											<a href={fr.video_url} target="_blank" rel="noopener" class="highlight-card__video">▶ Watch</a>
-										{/if}
-									</div>
-								</div>
-							{/each}
+		<!-- Highlights -->
+		{#if runner.featured_runs?.length}
+			<section class="runner-highlights">
+				<h2>📌 Highlights</h2>
+				<div class="highlights-grid">
+					{#each runner.featured_runs as fr}
+						{@const frGame = data.allGames.find(g => g.game_id === fr.game_id)}
+						{@const thumb = fr.video_url ? getVideoThumbnail(fr.video_url) : null}
+						<div class="highlight-card">
+							{#if thumb}
+								<div class="highlight-card__bg" style="background-image: url('{thumb}')"></div>
+							{:else if frGame?.cover}
+								<div class="highlight-card__bg" style="background-image: url('{frGame.cover}')"></div>
+							{/if}
+							<div class="highlight-card__overlay">
+								<div class="highlight-card__game">{frGame?.game_name || fr.game_id}</div>
+								<div class="highlight-card__category">{fr.category}</div>
+								{#if fr.achievement}<div class="highlight-card__note">{fr.achievement}</div>{/if}
+								{#if fr.video_url && fr.video_approved}
+									<a href={fr.video_url} target="_blank" rel="noopener" class="highlight-card__video">▶ Watch</a>
+								{/if}
+							</div>
 						</div>
-					</section>
-				{/if}
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		<!-- Contributions in Overview -->
+		{#if runner.contributions?.length}
+			<div class="card mt-section">
+				<h2>🛠️ Community Contributions</h2>
+				<div class="contributions-list">
+					{#each runner.contributions as c}
+						<div class="contribution-item">
+							<div class="contribution-icon">{c.icon || '📄'}</div>
+							<div class="contribution-info">
+								<h4>{c.title}</h4>
+								{#if c.description}<p class="muted">{c.description}</p>{/if}
+								{#if c.url}<a href={c.url} target="_blank" class="contribution-link">View →</a>{/if}
+							</div>
+							<span class="contribution-type">{c.type || 'Resource'}</span>
+						</div>
+					{/each}
+				</div>
 			</div>
 		{/if}
 
-		<!-- Row 2: Goals In Progress -->
+		<!-- Game Page Credits in Overview -->
+		{@const overviewCreditedGames = data.allGames.filter(g =>
+			(g as any).credits?.some((c: any) => c.runner_id === runner.runner_id)
+		)}
+		{#if overviewCreditedGames.length > 0}
+			<div class="card mt-section">
+				<h3>📋 Game Page Credits</h3>
+				<div class="credits-grid">
+					{#each overviewCreditedGames as cg}
+						{@const credit = (cg as any).credits?.find((c: any) => c.runner_id === runner.runner_id)}
+						<a href="/games/{cg.game_id}" class="credit-game-card">
+							{#if cg.cover}
+								<div class="credit-game-card__bg" style="background-image: url('{cg.cover}')"></div>
+							{/if}
+							<div class="credit-game-card__overlay">
+								<span class="credit-game-card__name">{cg.game_name}</span>
+								<span class="credit-game-card__role">{credit?.role || 'Contributor'}</span>
+							</div>
+						</a>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
 		{#if inProgressGoals.length > 0}
 			<div class="card mt-section">
 				<h2>🎯 Goals In Progress</h2>
@@ -198,80 +250,7 @@
 			</div>
 		{/if}
 
-		<!-- Row 2b: Completed Goals -->
-		{#if completedGoals.length > 0}
-			<div class="card mt-section">
-				<h2>✅ Completed Goals</h2>
-				<div class="personal-goals-list">
-					{#each completedGoals as goal}
-						<div class="personal-goal-item">
-							<div class="personal-goal-item__icon">{goal.icon || '🎯'}</div>
-							<div class="personal-goal-item__content">
-								<div class="personal-goal-item__header">
-									<h4>{goal.title}</h4>
-									<span class="goal-status goal-status--completed">✓ Completed</span>
-								</div>
-								{#if goal.description}<p class="muted">{goal.description}</p>{/if}
-								{#if goal.game}<span class="personal-goal-item__game">{goal.game}</span>{/if}
-								{#if goal.total && goal.total > 0}
-									<div class="personal-goal-item__progress">
-										<div class="progress-bar"><div class="progress-bar__fill" style="width: 100%"></div></div>
-										<span class="progress-bar__text">{goal.current || goal.total} / {goal.total}</span>
-									</div>
-								{/if}
-								{#if goal.date_completed || goal.date}<span class="muted personal-goal-item__date">Completed: {formatDate(goal.date_completed || goal.date)}</span>{/if}
-							</div>
-						</div>
-					{/each}
-				</div>
-			</div>
-		{/if}
-
-		<!-- Row 3: Game Page Credits -->
-		{@const overviewCreditedGames = data.allGames.filter(g =>
-			(g as any).credits?.some((c: any) => c.runner_id === runner.runner_id)
-		)}
-		{#if overviewCreditedGames.length > 0}
-			<div class="card mt-section">
-				<h3>📋 Game Page Credits</h3>
-				<div class="credits-grid">
-					{#each overviewCreditedGames as cg}
-						{@const credit = (cg as any).credits?.find((c: any) => c.runner_id === runner.runner_id)}
-						<a href="/games/{cg.game_id}" class="credit-game-card">
-							{#if cg.cover}
-								<div class="credit-game-card__bg" style="background-image: url('{cg.cover}')"></div>
-							{/if}
-							<div class="credit-game-card__overlay">
-								<span class="credit-game-card__name">{cg.game_name}</span>
-								<span class="credit-game-card__role">{credit?.role || 'Contributor'}</span>
-							</div>
-						</a>
-					{/each}
-				</div>
-			</div>
-		{/if}
-
-		<!-- Contributions -->
-		{#if runner.contributions?.length}
-			<div class="card mt-section">
-				<h2>🛠️ Community Contributions</h2>
-				<div class="contributions-list">
-					{#each runner.contributions as c}
-						<div class="contribution-item">
-							<div class="contribution-icon">{c.icon || '📄'}</div>
-							<div class="contribution-info">
-								<h4>{c.title}</h4>
-								{#if c.description}<p class="muted">{c.description}</p>{/if}
-								{#if c.url}<a href={c.url} target="_blank" class="contribution-link">View →</a>{/if}
-							</div>
-							<span class="contribution-type">{c.type || 'Resource'}</span>
-						</div>
-					{/each}
-				</div>
-			</div>
-		{/if}
-
-		{#if !hasAbout && !hasHighlights && !runner.contributions?.length && overviewCreditedGames.length === 0 && inProgressGoals.length === 0 && completedGoals.length === 0}
+		{#if !runner.bio && !runner.content && !runner.contributions?.length && overviewCreditedGames.length === 0 && inProgressGoals.length === 0}
 			<div class="card"><p class="muted">No overview information yet.</p></div>
 		{/if}
 	{/if}
@@ -469,7 +448,7 @@
 								</div>
 								{#if goal.description}<p class="muted">{goal.description}</p>{/if}
 								{#if goal.game}<span class="personal-goal-item__game">{goal.game}</span>{/if}
-								{#if goal.date_completed || goal.date}<span class="muted personal-goal-item__date">Completed: {formatDate(goal.date_completed || goal.date)}</span>{/if}
+								{#if goal.date_completed}<span class="muted personal-goal-item__date">Completed: {goal.date_completed}</span>{/if}
 							</div>
 						</div>
 					{/each}
@@ -556,19 +535,15 @@
 	.runner-link__icon { flex-shrink: 0; font-size: 0.85rem; }
 	.runner-link:hover { border-color: var(--accent); color: var(--accent); }
 
-	/* Overview Top Row: About + Highlights side-by-side */
-	.overview-top-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
-	.overview-top-row--single { grid-template-columns: 1fr; }
-
 	/* Bio */
-	.runner-bio { margin-bottom: 0; }
+	.runner-bio { margin-bottom: 1.5rem; }
 	.runner-bio h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 	.runner-bio p { margin: 0; line-height: 1.6; white-space: pre-wrap; }
 
-	/* Highlights — stacked vertically */
-	.runner-highlights { margin-bottom: 0; }
+	/* Highlights */
+	.runner-highlights { margin-bottom: 1.5rem; }
 	.runner-highlights h2 { font-size: 1.1rem; margin: 0 0 0.75rem; }
-	.highlights-stack { display: flex; flex-direction: column; gap: 0.75rem; }
+	.highlights-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; max-width: 70%; }
 	.highlight-card { position: relative; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; border: 2px solid var(--accent); background: var(--surface); }
 	.highlight-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform 0.3s ease; }
 	.highlight-card:hover .highlight-card__bg { transform: scale(1.05); }
@@ -716,7 +691,6 @@
 
 	/* Responsive */
 	@media (max-width: 640px) {
-		.overview-top-row { grid-template-columns: 1fr; }
 		.runner-banner { height: 120px; }
 		.runner-top { flex-direction: column; }
 		.runner-socials { grid-template-columns: 1fr; }
