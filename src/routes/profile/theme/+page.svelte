@@ -395,7 +395,7 @@
 	.preset-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
 	.preset-btn.active { border-color: var(--accent); background: rgba(255, 255, 255, 0.04); }
 	.preset-swatch { width: 28px; height: 28px; border-radius: 50%; }
-	.preset-name { font-size: 0.75rem; color: #fff; }
+	.preset-name { font-size: 0.75rem; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
 
 	/* Colors */
 	.color-options { display: flex; flex-direction: column; gap: 1rem; }

@@ -38,10 +38,18 @@
   margin-bottom: 1.5rem;
 }
 
-// Game & edit tabs: not sticky
-.game-tabs,
-.edit-tabs {
+// Game tabs: sticky below header
+.game-tabs {
+  position: sticky;
+  top: 76px;
+  z-index: 50;
+  background: var(--bg);
   margin-bottom: 1.5rem;
+}
+
+// Edit tabs: inside sticky sidebar, not independently sticky
+.edit-tabs {
+  margin-bottom: 0;
 }
 
 // ──────────────────────────────────────────────────────────

@@ -624,52 +624,58 @@
 					: bannerUrl ? `url(${bannerUrl})` : ''}
 				{@const effectiveBgSize = bannerSize === 'fill' ? '100% 100%' : bannerSize === 'contain' ? 'contain' : 'cover'}
 				{@const effectiveBgPos = bannerPosition === 'top' ? 'top' : bannerPosition === 'bottom' ? 'bottom' : 'center'}
-				<div class="preview-card mb-4">
-					<p class="preview-label">Profile Preview</p>
-					<div class="preview-shell" style="--preview-opacity:{bannerOpacity}">
-						{#if effectiveBannerCss && bannerMode === 'background'}
-							<!-- Background mode: banner fills the whole preview shell -->
-							<div class="preview-bg-banner" style="background:{effectiveBannerCss}; background-size:{effectiveBgSize}; background-position:{effectiveBgPos}; opacity:{bannerOpacity};"></div>
-						{:else if effectiveBannerCss}
-							<!-- Above mode: banner is a strip at the top -->
-							<div class="preview-top-banner">
-								<div class="preview-top-banner__img" style="background:{effectiveBannerCss}; background-size:{effectiveBgSize}; background-position:{effectiveBgPos}; opacity:{bannerOpacity};"></div>
-								<div class="preview-top-banner__fade"></div>
-							</div>
-						{:else}
-							<div class="preview-top-banner preview-top-banner--empty">
-								<div class="preview-top-banner__gradient"></div>
-							</div>
-						{/if}
-						<div class="preview-body">
-							<div class="preview-avatar-wrap">
-								{#if avatarUrl}
-									<img class="preview-avatar" src={avatarUrl} alt="" />
+
+				<div class="edit-layout">
+					<!-- Sticky sidebar: preview + tab nav -->
+					<div class="edit-sidebar">
+						<div class="preview-card">
+							<p class="preview-label">Profile Preview</p>
+							<div class="preview-shell" style="--preview-opacity:{bannerOpacity}">
+								{#if effectiveBannerCss && bannerMode === 'background'}
+									<div class="preview-bg-banner" style="background:{effectiveBannerCss}; background-size:{effectiveBgSize}; background-position:{effectiveBgPos}; opacity:{bannerOpacity};"></div>
+								{:else if effectiveBannerCss}
+									<div class="preview-top-banner">
+										<div class="preview-top-banner__img" style="background:{effectiveBannerCss}; background-size:{effectiveBgSize}; background-position:{effectiveBgPos}; opacity:{bannerOpacity};"></div>
+										<div class="preview-top-banner__fade"></div>
+									</div>
 								{:else}
-									<div class="preview-avatar preview-avatar--placeholder">👤</div>
+									<div class="preview-top-banner preview-top-banner--empty">
+										<div class="preview-top-banner__gradient"></div>
+									</div>
 								{/if}
-							</div>
-							<div class="preview-info">
-								<span class="preview-name">{displayName || 'Display Name'}</span>
-								{#if pronouns}<span class="preview-pronouns muted"> ({pronouns})</span>{/if}
+								<div class="preview-body">
+									<div class="preview-avatar-wrap">
+										{#if avatarUrl}
+											<img class="preview-avatar" src={avatarUrl} alt="" />
+										{:else}
+											<div class="preview-avatar preview-avatar--placeholder">👤</div>
+										{/if}
+									</div>
+									<div class="preview-info">
+										<span class="preview-name">{displayName || 'Display Name'}</span>
+										{#if pronouns}<span class="preview-pronouns muted"> ({pronouns})</span>{/if}
+									</div>
+								</div>
 							</div>
 						</div>
-					</div>
-				</div>
 
-				<!-- Tab Navigation -->
-				<nav class="edit-tabs">
-					{#each TABS as tab}
-						<button
-							class="edit-tab"
-							class:edit-tab--active={activeTab === tab.id}
-							type="button"
-							onclick={() => activeTab = tab.id}
-						>
-							{tab.icon} {tab.label}
-						</button>
-					{/each}
-				</nav>
+						<!-- Tab Navigation -->
+						<nav class="edit-tabs">
+							{#each TABS as tab}
+								<button
+									class="edit-tab"
+									class:edit-tab--active={activeTab === tab.id}
+									type="button"
+									onclick={() => activeTab = tab.id}
+								>
+									{tab.icon} {tab.label}
+								</button>
+							{/each}
+						</nav>
+					</div>
+
+					<!-- Scrollable main: tab content + save -->
+					<div class="edit-main">
 
 				<!-- ═══ BASIC INFO ═══ -->
 				{#if activeTab === 'basic'}
@@ -1231,13 +1237,21 @@
 					</button>
 					<a href={runnerId ? `/runners/${runnerId}` : '/profile'} class="btn btn--ghost">Cancel</a>
 				</div>
+
+					</div> <!-- end edit-main -->
+				</div> <!-- end edit-layout -->
 			{/if}
 		</div>
 	</div>
 </AuthGuard>
 
 <style>
-	.edit-page { max-width: 700px; margin: 2rem auto; }
+	.edit-page { margin: 2rem auto; }
+
+	/* Two-column layout: sticky sidebar + scrollable main */
+	.edit-layout { display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; align-items: start; }
+	.edit-sidebar { position: sticky; top: 5.5rem; align-self: start; display: flex; flex-direction: column; gap: 1rem; }
+	.edit-main { min-width: 0; display: flex; flex-direction: column; gap: 1.5rem; }
 
 	/* Loading */
 	.edit-loading { text-align: center; padding: 3rem 0; }
@@ -1301,7 +1315,7 @@
 	.preset-swatch:hover { border-color: var(--accent); }
 	.preset-swatch--active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 	.preset-swatch__preview { width: 100%; aspect-ratio: 5/2; }
-	.preset-swatch__label { font-size: 0.7rem; color: var(--muted); text-align: center; padding: 0.2rem 0.3rem 0.35rem; }
+	.preset-swatch__label { font-size: 0.7rem; color: var(--fg); text-align: center; padding: 0.2rem 0.3rem 0.35rem; }
 	.preset-swatch--active .preset-swatch__label { color: var(--accent); font-weight: 600; }
 
 	/* Banner display options */
@@ -1314,7 +1328,6 @@
 	.opt-btn--active { background: var(--accent); color: #fff; border-color: var(--accent); }
 	.banner-opacity-slider { flex: 1; min-width: 120px; accent-color: var(--accent); }
 
-	/* Tabs */
 	/* Card for tab content */
 	.tab-card { margin-bottom: 0; }
 	.card {
@@ -1345,6 +1358,11 @@
 	textarea.fi { resize: vertical; }
 
 	.form-row { display: flex; gap: 1rem; }
+	@media (max-width: 860px) {
+		.edit-layout { grid-template-columns: 1fr; }
+		.edit-sidebar { position: static; }
+	}
+
 	@media (max-width: 600px) {
 		.form-row { flex-direction: column; gap: 0; }
 	}
