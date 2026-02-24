@@ -54,6 +54,20 @@
 	const inProgressGoals = $derived(
 		(runner.personal_goals || []).filter((g: any) => !g.completed)
 	);
+
+	// Banner display options
+	const bo = $derived(socials.banner_opts || {});
+	const bMode = $derived(bo.mode || 'above');
+	const bSize = $derived(bo.size === 'fill' ? '100% 100%' : bo.size === 'contain' ? 'contain' : 'cover');
+	const bPos = $derived(bo.position === 'top' ? 'top' : bo.position === 'bottom' ? 'bottom' : 'center');
+	const bOpacity = $derived(bo.opacity ?? 1);
+	const bGradient = $derived(bo.gradient || '');
+	const bBg = $derived(bGradient ? bGradient : (runner.banner ? `url('${runner.banner}')` : ''));
+
+	// Profile header location/representing
+	const repCode = $derived(socials.representing || '');
+	const locCountry = $derived(runner.location ? getCountry(runner.location) : null);
+	const repCountry = $derived(repCode ? getCountry(repCode) : null);
 </script>
 
 <svelte:head>
@@ -63,15 +77,7 @@
 <div class="page-width">
 	<p class="muted page-back"><a href="/runners">← Runners</a></p>
 
-	<!-- Banner: read display opts from socials.banner_opts -->
-	{@const bo = socials.banner_opts || {}}
-	{@const bMode = bo.mode || 'above'}
-	{@const bSize = bo.size === 'fill' ? '100% 100%' : bo.size === 'contain' ? 'contain' : 'cover'}
-	{@const bPos = bo.position === 'top' ? 'top' : bo.position === 'bottom' ? 'bottom' : 'center'}
-	{@const bOpacity = bo.opacity ?? 1}
-	{@const bGradient = bo.gradient || ''}
-	{@const bBg = bGradient ? bGradient : (runner.banner ? `url('${runner.banner}')` : '')}
-
+	<!-- Banner: opts derived in <script> as bo/bMode/bSize/bPos/bOpacity/bGradient/bBg -->
 	{#if bBg && bMode === 'background'}
 		<div class="runner-bg-banner" style="background:{bBg}; background-size:{bSize}; background-position:{bPos}; opacity:{bOpacity};"></div>
 	{:else if bBg}
@@ -99,9 +105,6 @@
 					{runner.runner_name}
 					{#if runner.pronouns}<span class="runner-pronouns">({runner.pronouns})</span>{/if}
 				</h1>
-				{@const repCode = socials.representing || ''}
-				{@const locCountry = runner.location ? getCountry(runner.location) : null}
-				{@const repCountry = repCode ? getCountry(repCode) : null}
 				{#if runner.location || repCountry}
 					<p class="muted runner-location">
 						{#if runner.location}
