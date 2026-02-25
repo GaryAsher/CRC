@@ -14,7 +14,7 @@ export type DebugRoleId = 'non_user' | 'user' | 'verifier' | 'moderator' | 'admi
  * Values: null | 'non_user' | 'user' | 'verifier' | 'moderator' | 'admin' | 'super_admin'
  */
 export const debugRole = writable<DebugRoleId | null>(
-	browser ? sessionStorage.getItem('crc_debug_role') : null
+	browser ? (sessionStorage.getItem('crc_debug_role') as DebugRoleId | null) : null
 );
 
 // Keep sessionStorage in sync

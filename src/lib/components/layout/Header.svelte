@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { session, user } from '$stores/auth';
-	import { debugRole, debugHidesAuth, debugHidesAdmin } from '$stores/debug';
+	import { debugRole, debugHidesAuth } from '$stores/debug';
 	import { toggleTheme, theme } from '$stores/theme';
 	import { supabase, signOut as doSignOut } from '$lib/supabase';
 	import { fetchPending } from '$lib/admin';
@@ -103,11 +103,40 @@
 		return 'Runner';
 	});
 
+	// ─── Sidebar visibility (respects debug mode) ────────────
 	let showAdminLink = $derived(
-		(profileInfo?.is_admin || profileInfo?.is_verifier) && !$debugHidesAdmin
+		$debugRole
+			? ['super_admin', 'admin', 'moderator', 'verifier'].includes($debugRole)
+			: !!(profileInfo?.is_admin || profileInfo?.is_verifier)
 	);
 
-	let isSuperAdmin = $derived(profileInfo?.is_admin === true && !$debugHidesAdmin);
+	let isSuperAdmin = $derived(
+		$debugRole
+			? $debugRole === 'super_admin'
+			: profileInfo?.is_admin === true
+	);
+
+	let sidebarIsAdmin = $derived(
+		$debugRole
+			? ['super_admin', 'admin'].includes($debugRole)
+			: profileInfo?.is_admin === true
+	);
+
+	let sidebarIsVerifier = $derived(
+		$debugRole
+			? ['super_admin', 'admin', 'moderator', 'verifier'].includes($debugRole)
+			: !!(profileInfo?.is_verifier || profileInfo?.is_admin)
+	);
+
+	let sidebarRoleBadge = $derived.by(() => {
+		if ($debugRole) {
+			const labels: Record<string, string> = {
+				super_admin: 'Super Admin', admin: 'Admin', moderator: 'Moderator', verifier: 'Verifier'
+			};
+			return labels[$debugRole] ?? '';
+		}
+		return isSuperAdmin ? 'Super Admin' : profileInfo?.is_admin ? 'Admin' : 'Verifier';
+	});
 
 	// Debug: should we show the signed-in UI or the sign-in link?
 	let showAsSignedIn = $derived($session && !$debugHidesAuth);
@@ -332,7 +361,7 @@
 		<div class="admin-panel__header">
 			<span class="admin-panel__title">
 				<span class="admin-panel__role-badge">
-					{isSuperAdmin ? 'Super Admin' : profileInfo?.is_admin ? 'Admin' : 'Verifier'}
+					{sidebarRoleBadge}
 				</span>
 				Moderation
 			</span>
@@ -362,7 +391,7 @@
 				</a>
 			{/if}
 
-			{#if profileInfo?.is_admin}
+			{#if sidebarIsAdmin}
 				<hr class="admin-panel__divider" />
 				<div class="admin-panel__section-title">Admin</div>
 				<a href="/admin/profiles" class="admin-panel__item" class:is-active={isAdminActive('/admin/profiles')} onclick={closeAdminPanel}>
@@ -385,7 +414,7 @@
 				</a>
 			{/if}
 
-			{#if profileInfo?.is_verifier}
+			{#if sidebarIsVerifier}
 				<hr class="admin-panel__divider" />
 				<div class="admin-panel__section-title">Verifier</div>
 				<a href="/admin/game-updates" class="admin-panel__item" class:is-active={isAdminActive('/admin/game-updates')} onclick={closeAdminPanel}>

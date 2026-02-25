@@ -27,7 +27,8 @@
 					return;
 				}
 				const role = await checkAdminRole();
-				realRole = realRoleToDebugId(role);
+				localRealRole = realRoleToDebugId(role);
+				realRoleStore.set(localRealRole);
 				checking = false;
 			}
 		});
