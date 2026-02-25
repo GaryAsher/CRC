@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { session, user } from '$stores/auth';
+	import { debugRole, debugHidesAuth, debugHidesAdmin } from '$stores/debug';
 	import { toggleTheme, theme } from '$stores/theme';
 	import { supabase, signOut as doSignOut } from '$lib/supabase';
 	import { fetchPending } from '$lib/admin';
@@ -103,10 +104,13 @@
 	});
 
 	let showAdminLink = $derived(
-		profileInfo?.is_admin || profileInfo?.is_verifier
+		(profileInfo?.is_admin || profileInfo?.is_verifier) && !$debugHidesAdmin
 	);
 
-	let isSuperAdmin = $derived(profileInfo?.is_admin === true);
+	let isSuperAdmin = $derived(profileInfo?.is_admin === true && !$debugHidesAdmin);
+
+	// Debug: should we show the signed-in UI or the sign-in link?
+	let showAsSignedIn = $derived($session && !$debugHidesAuth);
 
 	// Load admin counts when profile reveals admin/verifier
 	$effect(() => {
@@ -247,7 +251,7 @@
 
 		<!-- Right: User -->
 		<div class="nav-group nav-user">
-			{#if $session}
+			{#if showAsSignedIn}
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div class="nav-user__wrap" onclick={(e) => { e.stopPropagation(); userMenuOpen = !userMenuOpen; }}>
@@ -524,7 +528,7 @@
 		border-radius: 8px;
 		padding: 0.25rem 0.4rem;
 		cursor: pointer;
-		font-size: 1.6rem;
+		font-size: 2rem;
 		line-height: 1;
 		transition: border-color 0.15s, background 0.15s;
 	}

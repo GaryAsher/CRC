@@ -1,53 +1,41 @@
-// =============================================================================
-// Debug Role Store
-// =============================================================================
-// Shared reactive store for debug mode role simulation.
-// Reads/writes sessionStorage('crc_debug_role').
-//
-// Usage:
-//   import { debugRole, setDebugRole, exitDebugMode, initDebugStore } from '$stores/debug';
-//   // Read:  $debugRole          (reactive via Svelte store subscription)
-//   // Write: setDebugRole('admin')
-//   // Clear: exitDebugMode()
-//   // Init:  initDebugStore()    (call once in onMount)
-// =============================================================================
-
-import { writable } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
 import { browser } from '$app/environment';
 
-const STORAGE_KEY = 'crc_debug_role';
-
-/** All valid debug role IDs */
-export type DebugRoleId = 'super_admin' | 'admin' | 'moderator' | 'verifier' | 'user' | 'non_user';
-
-/** The current debug role (null = debug mode off) */
-export const debugRole = writable<DebugRoleId | null>(null);
-
-/** Set the debug role (activates debug mode) */
-export function setDebugRole(role: DebugRoleId) {
-	debugRole.set(role);
-	if (browser) sessionStorage.setItem(STORAGE_KEY, role);
-}
-
-/** Exit debug mode */
-export function exitDebugMode() {
-	debugRole.set(null);
-	if (browser) sessionStorage.removeItem(STORAGE_KEY);
-}
-
-/** Initialize from sessionStorage — call once in onMount of root layout or DebugBar */
-export function initDebugStore() {
-	if (!browser) return;
-	const stored = sessionStorage.getItem(STORAGE_KEY) as DebugRoleId | null;
-	if (stored) debugRole.set(stored);
-}
-
 /**
- * Sync from sessionStorage (for detecting changes from other code paths).
- * Call from a polling interval or storage event listener.
+ * Debug role store — drives the site-wide debug mode.
+ * When set, the Header and other components override their display
+ * to show the site as that role would see it.
+ *
+ * Values: null | 'non_user' | 'user' | 'verifier' | 'moderator' | 'admin'
+ * (super_admin is excluded — you're already one)
  */
-export function syncDebugStore() {
-	if (!browser) return;
-	const stored = sessionStorage.getItem(STORAGE_KEY) as DebugRoleId | null;
-	debugRole.set(stored);
+export const debugRole = writable<string | null>(
+	browser ? sessionStorage.getItem('crc_debug_role') : null
+);
+
+// Keep sessionStorage in sync
+if (browser) {
+	debugRole.subscribe((value) => {
+		if (value) {
+			sessionStorage.setItem('crc_debug_role', value);
+		} else {
+			sessionStorage.removeItem('crc_debug_role');
+		}
+	});
 }
+
+/** Whether debug mode is active at all */
+export const isDebugActive = derived(debugRole, (r) => r !== null);
+
+/** Whether the debug role should hide authenticated UI (non_user) */
+export const debugHidesAuth = derived(debugRole, (r) => r === 'non_user');
+
+/** Whether the debug role should hide admin/staff UI */
+export const debugHidesAdmin = derived(debugRole, (r) =>
+	r === 'non_user' || r === 'user'
+);
+
+/** Whether the debug role should hide verifier-level UI */
+export const debugHidesVerifier = derived(debugRole, (r) =>
+	r === 'non_user' || r === 'user'
+);

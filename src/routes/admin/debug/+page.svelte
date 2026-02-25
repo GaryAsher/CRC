@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { session, isLoading } from '$stores/auth';
-	import { debugRole, setDebugRole, exitDebugMode } from '$stores/debug';
 	import { goto } from '$app/navigation';
 	import { checkAdminRole } from '$lib/admin';
 	import { supabase } from '$lib/supabase';
+	import { debugRole } from '$stores/debug';
 
 	let checking = $state(true);
 	let authorized = $state(false);
@@ -22,8 +22,8 @@
 	});
 	let lastCheck = $state('—');
 
+	// No super_admin — you're already one, no need to simulate it
 	const roles = [
-		{ id: 'super_admin', icon: '⭐', name: 'Super Admin', desc: 'Full access: runs, games, profiles, users, financials, health, debug tools.' },
 		{ id: 'admin', icon: '🛡️', name: 'Admin', desc: 'Moderation: runs, games, profiles. No financials, health, or debug.' },
 		{ id: 'moderator', icon: '🔰', name: 'Moderator', desc: 'Content moderation: profiles, game updates. Limited run access.' },
 		{ id: 'verifier', icon: '✅', name: 'Verifier', desc: 'Runs only, limited to assigned games. Cannot see profiles or games queues.' },
@@ -54,7 +54,7 @@
 				if (!sess) { goto('/sign-in?redirect=/admin/debug'); return; }
 				const role = await checkAdminRole();
 				authorized = !!role?.admin;
-				actualRole = role?.admin ? 'super_admin' : role?.verifier ? 'verifier' : 'user';
+				actualRole = role?.superAdmin ? 'super_admin' : role?.admin ? 'admin' : role?.verifier ? 'verifier' : 'user';
 				runnerId = role?.runnerId || '—';
 				userId = sess?.user?.id || '—';
 				checking = false;
@@ -65,10 +65,10 @@
 	});
 
 	function activateDebug(role: string) {
-		setDebugRole(role as any);
+		debugRole.set(role);
 	}
 	function exitDebug() {
-		exitDebugMode();
+		debugRole.set(null);
 	}
 
 	async function checkServices() {

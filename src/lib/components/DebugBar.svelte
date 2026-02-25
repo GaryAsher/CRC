@@ -1,27 +1,25 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import { debugRole, initDebugStore, syncDebugStore, exitDebugMode } from '$stores/debug';
-	import { canAccessRoute } from '$lib/permissions';
-	import type { DebugRoleId } from '$stores/debug';
+	import { debugRole } from '$stores/debug';
 
-	let navOpen = $state(false);
 	let mounted = $state(false);
+	let navOpen = $state(false);
+	let rolePickerOpen = $state(false);
 
-	const ROLE_META: Record<string, { icon: string; label: string; color: string }> = {
-		non_user:    { icon: '🚫', label: 'Non-User (Logged Out)',  color: '#6b7280' },
-		user:        { icon: '👤', label: 'User',                   color: '#3b82f6' },
-		verifier:    { icon: '✅', label: 'Verifier',               color: '#10b981' },
-		moderator:   { icon: '🔰', label: 'Moderator',             color: '#8b5cf6' },
-		admin:       { icon: '🛡️', label: 'Admin',                  color: '#f59e0b' },
-		super_admin: { icon: '⭐', label: 'Super Admin',            color: '#ef4444' },
-	};
+	const ROLES = [
+		{ id: 'non_user',   icon: '🚫', label: 'Non-User (Logged Out)',  color: '#6b7280' },
+		{ id: 'user',       icon: '👤', label: 'User',                   color: '#3b82f6' },
+		{ id: 'verifier',   icon: '✅', label: 'Verifier',               color: '#10b981' },
+		{ id: 'moderator',  icon: '🔰', label: 'Moderator',              color: '#8b5cf6' },
+		{ id: 'admin',      icon: '🛡️', label: 'Admin',                  color: '#f59e0b' },
+	];
 
-	// Site pages organized by what perspective they represent
+	// Site pages organized by perspective
 	const NAV_GROUPS = [
 		{
 			label: '🌐 Public Pages',
-			desc: 'What anyone (including non-users) can see',
+			desc: 'What anyone can see',
 			links: [
 				{ href: '/',            label: 'Home' },
 				{ href: '/games',       label: 'Games Listing' },
@@ -85,47 +83,28 @@
 		},
 	];
 
-	onMount(() => {
-		initDebugStore();
-		mounted = true;
+	onMount(() => { mounted = true; });
 
-		// Listen for changes from other tabs
-		const handler = () => syncDebugStore();
-		window.addEventListener('storage', handler);
-
-		// Poll for same-tab changes (sessionStorage doesn't fire events in same tab)
-		const interval = setInterval(syncDebugStore, 500);
-
-		return () => {
-			window.removeEventListener('storage', handler);
-			clearInterval(interval);
-		};
-	});
-
-	function handleExit() {
-		exitDebugMode();
+	function exitDebug() {
+		debugRole.set(null);
 		navOpen = false;
+		rolePickerOpen = false;
 	}
 
-	// Close nav when navigating
+	function switchRole(roleId: string) {
+		debugRole.set(roleId);
+		rolePickerOpen = false;
+	}
+
+	// Close panels when navigating
 	$effect(() => {
-		$page.url.pathname; // subscribe to route changes
+		$page.url.pathname;
 		navOpen = false;
+		rolePickerOpen = false;
 	});
 
-	const roleMeta = $derived($debugRole ? ROLE_META[$debugRole] || ROLE_META.user : null);
+	const currentRole = $derived(ROLES.find(r => r.id === $debugRole));
 	const currentPath = $derived($page.url.pathname);
-
-	/**
-	 * Check if a link is accessible for the current debug role.
-	 * Admin routes are gated; all other routes are accessible.
-	 */
-	function isLinkAccessible(href: string): boolean {
-		if (!$debugRole) return true;
-		// Only gate admin routes
-		if (!href.startsWith('/admin')) return true;
-		return canAccessRoute($debugRole, href);
-	}
 
 	// Block form submissions in debug mode
 	function handleClick(e: MouseEvent) {
@@ -164,20 +143,41 @@
 
 <svelte:document onclick={handleClick} onsubmit={handleSubmit} />
 
-{#if mounted && $debugRole && roleMeta}
-	<div class="debug-bar" style="--db-color: {roleMeta.color}">
+{#if mounted && $debugRole && currentRole}
+	<div class="debug-bar" style="--db-color: {currentRole.color}">
 		<div class="debug-bar__inner">
 			<div class="debug-bar__left">
 				<span class="debug-bar__dot"></span>
-				<span class="debug-bar__role">{roleMeta.icon} {roleMeta.label}</span>
-				<span class="debug-bar__badge">DEBUG MODE</span>
-				<span class="debug-bar__blocked">Submissions Disabled</span>
+				<span class="debug-bar__role">{currentRole.icon} {currentRole.label}</span>
+				<span class="debug-bar__badge">DEBUG</span>
 			</div>
 			<div class="debug-bar__right">
-				<button class="debug-bar__nav-btn" onclick={() => navOpen = !navOpen}>
+				<!-- Change Role (inline picker) -->
+				<div class="debug-bar__picker-wrap">
+					<button class="debug-bar__btn" onclick={() => { rolePickerOpen = !rolePickerOpen; navOpen = false; }}>
+						🔄 Change Role
+					</button>
+					{#if rolePickerOpen}
+						<div class="debug-bar__picker">
+							{#each ROLES as role}
+								<button
+									class="debug-bar__picker-item"
+									class:debug-bar__picker-item--active={$debugRole === role.id}
+									onclick={() => switchRole(role.id)}
+								>
+									<span>{role.icon}</span>
+									<span>{role.label}</span>
+									{#if $debugRole === role.id}<span class="debug-bar__picker-check">✓</span>{/if}
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
+
+				<button class="debug-bar__btn" onclick={() => { navOpen = !navOpen; rolePickerOpen = false; }}>
 					{navOpen ? '✕ Close' : '🗺️ Navigate'}
 				</button>
-				<button class="debug-bar__exit" onclick={handleExit}>Exit Debug</button>
+				<button class="debug-bar__exit" onclick={exitDebug}>Exit</button>
 			</div>
 		</div>
 
@@ -192,21 +192,14 @@
 							</div>
 							<div class="debug-nav__links">
 								{#each group.links as link}
-									{@const accessible = isLinkAccessible(link.href)}
-									{#if accessible}
-										<a
-											href={link.href}
-											class="debug-nav__link"
-											class:debug-nav__link--active={currentPath === link.href}
-										>
-											{link.label}
-											{#if currentPath === link.href}<span class="debug-nav__here">← here</span>{/if}
-										</a>
-									{:else}
-										<span class="debug-nav__link debug-nav__link--locked" title="Not accessible to this role">
-											🔒 {link.label}
-										</span>
-									{/if}
+									<a
+										href={link.href}
+										class="debug-nav__link"
+										class:debug-nav__link--active={currentPath === link.href}
+									>
+										{link.label}
+										{#if currentPath === link.href}<span class="debug-nav__here">← here</span>{/if}
+									</a>
 								{/each}
 							</div>
 						</div>
@@ -217,9 +210,7 @@
 	</div>
 
 	{#if toastVisible}
-		<div class="debug-toast">
-			🚫 Submissions are disabled in debug mode
-		</div>
+		<div class="debug-toast">🚫 Submissions are disabled in debug mode</div>
 	{/if}
 {/if}
 
@@ -255,23 +246,38 @@
 		padding: 0.15rem 0.4rem; border-radius: 3px;
 		background: var(--db-color); color: #000;
 	}
-	.debug-bar__blocked {
-		font-size: 0.7rem; color: #ef4444; opacity: 0.8;
-	}
 
-	.debug-bar__nav-btn, .debug-bar__exit {
+	.debug-bar__btn, .debug-bar__exit {
 		padding: 0.25rem 0.6rem; border-radius: 4px; border: 1px solid;
 		font-size: 0.75rem; font-weight: 600; cursor: pointer;
-		font-family: inherit;
+		font-family: inherit; white-space: nowrap;
 	}
-	.debug-bar__nav-btn {
-		background: transparent; border-color: var(--db-color); color: var(--db-color);
+	.debug-bar__btn {
+		background: transparent; border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.8);
 	}
-	.debug-bar__nav-btn:hover { background: rgba(255,255,255,0.05); }
+	.debug-bar__btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
 	.debug-bar__exit {
 		background: transparent; border-color: #ef4444; color: #ef4444;
 	}
 	.debug-bar__exit:hover { background: rgba(239, 68, 68, 0.1); }
+
+	/* Role picker dropdown */
+	.debug-bar__picker-wrap { position: relative; }
+	.debug-bar__picker {
+		position: absolute; top: calc(100% + 6px); right: 0;
+		background: rgba(0, 0, 0, 0.97); border: 1px solid rgba(255,255,255,0.15);
+		border-radius: 8px; min-width: 220px; padding: 0.35rem;
+		box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 10;
+	}
+	.debug-bar__picker-item {
+		display: flex; align-items: center; gap: 0.5rem; width: 100%;
+		padding: 0.5rem 0.65rem; border: none; border-radius: 5px;
+		background: transparent; color: rgba(255,255,255,0.75);
+		font-size: 0.8rem; cursor: pointer; text-align: left; font-family: inherit;
+	}
+	.debug-bar__picker-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+	.debug-bar__picker-item--active { background: rgba(255,255,255,0.1); color: #fff; font-weight: 600; }
+	.debug-bar__picker-check { margin-left: auto; font-size: 0.7rem; color: var(--db-color); }
 
 	/* Navigation panel */
 	.debug-nav {
@@ -301,12 +307,6 @@
 	}
 	.debug-nav__link:hover { background: rgba(255,255,255,0.08); color: #fff; }
 	.debug-nav__link--active { background: rgba(255,255,255,0.1); color: var(--db-color); font-weight: 600; }
-	.debug-nav__link--locked {
-		opacity: 0.35;
-		cursor: not-allowed;
-		font-style: italic;
-	}
-	.debug-nav__link--locked:hover { background: none; color: rgba(255,255,255,0.4); }
 	.debug-nav__here { font-size: 0.6rem; color: var(--db-color); opacity: 0.7; }
 
 	/* Toast */
@@ -325,7 +325,6 @@
 	}
 
 	@media (max-width: 600px) {
-		.debug-bar__blocked { display: none; }
 		.debug-nav__grid { grid-template-columns: 1fr; }
 	}
 </style>
