@@ -1,14 +1,21 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { session, user, isLoading } from '$stores/auth';
+	import { debugRole } from '$stores/debug';
 	import { goto } from '$app/navigation';
 	import { checkAdminRole } from '$lib/admin';
 	import { supabase } from '$lib/supabase';
+	import { realRoleToDebugId, canAccessRoute } from '$lib/permissions';
+	import type { DebugRoleId } from '$stores/debug';
 
 	let role = $state<{ admin: boolean; verifier: boolean; runnerId: string | null } | null>(null);
+	let realRoleId = $state<DebugRoleId>('user');
 	let checking = $state(true);
 	let counts = $state<Record<string, number>>({});
 	let countsLoading = $state(true);
+
+	// Effective role for UI filtering
+	let effectiveRole = $derived($debugRole ?? realRoleId);
 
 	onMount(() => {
 		const unsub = isLoading.subscribe(async (loading) => {
@@ -20,10 +27,12 @@
 					return;
 				}
 
-				role = await checkAdminRole();
+				const fullRole = await checkAdminRole();
+				role = fullRole;
+				realRoleId = realRoleToDebugId(fullRole);
 				checking = false;
 
-				if (role?.admin || role?.verifier) {
+				if (fullRole?.admin || fullRole?.verifier || fullRole?.moderator) {
 					await loadCounts();
 				}
 			}
@@ -52,28 +61,24 @@
 		countsLoading = false;
 	}
 
-	// Navigation sections — order matters
-	// adminOnly = admins only | staffOnly = admin staff mgmt | verifierOnly = verifiers only | none = all staff
+	// Navigation sections — uses permissions from permissions.ts
+	// Each section specifies its href; canAccessRoute() handles the rest.
 	const NAV_SECTIONS = [
-		{ key: 'profiles',     icon: '👥', title: 'Pending Profiles', desc: 'Review runner profile applications.',          href: '/admin/profiles',    countKey: 'pendingProfiles',  adminOnly: true },
-		{ key: 'games',        icon: '🎮', title: 'Pending Games',    desc: 'Review new game submissions.',                href: '/admin/games',       countKey: 'pendingGames',     adminOnly: true },
-		{ key: 'runs',         icon: '🏃', title: 'Approved Runs',    desc: 'Manage and view all approved runs.',          href: '/admin/runs',        countKey: 'pendingRuns',      adminOnly: true },
-		{ key: 'runs-queue',   icon: '📋', title: 'Runs Queue',       desc: 'Review, approve, or reject submitted runs.',  href: '/admin/runs-queue',  countKey: 'pendingRunsQueue', verifierOnly: true },
-		{ key: 'game-updates', icon: '📝', title: 'Game Updates',     desc: 'Review user-submitted game page corrections.', href: '/admin/game-updates', verifierOnly: true },
-		{ key: 'users',        icon: '👥', title: 'Users & Roles',    desc: 'Manage users and assign staff roles.',        href: '/admin/users',       staffOnly: true },
-		{ key: 'financials',   icon: '💰', title: 'Financials',       desc: 'Track site income and expenses.',             href: '/admin/financials',  adminOnly: true },
-		{ key: 'health',       icon: '💚', title: 'Site Health',      desc: 'Performance, storage, and system status.',   href: '/admin/health',      adminOnly: true },
+		{ key: 'profiles',     icon: '👥', title: 'Pending Profiles', desc: 'Review runner profile applications.',          href: '/admin/profiles',    countKey: 'pendingProfiles' },
+		{ key: 'games',        icon: '🎮', title: 'Pending Games',    desc: 'Review new game submissions.',                href: '/admin/games',       countKey: 'pendingGames' },
+		{ key: 'runs',         icon: '🏃', title: 'Approved Runs',    desc: 'Manage and view all approved runs.',          href: '/admin/runs',        countKey: 'pendingRuns' },
+		{ key: 'runs-queue',   icon: '📋', title: 'Runs Queue',       desc: 'Review, approve, or reject submitted runs.',  href: '/admin/runs-queue',  countKey: 'pendingRunsQueue' },
+		{ key: 'game-updates', icon: '📝', title: 'Game Updates',     desc: 'Review user-submitted game page corrections.', href: '/admin/game-updates' },
+		{ key: 'users',        icon: '👥', title: 'Users & Roles',    desc: 'Manage users and assign staff roles.',        href: '/admin/users' },
+		{ key: 'financials',   icon: '💰', title: 'Financials',       desc: 'Track site income and expenses.',             href: '/admin/financials' },
+		{ key: 'health',       icon: '💚', title: 'Site Health',      desc: 'Performance, storage, and system status.',   href: '/admin/health' },
 		{ key: 'staff-guides', icon: '📖', title: 'Staff Guides',     desc: 'Internal documentation for staff.',           href: '/admin/staff-guides' },
-		{ key: 'debug',        icon: '🔧', title: 'Debug Tools',      desc: 'Role simulation, system diagnostics.',        href: '/admin/debug',       adminOnly: true }
+		{ key: 'debug',        icon: '🔧', title: 'Debug Tools',      desc: 'Role simulation, system diagnostics.',        href: '/admin/debug' }
 	];
 
+	// Filter nav cards based on effective role (real or debug)
 	let visibleSections = $derived(
-		NAV_SECTIONS.filter(s => {
-			if (s.adminOnly)    return role?.admin;
-			if (s.staffOnly)    return role?.admin;
-			if ((s as any).verifierOnly) return role?.verifier;
-			return role?.admin || role?.verifier; // staff-guides: all staff
-		})
+		NAV_SECTIONS.filter(s => canAccessRoute(effectiveRole, s.href))
 	);
 
 	let totalPending = $derived(
@@ -89,10 +94,10 @@
 			<div class="spinner"></div>
 			<p class="muted">Checking permissions...</p>
 		</div>
-	{:else if !role?.admin && !role?.verifier}
+	{:else if !role?.admin && !role?.verifier && !role?.moderator}
 		<div class="admin-denied">
 			<h1>🔒 Access Denied</h1>
-			<p class="muted">You need verifier, admin, or super admin privileges to access the dashboard.</p>
+			<p class="muted">You need verifier, moderator, admin, or super admin privileges to access the dashboard.</p>
 			<a href="/" class="btn btn--outline">Go Home</a>
 		</div>
 	{:else}
@@ -101,7 +106,14 @@
 			<div class="dash-header">
 				<div class="dash-header__info">
 					<h1>Dashboard</h1>
-					<p class="muted">{role.admin ? '🛡️ Admin' : '✅ Verifier'}</p>
+					<p class="muted">
+						{#if effectiveRole === 'super_admin'}⭐ Super Admin
+						{:else if effectiveRole === 'admin'}🛡️ Admin
+						{:else if effectiveRole === 'moderator'}🔰 Moderator
+						{:else if effectiveRole === 'verifier'}✅ Verifier
+						{:else}👤 User{/if}
+						{#if $debugRole}<span style="font-size: 0.75rem; opacity: 0.6;">(debug)</span>{/if}
+					</p>
 				</div>
 				{#if $user}
 					<div class="dash-header__user">

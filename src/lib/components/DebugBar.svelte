@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { debugRole, initDebugStore, syncDebugStore, exitDebugMode } from '$stores/debug';
+	import { canAccessRoute } from '$lib/permissions';
+	import type { DebugRoleId } from '$stores/debug';
 
-	let debugRole = $state<string | null>(null);
 	let navOpen = $state(false);
 	let mounted = $state(false);
 
@@ -10,7 +12,7 @@
 		non_user:    { icon: '🚫', label: 'Non-User (Logged Out)',  color: '#6b7280' },
 		user:        { icon: '👤', label: 'User',                   color: '#3b82f6' },
 		verifier:    { icon: '✅', label: 'Verifier',               color: '#10b981' },
-		moderator:   { icon: '🛡️', label: 'Moderator',             color: '#8b5cf6' },
+		moderator:   { icon: '🔰', label: 'Moderator',             color: '#8b5cf6' },
 		admin:       { icon: '🛡️', label: 'Admin',                  color: '#f59e0b' },
 		super_admin: { icon: '⭐', label: 'Super Admin',            color: '#ef4444' },
 	};
@@ -84,20 +86,15 @@
 	];
 
 	onMount(() => {
-		debugRole = sessionStorage.getItem('crc_debug_role');
+		initDebugStore();
 		mounted = true;
 
-		// Listen for changes from the debug page
-		const handler = () => {
-			debugRole = sessionStorage.getItem('crc_debug_role');
-		};
+		// Listen for changes from other tabs
+		const handler = () => syncDebugStore();
 		window.addEventListener('storage', handler);
 
-		// Also poll (sessionStorage doesn't fire events in same tab)
-		const interval = setInterval(() => {
-			const current = sessionStorage.getItem('crc_debug_role');
-			if (current !== debugRole) debugRole = current;
-		}, 500);
+		// Poll for same-tab changes (sessionStorage doesn't fire events in same tab)
+		const interval = setInterval(syncDebugStore, 500);
 
 		return () => {
 			window.removeEventListener('storage', handler);
@@ -105,9 +102,8 @@
 		};
 	});
 
-	function exitDebug() {
-		sessionStorage.removeItem('crc_debug_role');
-		debugRole = null;
+	function handleExit() {
+		exitDebugMode();
 		navOpen = false;
 	}
 
@@ -117,17 +113,26 @@
 		navOpen = false;
 	});
 
-	const roleMeta = $derived(debugRole ? ROLE_META[debugRole] || ROLE_META.user : null);
+	const roleMeta = $derived($debugRole ? ROLE_META[$debugRole] || ROLE_META.user : null);
 	const currentPath = $derived($page.url.pathname);
+
+	/**
+	 * Check if a link is accessible for the current debug role.
+	 * Admin routes are gated; all other routes are accessible.
+	 */
+	function isLinkAccessible(href: string): boolean {
+		if (!$debugRole) return true;
+		// Only gate admin routes
+		if (!href.startsWith('/admin')) return true;
+		return canAccessRoute($debugRole, href);
+	}
 
 	// Block form submissions in debug mode
 	function handleClick(e: MouseEvent) {
-		if (!debugRole) return;
+		if (!$debugRole) return;
 		const target = e.target as HTMLElement;
-		// Block submit buttons and form submissions
 		const button = target.closest('button[type="submit"], button.btn--primary, input[type="submit"]');
 		if (button && !button.closest('.debug-bar')) {
-			// Allow navigation links, block action buttons
 			const isNav = target.closest('a');
 			if (!isNav) {
 				e.preventDefault();
@@ -138,7 +143,7 @@
 	}
 
 	function handleSubmit(e: Event) {
-		if (!debugRole) return;
+		if (!$debugRole) return;
 		const form = e.target as HTMLFormElement;
 		if (!form.closest('.debug-bar')) {
 			e.preventDefault();
@@ -159,7 +164,7 @@
 
 <svelte:document onclick={handleClick} onsubmit={handleSubmit} />
 
-{#if mounted && debugRole && roleMeta}
+{#if mounted && $debugRole && roleMeta}
 	<div class="debug-bar" style="--db-color: {roleMeta.color}">
 		<div class="debug-bar__inner">
 			<div class="debug-bar__left">
@@ -172,7 +177,7 @@
 				<button class="debug-bar__nav-btn" onclick={() => navOpen = !navOpen}>
 					{navOpen ? '✕ Close' : '🗺️ Navigate'}
 				</button>
-				<button class="debug-bar__exit" onclick={exitDebug}>Exit Debug</button>
+				<button class="debug-bar__exit" onclick={handleExit}>Exit Debug</button>
 			</div>
 		</div>
 
@@ -187,14 +192,21 @@
 							</div>
 							<div class="debug-nav__links">
 								{#each group.links as link}
-									<a
-										href={link.href}
-										class="debug-nav__link"
-										class:debug-nav__link--active={currentPath === link.href}
-									>
-										{link.label}
-										{#if currentPath === link.href}<span class="debug-nav__here">← here</span>{/if}
-									</a>
+									{@const accessible = isLinkAccessible(link.href)}
+									{#if accessible}
+										<a
+											href={link.href}
+											class="debug-nav__link"
+											class:debug-nav__link--active={currentPath === link.href}
+										>
+											{link.label}
+											{#if currentPath === link.href}<span class="debug-nav__here">← here</span>{/if}
+										</a>
+									{:else}
+										<span class="debug-nav__link debug-nav__link--locked" title="Not accessible to this role">
+											🔒 {link.label}
+										</span>
+									{/if}
 								{/each}
 							</div>
 						</div>
@@ -289,6 +301,12 @@
 	}
 	.debug-nav__link:hover { background: rgba(255,255,255,0.08); color: #fff; }
 	.debug-nav__link--active { background: rgba(255,255,255,0.1); color: var(--db-color); font-weight: 600; }
+	.debug-nav__link--locked {
+		opacity: 0.35;
+		cursor: not-allowed;
+		font-style: italic;
+	}
+	.debug-nav__link--locked:hover { background: none; color: rgba(255,255,255,0.4); }
 	.debug-nav__here { font-size: 0.6rem; color: var(--db-color); opacity: 0.7; }
 
 	/* Toast */

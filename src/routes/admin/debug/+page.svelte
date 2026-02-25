@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { session, isLoading } from '$stores/auth';
+	import { debugRole, setDebugRole, exitDebugMode } from '$stores/debug';
 	import { goto } from '$app/navigation';
 	import { checkAdminRole } from '$lib/admin';
 	import { supabase } from '$lib/supabase';
@@ -8,7 +9,6 @@
 	let checking = $state(true);
 	let authorized = $state(false);
 	let activeTab = $state('role-sim');
-	let debugRole = $state<string | null>(null);
 	let actualRole = $state('—');
 	let runnerId = $state('—');
 	let userId = $state('—');
@@ -65,12 +65,10 @@
 	});
 
 	function activateDebug(role: string) {
-		debugRole = role;
-		sessionStorage.setItem('crc_debug_role', role);
+		setDebugRole(role as any);
 	}
 	function exitDebug() {
-		debugRole = null;
-		sessionStorage.removeItem('crc_debug_role');
+		exitDebugMode();
 	}
 
 	async function checkServices() {
@@ -116,19 +114,19 @@
 					{#each roles as role}
 						<button
 							class="role-card"
-							class:role-card--active={debugRole === role.id}
-							onclick={() => debugRole === role.id ? exitDebug() : activateDebug(role.id)}
+							class:role-card--active={$debugRole === role.id}
+							onclick={() => $debugRole === role.id ? exitDebug() : activateDebug(role.id)}
 						>
 							<span class="role-card__icon">{role.icon}</span>
 							<div class="role-card__info">
 								<div class="role-card__name">{role.name}</div>
 								<div class="role-card__desc">{role.desc}</div>
 							</div>
-							{#if debugRole === role.id}<span class="role-card__badge">ACTIVE</span>{/if}
+							{#if $debugRole === role.id}<span class="role-card__badge">ACTIVE</span>{/if}
 						</button>
 					{/each}
 				</div>
-				{#if debugRole}
+				{#if $debugRole}
 					<p class="muted mt-2" style="font-size:0.85rem">Tip: Use the <strong>🗺️ Navigate</strong> button in the debug bar above to quickly jump to any page on the site.</p>
 				{/if}
 			</div>
@@ -152,8 +150,8 @@
 				<h2>📋 Current Session</h2>
 				<div class="session-grid">
 					<div class="sr"><span class="sk">Actual Role</span><span class="sv">{actualRole}</span></div>
-					<div class="sr"><span class="sk">Effective Role</span><span class="sv">{debugRole || actualRole}</span></div>
-					<div class="sr"><span class="sk">Debug Mode</span><span class="sv">{debugRole ? 'On' : 'Off'}</span></div>
+					<div class="sr"><span class="sk">Effective Role</span><span class="sv">{$debugRole || actualRole}</span></div>
+					<div class="sr"><span class="sk">Debug Mode</span><span class="sv">{$debugRole ? 'On' : 'Off'}</span></div>
 					<div class="sr"><span class="sk">Runner ID</span><span class="sv">{runnerId}</span></div>
 					<div class="sr"><span class="sk">User ID</span><span class="sv" style="word-break:break-all">{userId}</span></div>
 				</div>
