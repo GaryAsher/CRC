@@ -11,17 +11,20 @@
 	let games = $state<{ game_id: string; game_name: string }[]>([]);
 	let loading = $state(true);
 	let searchQuery = $state('');
-	let searchFilter = $state('all');
+	let roleFilter = $state('all');
 	let currentPage = $state(1);
-	let viewingUser = $state<any>(null);
-	const PAGE_SIZE = 20;
+	let expandedId = $state<string | null>(null);
+	let toast = $state<{ type: 'success' | 'error'; text: string } | null>(null);
+	const PAGE_SIZE = 25;
 
 	// Role management state
 	let roleChanging = $state(false);
-	let roleMsg = $state<{ type: 'success' | 'error'; text: string } | null>(null);
 	let selectedNewRole = $state('');
 	let selectedGameIds = $state<string[]>([]);
 	let confirmingRole = $state(false);
+
+	// Export
+	let exporting = $state(false);
 
 	// Role hierarchy
 	const ROLE_LEVELS: Record<string, number> = {
@@ -48,9 +51,10 @@
 		if (myRole.superAdmin) return 4;
 		if (myRole.admin) return 3;
 		if (myRole.moderator) return 2;
-		if (myRole.verifier) return 1;
 		return 0;
 	}
+
+	const isAdmin = $derived(myRole?.admin || myRole?.superAdmin);
 
 	// Roles the current user can assign (strictly below their own level)
 	const assignableRoles = $derived.by(() => {
@@ -61,14 +65,14 @@
 			.sort((a, b) => ROLE_LEVELS[b] - ROLE_LEVELS[a]);
 	});
 
-	// Can the current user modify a given user's role?
 	function canModifyUser(u: any): boolean {
 		if (!myRole) return false;
 		const myLevel = getMyLevel();
 		const targetLevel = ROLE_LEVELS[getEffectiveRole(u)] ?? 0;
-		return myLevel > targetLevel && myLevel >= 2; // at least moderator
+		return myLevel > targetLevel && myLevel >= 2;
 	}
 
+	// ── Data ──────────────────────────────────────────────────────────────────
 	onMount(() => {
 		const unsub = isLoading.subscribe(async (l) => {
 			if (!l) {
@@ -78,9 +82,7 @@
 				myRole = await checkAdminRole();
 				const hasAccess = myRole?.admin || myRole?.moderator;
 				checking = false;
-				if (hasAccess) {
-					await Promise.all([loadUsers(), loadGames()]);
-				}
+				if (hasAccess) await Promise.all([loadUsers(), loadGames()]);
 			}
 		});
 		return unsub;
@@ -103,18 +105,19 @@
 		} catch { games = []; }
 	}
 
+	// ── Filtering ─────────────────────────────────────────────────────────────
 	const filteredUsers = $derived.by(() => {
 		let result = [...users];
-		if (searchFilter === 'admins') result = result.filter(u => u.is_admin || u.is_super_admin);
-		else if (searchFilter === 'moderators') result = result.filter(u => u.role === 'moderator');
-		else if (searchFilter === 'verifiers') result = result.filter(u => u.role === 'verifier');
-		else if (searchFilter === 'pending') result = result.filter(u => u.status === 'pending');
+		if (roleFilter === 'admins') result = result.filter(u => u.is_admin || u.is_super_admin);
+		else if (roleFilter === 'moderators') result = result.filter(u => u.role === 'moderator');
+		else if (roleFilter === 'verifiers') result = result.filter(u => u.role === 'verifier');
+		else if (roleFilter === 'staff') result = result.filter(u => u.is_admin || u.is_super_admin || u.role === 'moderator' || u.role === 'verifier');
+		else if (roleFilter === 'pending') result = result.filter(u => u.status === 'pending');
 		if (searchQuery) {
 			const q = searchQuery.toLowerCase();
 			result = result.filter(u =>
 				(u.runner_id||'').toLowerCase().includes(q) ||
-				(u.display_name||'').toLowerCase().includes(q) ||
-				(myRole?.superAdmin && (u.email||'').toLowerCase().includes(q))
+				(u.display_name||'').toLowerCase().includes(q)
 			);
 		}
 		return result;
@@ -123,23 +126,24 @@
 	const pageUsers = $derived(filteredUsers.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE));
 	const totalPages = $derived(Math.ceil(filteredUsers.length / PAGE_SIZE) || 1);
 
-	function search() { currentPage = 1; }
-	function fmtDate(d: string) { return d ? new Date(d).toLocaleDateString() : '-'; }
+	let staffCount = $derived(users.filter(u => u.is_admin || u.is_super_admin || u.role === 'moderator' || u.role === 'verifier').length);
+	let pendingCount = $derived(users.filter(u => u.status === 'pending').length);
 
-	function openUserModal(user: any) {
-		viewingUser = user;
-		selectedNewRole = '';
-		selectedGameIds = [];
-		roleMsg = null;
-		confirmingRole = false;
-	}
+	function fmtDate(d: string) { return d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'; }
 
-	function closeModal() {
-		viewingUser = null;
-		selectedNewRole = '';
-		selectedGameIds = [];
-		roleMsg = null;
-		confirmingRole = false;
+	// ── User Expand & Role Management ─────────────────────────────────────────
+	function toggleUser(userId: string) {
+		if (expandedId === userId) {
+			expandedId = null;
+			selectedNewRole = '';
+			selectedGameIds = [];
+			confirmingRole = false;
+		} else {
+			expandedId = userId;
+			selectedNewRole = '';
+			selectedGameIds = [];
+			confirmingRole = false;
+		}
 	}
 
 	function toggleGameId(gid: string) {
@@ -150,13 +154,13 @@
 		}
 	}
 
-	async function handleAssignRole() {
-		if (!viewingUser || !selectedNewRole) return;
+	async function handleAssignRole(user: any) {
+		if (!user || !selectedNewRole) return;
 		roleChanging = true;
-		roleMsg = null;
+		toast = null;
 
 		const payload: Record<string, any> = {
-			target_user_id: viewingUser.user_id,
+			target_user_id: user.user_id,
 			new_role: selectedNewRole
 		};
 		if (selectedNewRole === 'verifier' && selectedGameIds.length > 0) {
@@ -165,9 +169,8 @@
 
 		const result = await adminAction('/assign-role', payload);
 		if (result.ok) {
-			roleMsg = { type: 'success', text: result.message };
-			// Update local data to reflect the change
-			const idx = users.findIndex(u => u.user_id === viewingUser.user_id);
+			toast = { type: 'success', text: `${user.display_name || user.runner_id} updated to ${ROLE_META[selectedNewRole].label}` };
+			const idx = users.findIndex(u => u.user_id === user.user_id);
 			if (idx >= 0) {
 				const updated = { ...users[idx] };
 				switch (selectedNewRole) {
@@ -182,24 +185,39 @@
 				}
 				users[idx] = updated;
 				users = [...users];
-				viewingUser = updated;
 			}
 			confirmingRole = false;
 			selectedNewRole = '';
 			selectedGameIds = [];
 		} else {
-			roleMsg = { type: 'error', text: result.message };
+			toast = { type: 'error', text: result.message };
 			confirmingRole = false;
 		}
 		roleChanging = false;
+		setTimeout(() => toast = null, 4000);
 	}
 
-	// Export (super admin only)
+	// ── Export (admin+ only) ──────────────────────────────────────────────────
 	function exportCSV() {
-		const csv = 'Email\n' + users.filter(u => u.email).map(u => u.email).join('\n');
-		downloadFile(csv, 'crc-user-emails.csv', 'text/csv');
+		const header = 'Runner ID,Display Name,Role,Status,Created';
+		const rows = users.map(u => {
+			const role = getEffectiveRole(u);
+			return `"${u.runner_id || ''}","${u.display_name || ''}","${ROLE_META[role]?.label || role}","${u.status || ''}","${u.created_at || ''}"`;
+		});
+		downloadFile(header + '\n' + rows.join('\n'), 'crc-users.csv', 'text/csv');
 	}
-	function exportJSON() { downloadFile(JSON.stringify(users, null, 2), 'crc-users.json', 'application/json'); }
+	function exportJSON() {
+		const safe = users.map(u => ({
+			runner_id: u.runner_id,
+			display_name: u.display_name,
+			role: getEffectiveRole(u),
+			status: u.status,
+			created_at: u.created_at,
+			location: u.location,
+			pronouns: u.pronouns,
+		}));
+		downloadFile(JSON.stringify(safe, null, 2), 'crc-users.json', 'application/json');
+	}
 	function downloadFile(content: string, filename: string, type: string) {
 		const blob = new Blob([content], { type });
 		const url = URL.createObjectURL(blob);
@@ -216,297 +234,284 @@
 	{:else if !myRole?.admin && !myRole?.moderator}
 		<div class="center"><h2>🔒 Access Denied</h2><p class="muted">Moderator or higher privileges required.</p><a href="/" class="btn">Go Home</a></div>
 	{:else}
-		<div class="page-header">
-			{#if myRole.superAdmin}
-				<span class="level-badge level-badge--super">🔒 Super Admin</span>
-			{:else if myRole.admin}
-				<span class="level-badge level-badge--admin">🛡️ Admin</span>
-			{:else}
-				<span class="level-badge level-badge--mod">🔰 Moderator</span>
-			{/if}
-			<h1>👥 Users & Roles</h1>
-			<p class="muted">Manage users and assign staff roles.</p>
-		</div>
+		<h1>👥 Users & Roles</h1>
+		<p class="muted mb-2">Manage users, assign staff roles, and view membership.</p>
 
-		{#if myRole.superAdmin}
-			<div class="warning-banner">
-				<span class="warning-icon">⚠️</span>
-				<div><strong>Sensitive Information</strong><p>This page contains personal user data including email addresses. Handle with care.</p></div>
-			</div>
+		{#if toast}
+			<div class="toast toast--{toast.type}">{toast.text}</div>
 		{/if}
 
-		<!-- Search -->
-		<div class="card mt-4">
-			<h2>🔍 Search Users</h2>
-			<div class="search-row">
-				<input type="text" bind:value={searchQuery} placeholder={myRole.superAdmin ? "Search by runner ID, email, or name..." : "Search by runner ID or name..."} class="form-input" />
-				<select bind:value={searchFilter} class="form-input form-select">
-					<option value="all">All Users</option>
-					<option value="admins">Admins</option>
-					<option value="moderators">Moderators</option>
-					<option value="verifiers">Verifiers</option>
-					<option value="pending">Pending Profiles</option>
-				</select>
-				<button class="btn btn--primary" onclick={search}>Search</button>
-			</div>
-		</div>
-
-		<!-- Users Table -->
-		<div class="card mt-4">
-			<div class="table-header"><h2>👥 Users</h2><span class="user-count">{filteredUsers.length} users</span></div>
-			<div class="table-wrap">
-				<table class="user-table">
-					<thead>
-						<tr>
-							<th>Runner ID</th>
-							<th>Display Name</th>
-							{#if myRole.superAdmin}<th>Email</th>{/if}
-							<th>Role</th>
-							<th>Created</th>
-							<th>Actions</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#if loading}
-							<tr><td colspan={myRole.superAdmin ? 6 : 5} class="muted">Loading...</td></tr>
-						{:else if pageUsers.length === 0}
-							<tr><td colspan={myRole.superAdmin ? 6 : 5} class="muted">No users found</td></tr>
-						{:else}
-							{#each pageUsers as user}
-								{@const effectiveRole = getEffectiveRole(user)}
-								{@const meta = ROLE_META[effectiveRole]}
-								<tr>
-									<td><a href="/runners/{user.runner_id}">{user.runner_id}</a></td>
-									<td>{user.display_name || '-'}</td>
-									{#if myRole.superAdmin}<td class="email-cell">{user.email || 'N/A'}</td>{/if}
-									<td><span class="role-badge" style="background:{meta.color}">{meta.icon} {meta.label}</span></td>
-									<td>{fmtDate(user.created_at)}</td>
-									<td><button class="btn btn--sm" onclick={() => openUserModal(user)}>View</button></td>
-								</tr>
-							{/each}
-						{/if}
-					</tbody>
-				</table>
-			</div>
-			<div class="pagination">
-				<button class="btn btn--sm" disabled={currentPage <= 1} onclick={() => currentPage--}>← Previous</button>
-				<span class="muted">Page {currentPage} of {totalPages}</span>
-				<button class="btn btn--sm" disabled={currentPage >= totalPages} onclick={() => currentPage++}>Next →</button>
-			</div>
-		</div>
-
-		<!-- Export (super admin only) -->
-		{#if myRole.superAdmin}
-			<div class="card mt-4">
-				<h2>📥 Export Data</h2>
-				<p class="muted mb-2">Export user data for compliance or backup.</p>
-				<div class="export-actions">
-					<button class="btn" onclick={exportCSV}>Export CSV (emails)</button>
-					<button class="btn" onclick={exportJSON}>Export JSON (all data)</button>
+		<!-- Filters -->
+		<div class="filters card">
+			<div class="filters__row">
+				<div class="filters__tabs">
+					<button class="filter-tab" class:active={roleFilter === 'all'} onclick={() => { roleFilter = 'all'; currentPage = 1; }}>
+						All <span class="filter-tab__count">{users.length}</span>
+					</button>
+					<button class="filter-tab" class:active={roleFilter === 'staff'} onclick={() => { roleFilter = 'staff'; currentPage = 1; }}>
+						Staff <span class="filter-tab__count">{staffCount}</span>
+					</button>
+					<button class="filter-tab" class:active={roleFilter === 'admins'} onclick={() => { roleFilter = 'admins'; currentPage = 1; }}>
+						Admins
+					</button>
+					<button class="filter-tab" class:active={roleFilter === 'moderators'} onclick={() => { roleFilter = 'moderators'; currentPage = 1; }}>
+						Moderators
+					</button>
+					<button class="filter-tab" class:active={roleFilter === 'verifiers'} onclick={() => { roleFilter = 'verifiers'; currentPage = 1; }}>
+						Verifiers
+					</button>
+					<button class="filter-tab" class:active={roleFilter === 'pending'} onclick={() => { roleFilter = 'pending'; currentPage = 1; }}>
+						Pending <span class="filter-tab__count">{pendingCount}</span>
+					</button>
 				</div>
-				<p class="muted mt-1" style="font-size:0.8rem;">⚠️ Exports are logged. Only export for legitimate purposes.</p>
+				<button class="btn btn--small" onclick={loadUsers} disabled={loading}>↻ Refresh</button>
 			</div>
-		{/if}
+			<div class="filters__advanced">
+				<div class="filter-group filter-group--search">
+					<label class="filter-label">Search</label>
+					<input type="text" class="filter-input" bind:value={searchQuery} placeholder="Runner ID or display name..." oninput={() => currentPage = 1} />
+				</div>
+				{#if searchQuery || roleFilter !== 'all'}
+					<button class="btn btn--small" onclick={() => { searchQuery = ''; roleFilter = 'all'; currentPage = 1; }}>✕ Clear</button>
+				{/if}
+			</div>
+		</div>
 
-		<!-- User Detail + Role Management Modal -->
-		{#if viewingUser}
-			{@const effectiveRole = getEffectiveRole(viewingUser)}
-			{@const meta = ROLE_META[effectiveRole]}
-			<div class="modal-overlay" onclick={closeModal}>
-				<div class="modal" onclick={(e) => e.stopPropagation()}>
-					<div class="modal__header">
-						<h2>User Details</h2>
-						<button class="modal__close" onclick={closeModal}>&times;</button>
-					</div>
-					<div class="modal__body">
-						<!-- User info -->
-						<div class="detail-section">
-							{#each [
-								['Runner ID', viewingUser.runner_id],
-								['Display Name', viewingUser.display_name || '-'],
-								...(myRole.superAdmin ? [['Email', viewingUser.email || 'N/A'], ['Provider', viewingUser.provider || '-']] : []),
-								['Created', viewingUser.created_at ? new Date(viewingUser.created_at).toLocaleString() : '-']
-							] as [label, value]}
-								<div class="detail-row"><span class="detail-key">{label}</span><span class="detail-val">{value}</span></div>
-							{/each}
-							<div class="detail-row">
-								<span class="detail-key">Current Role</span>
-								<span class="detail-val"><span class="role-badge" style="background:{meta.color}">{meta.icon} {meta.label}</span></span>
-							</div>
-						</div>
-
-						<!-- Role Management -->
-						{#if canModifyUser(viewingUser)}
-							<div class="role-management">
-								<h3>🔧 Role Management</h3>
-
-								{#if roleMsg}
-									<div class="role-msg role-msg--{roleMsg.type}">{roleMsg.text}</div>
+		<!-- Users List -->
+		{#if loading}
+			<div class="card"><div class="center-sm"><div class="spinner"></div><p class="muted">Loading users...</p></div></div>
+		{:else if filteredUsers.length === 0}
+			<div class="card">
+				<div class="empty"><span class="empty__icon">🔍</span><h3>No users found</h3><p class="muted">Try adjusting your search or filters.</p></div>
+			</div>
+		{:else}
+			<div class="users-list">
+				{#each pageUsers as user (user.user_id || user.runner_id)}
+					{@const effectiveRole = getEffectiveRole(user)}
+					{@const meta = ROLE_META[effectiveRole]}
+					{@const isExpanded = expandedId === user.user_id}
+					<div class="user-card" class:expanded={isExpanded}>
+						<button class="user-card__header" onclick={() => toggleUser(user.user_id)}>
+							<div class="user-card__info">
+								<span class="user-card__name">{user.display_name || user.runner_id || '—'}</span>
+								{#if user.display_name && user.runner_id}
+									<span class="user-card__runner-id">{user.runner_id}</span>
 								{/if}
+							</div>
+							<div class="user-card__meta">
+								<span class="role-badge" style="background:{meta.color}">{meta.icon} {meta.label}</span>
+								<span class="user-card__date muted">{fmtDate(user.created_at)}</span>
+							</div>
+						</button>
 
-								<p class="muted" style="font-size:0.85rem; margin-bottom:0.75rem;">
-									Assign a new role to this user. You can only assign roles below your own.
-								</p>
-
-								<div class="role-options">
-									{#each assignableRoles as role}
-										{@const rm = ROLE_META[role]}
-										<button
-											class="role-option"
-											class:role-option--selected={selectedNewRole === role}
-											class:role-option--current={effectiveRole === role}
-											onclick={() => { selectedNewRole = selectedNewRole === role ? '' : role; confirmingRole = false; selectedGameIds = []; }}
-											disabled={effectiveRole === role}
-										>
-											<span class="role-option__icon">{rm.icon}</span>
-											<div class="role-option__info">
-												<span class="role-option__name">{rm.label}</span>
-												{#if effectiveRole === role}
-													<span class="role-option__note">Current role</span>
-												{/if}
-											</div>
-											<span class="role-option__dot" style="background:{rm.color}"></span>
-										</button>
-									{/each}
+						{#if isExpanded}
+							<div class="user-card__body">
+								<!-- User Details -->
+								<div class="user-details">
+									<div class="user-detail"><span class="user-detail__label">Runner ID</span><span class="user-detail__value"><a href="/runners/{user.runner_id}">{user.runner_id}</a></span></div>
+									<div class="user-detail"><span class="user-detail__label">Display Name</span><span class="user-detail__value">{user.display_name || '—'}</span></div>
+									<div class="user-detail"><span class="user-detail__label">Role</span><span class="user-detail__value"><span class="role-badge" style="background:{meta.color}">{meta.icon} {meta.label}</span></span></div>
+									<div class="user-detail"><span class="user-detail__label">Status</span><span class="user-detail__value">{user.status || '—'}</span></div>
+									<div class="user-detail"><span class="user-detail__label">Joined</span><span class="user-detail__value">{fmtDate(user.created_at)}</span></div>
+									{#if user.location}<div class="user-detail"><span class="user-detail__label">Location</span><span class="user-detail__value">{user.location}</span></div>{/if}
+									{#if user.pronouns}<div class="user-detail"><span class="user-detail__label">Pronouns</span><span class="user-detail__value">{user.pronouns}</span></div>{/if}
 								</div>
 
-								<!-- Game picker for verifier -->
-								{#if selectedNewRole === 'verifier'}
-									<div class="game-picker">
-										<label class="game-picker__label">Assign to games (optional):</label>
-										<div class="game-picker__list">
-											{#each games as game}
-												<label class="game-picker__item">
-													<input
-														type="checkbox"
-														checked={selectedGameIds.includes(game.game_id)}
-														onchange={() => toggleGameId(game.game_id)}
-													/>
-													<span>{game.game_name}</span>
-												</label>
+								<!-- Role Management -->
+								{#if canModifyUser(user)}
+									<div class="role-section">
+										<h3>🔧 Change Role</h3>
+										<p class="muted" style="font-size:0.85rem; margin-bottom:0.75rem;">
+											Assign a new role. You can only assign roles below your own.
+										</p>
+
+										<div class="role-options">
+											{#each assignableRoles as role}
+												{@const rm = ROLE_META[role]}
+												<button
+													class="role-option"
+													class:role-option--selected={selectedNewRole === role}
+													class:role-option--current={effectiveRole === role}
+													onclick={() => { selectedNewRole = selectedNewRole === role ? '' : role; confirmingRole = false; selectedGameIds = []; }}
+													disabled={effectiveRole === role}
+												>
+													<span class="role-option__icon">{rm.icon}</span>
+													<div class="role-option__info">
+														<span class="role-option__name">{rm.label}</span>
+														{#if effectiveRole === role}<span class="role-option__note">Current role</span>{/if}
+													</div>
+													<span class="role-option__dot" style="background:{rm.color}"></span>
+												</button>
 											{/each}
-											{#if games.length === 0}
-												<p class="muted" style="font-size:0.8rem;">No games found. Game assignments can be added later.</p>
-											{/if}
 										</div>
-										{#if selectedGameIds.length > 0}
-											<p class="muted" style="font-size:0.8rem; margin-top:0.5rem;">{selectedGameIds.length} game{selectedGameIds.length === 1 ? '' : 's'} selected</p>
+
+										<!-- Game picker for verifier -->
+										{#if selectedNewRole === 'verifier'}
+											<div class="game-picker">
+												<label class="game-picker__label">Assign to games (optional):</label>
+												<div class="game-picker__list">
+													{#each games as game}
+														<label class="game-picker__item">
+															<input type="checkbox" checked={selectedGameIds.includes(game.game_id)} onchange={() => toggleGameId(game.game_id)} />
+															<span>{game.game_name}</span>
+														</label>
+													{/each}
+													{#if games.length === 0}
+														<p class="muted" style="font-size:0.8rem;">No games found.</p>
+													{/if}
+												</div>
+												{#if selectedGameIds.length > 0}
+													<p class="muted" style="font-size:0.8rem; margin-top:0.5rem;">{selectedGameIds.length} game{selectedGameIds.length === 1 ? '' : 's'} selected</p>
+												{/if}
+											</div>
 										{/if}
+
+										<!-- Confirm -->
+										{#if selectedNewRole}
+											{#if !confirmingRole}
+												<button class="btn btn--primary mt-2" onclick={() => confirmingRole = true}>
+													Change to {ROLE_META[selectedNewRole].icon} {ROLE_META[selectedNewRole].label}
+												</button>
+											{:else}
+												<div class="confirm-box">
+													<p>
+														Change <strong>{user.display_name || user.runner_id}</strong> from
+														<span class="role-badge" style="background:{meta.color}">{meta.icon} {meta.label}</span>
+														to
+														<span class="role-badge" style="background:{ROLE_META[selectedNewRole].color}">{ROLE_META[selectedNewRole].icon} {ROLE_META[selectedNewRole].label}</span>?
+													</p>
+													<div class="confirm-box__actions">
+														<button class="btn btn--danger" onclick={() => handleAssignRole(user)} disabled={roleChanging}>
+															{roleChanging ? 'Applying...' : 'Confirm Change'}
+														</button>
+														<button class="btn" onclick={() => confirmingRole = false} disabled={roleChanging}>Cancel</button>
+													</div>
+												</div>
+											{/if}
+										{/if}
+									</div>
+								{:else}
+									<div class="role-section role-section--locked">
+										<h3>🔧 Role Management</h3>
+										<p class="muted" style="font-size:0.85rem;">
+											{#if effectiveRole === 'super_admin'}
+												Super Admin roles cannot be changed via this panel.
+											{:else if ROLE_LEVELS[effectiveRole] >= getMyLevel()}
+												You cannot modify users at or above your own role level.
+											{:else}
+												You do not have permission to manage roles.
+											{/if}
+										</p>
 									</div>
 								{/if}
 
-								<!-- Confirm & Apply -->
-								{#if selectedNewRole}
-									{#if !confirmingRole}
-										<button class="btn btn--primary mt-3" onclick={() => confirmingRole = true}>
-											Change to {ROLE_META[selectedNewRole].icon} {ROLE_META[selectedNewRole].label}
-										</button>
-									{:else}
-										<div class="confirm-box">
-											<p>
-												Change <strong>{viewingUser.display_name || viewingUser.runner_id}</strong> from
-												<span class="role-badge" style="background:{meta.color}">{meta.icon} {meta.label}</span>
-												to
-												<span class="role-badge" style="background:{ROLE_META[selectedNewRole].color}">{ROLE_META[selectedNewRole].icon} {ROLE_META[selectedNewRole].label}</span>?
-											</p>
-											<div class="confirm-box__actions">
-												<button class="btn btn--danger" onclick={handleAssignRole} disabled={roleChanging}>
-													{roleChanging ? 'Applying...' : 'Confirm Change'}
-												</button>
-												<button class="btn" onclick={() => confirmingRole = false} disabled={roleChanging}>Cancel</button>
-											</div>
-										</div>
-									{/if}
-								{/if}
-							</div>
-						{:else}
-							<div class="role-management role-management--locked">
-								<h3>🔧 Role Management</h3>
-								<p class="muted" style="font-size:0.85rem;">
-									{#if effectiveRole === 'super_admin'}
-										Super Admin roles cannot be changed via this panel.
-									{:else if ROLE_LEVELS[effectiveRole] >= getMyLevel()}
-										You cannot modify users at or above your own role level.
-									{:else}
-										You do not have permission to manage roles.
-									{/if}
-								</p>
+								<div class="user-card__footer">
+									<a href="/runners/{user.runner_id}" class="btn btn--small" target="_blank">View Profile ↗</a>
+								</div>
 							</div>
 						{/if}
 					</div>
-					<div class="modal__footer">
-						<a href="/runners/{viewingUser.runner_id}" class="btn btn--sm" target="_blank">View Profile ↗</a>
-						<button class="btn" onclick={closeModal}>Close</button>
-					</div>
+				{/each}
+			</div>
+
+			<!-- Pagination -->
+			{#if totalPages > 1}
+				<div class="pagination">
+					<button class="btn btn--small" disabled={currentPage <= 1} onclick={() => currentPage--}>← Previous</button>
+					<span class="muted">Page {currentPage} of {totalPages} · {filteredUsers.length} users</span>
+					<button class="btn btn--small" disabled={currentPage >= totalPages} onclick={() => currentPage++}>Next →</button>
 				</div>
+			{/if}
+		{/if}
+
+		<!-- Export -->
+		{#if isAdmin}
+			<div class="card mt-3">
+				<h2>📥 Export User Data</h2>
+				<p class="muted mb-2">Export user data for compliance or backup purposes.</p>
+				<div class="export-actions">
+					<button class="btn" onclick={exportCSV}>📄 Export CSV</button>
+					<button class="btn" onclick={exportJSON}>📋 Export JSON</button>
+				</div>
+				<p class="muted mt-1" style="font-size:0.8rem;">⚠️ Exports contain user data. Only export for legitimate purposes (GDPR requests, backups).</p>
+			</div>
+		{:else}
+			<div class="card mt-3">
+				<h2>📥 Export User Data</h2>
+				<p class="muted">User data exports are available to admins only. If you need an export, please contact an admin.</p>
 			</div>
 		{/if}
 	{/if}
 </div>
 
 <style>
-	.back { margin: 1rem 0 0.5rem; } .back a { color: var(--text-muted); text-decoration: none; } .back a:hover { color: var(--fg); }
+	.back { margin: 1rem 0 0.5rem; } .back a { color: var(--muted); text-decoration: none; } .back a:hover { color: var(--fg); }
+	h1 { margin: 0 0 0.25rem; } .mb-2 { margin-bottom: 1rem; } .mt-1 { margin-top: 0.5rem; } .mt-2 { margin-top: 0.75rem; } .mt-3 { margin-top: 1.5rem; }
 	.center { text-align: center; padding: 4rem 0; }
+	.center-sm { text-align: center; padding: 2rem; }
 	.spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; margin: 0 auto 1rem; animation: spin 0.8s linear infinite; }
 	@keyframes spin { to { transform: rotate(360deg); } }
-	.btn { display: inline-flex; align-items: center; padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; color: var(--fg); background: transparent; cursor: pointer; font-size: 0.85rem; text-decoration: none; font-family: inherit; gap: 0.35rem; }
+	.btn { display: inline-flex; align-items: center; padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: none; color: var(--fg); cursor: pointer; font-size: 0.9rem; text-decoration: none; font-family: inherit; gap: 0.35rem; }
+	.btn:hover { border-color: var(--accent); color: var(--accent); }
+	.btn--small { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
 	.btn--primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 	.btn--danger { background: #ef4444; color: #fff; border-color: #ef4444; }
 	.btn--danger:disabled { opacity: 0.5; cursor: not-allowed; }
-	.btn--sm { font-size: 0.8rem; padding: 0.3rem 0.75rem; }
-	.mt-3 { margin-top: 0.75rem; } .mt-4 { margin-top: 1.5rem; } .mt-1 { margin-top: 0.5rem; } .mb-2 { margin-bottom: 1rem; }
+	.btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-	.level-badge { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.75rem; border-radius: 4px; margin-bottom: 0.5rem; color: white; }
-	.level-badge--super { background: #9b59b6; }
-	.level-badge--admin { background: #f59e0b; color: #000; }
-	.level-badge--mod { background: #8b5cf6; }
-	.page-header { margin-bottom: 1.5rem; } .page-header h1 { margin-bottom: 0.25rem; }
+	/* Toast */
+	.toast { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 500; }
+	.toast--success { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+	.toast--error { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
 
-	.warning-banner { display: flex; gap: 1rem; padding: 1rem 1.25rem; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; }
-	.warning-icon { font-size: 1.5rem; } .warning-banner strong { display: block; margin-bottom: 0.25rem; color: #ef4444; } .warning-banner p { margin: 0; font-size: 0.9rem; color: var(--text-muted); }
+	/* Filters */
+	.filters { padding: 1rem; margin-bottom: 1.5rem; }
+	.filters__row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
+	.filters__tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+	.filter-tab { background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.75rem; font-size: 0.85rem; color: var(--muted); cursor: pointer; transition: all 0.15s; font-family: inherit; }
+	.filter-tab:hover { border-color: var(--fg); color: var(--fg); }
+	.filter-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+	.filter-tab__count { display: inline-block; background: rgba(255,255,255,0.25); padding: 0 6px; border-radius: 10px; font-size: 0.75rem; margin-left: 4px; font-weight: 700; }
+	.filters__advanced { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+	.filter-group { display: flex; flex-direction: column; gap: 0.25rem; }
+	.filter-group--search { flex: 1; min-width: 200px; }
+	.filter-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+	.filter-input { padding: 0.35rem 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 0.85rem; font-family: inherit; width: 100%; }
+	.filter-input:focus { border-color: var(--accent); outline: none; }
 
-	.search-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
-	.form-input { flex: 1; min-width: 200px; padding: 0.5rem 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 0.9rem; font-family: inherit; }
-	.form-select { flex: 0 0 170px; }
+	/* Empty */
+	.empty { text-align: center; padding: 3rem 1rem; }
+	.empty__icon { font-size: 3rem; display: block; margin-bottom: 0.75rem; }
+	.empty h3 { margin: 0 0 0.5rem; }
 
-	.table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-	.user-count { font-size: 0.9rem; color: var(--text-muted); }
-	.table-wrap { overflow-x: auto; }
-	.user-table { width: 100%; border-collapse: collapse; }
-	.user-table th, .user-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-	.user-table th { background: var(--bg); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); }
-	.user-table tr:hover td { background: var(--bg); }
-	.user-table a { color: var(--accent); text-decoration: none; } .user-table a:hover { text-decoration: underline; }
-	.email-cell { font-family: monospace; font-size: 0.85rem; }
+	/* User cards */
+	.users-list { display: flex; flex-direction: column; gap: 0.5rem; }
+	.user-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+	.user-card__header { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.25rem; cursor: pointer; width: 100%; background: none; border: none; color: var(--fg); text-align: left; font-family: inherit; font-size: inherit; gap: 1rem; transition: background 0.1s; }
+	.user-card__header:hover { background: rgba(255,255,255,0.02); }
+	.user-card__info { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; min-width: 0; }
+	.user-card__name { font-weight: 600; font-size: 1rem; }
+	.user-card__runner-id { font-size: 0.8rem; color: var(--muted); font-family: monospace; }
+	.user-card__meta { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
+	.user-card__date { font-size: 0.8rem; white-space: nowrap; }
 
+	/* Role badges */
 	.role-badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.2rem 0.55rem; font-size: 0.7rem; font-weight: 600; border-radius: 4px; color: white; white-space: nowrap; }
 
-	.pagination { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
-	.export-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-
-	/* Modal */
-	.modal-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); padding: 1rem; }
-	.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 560px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
-	.modal__header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
-	.modal__header h2 { font-size: 1.1rem; margin: 0; }
-	.modal__close { background: none; border: none; font-size: 1.5rem; color: var(--text-muted); cursor: pointer; }
-	.modal__body { padding: 1.25rem; overflow-y: auto; }
-	.modal__footer { padding: 1rem 1.25rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 0.5rem; }
-
-	.detail-section { margin-bottom: 0.5rem; }
-	.detail-row { display: flex; padding: 0.4rem 0; border-bottom: 1px solid var(--border); }
-	.detail-row:last-child { border-bottom: none; }
-	.detail-key { flex: 0 0 110px; font-weight: 600; color: var(--text-muted); font-size: 0.8rem; }
-	.detail-val { flex: 1; font-size: 0.85rem; word-break: break-all; display: flex; align-items: center; }
+	/* User card body */
+	.user-card__body { border-top: 1px solid var(--border); padding: 1.25rem; }
+	.user-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+	.user-detail { display: flex; flex-direction: column; gap: 0.2rem; }
+	.user-detail__label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+	.user-detail__value { font-weight: 500; word-break: break-word; }
+	.user-detail__value a { color: var(--accent); text-decoration: none; }
+	.user-detail__value a:hover { text-decoration: underline; }
+	.user-card__footer { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; }
 
 	/* Role management */
-	.role-management { margin-top: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--border); }
-	.role-management h3 { margin: 0 0 0.5rem; font-size: 1rem; }
-	.role-management--locked { opacity: 0.6; }
-
-	.role-msg { padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 0.75rem; }
-	.role-msg--success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #22c55e; }
-	.role-msg--error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; }
+	.role-section { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+	.role-section h3 { margin: 0 0 0.25rem; font-size: 1rem; }
+	.role-section--locked { opacity: 0.5; }
 
 	.role-options { display: flex; flex-direction: column; gap: 0.5rem; }
 	.role-option {
@@ -523,23 +528,32 @@
 	.role-option__icon { font-size: 1.25rem; flex-shrink: 0; }
 	.role-option__info { flex: 1; }
 	.role-option__name { font-weight: 600; font-size: 0.9rem; }
-	.role-option__note { font-size: 0.7rem; color: var(--text-muted); display: block; }
+	.role-option__note { font-size: 0.7rem; color: var(--muted); display: block; }
 	.role-option__dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
 	/* Game picker */
 	.game-picker { margin-top: 0.75rem; padding: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
-	.game-picker__label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.5rem; }
+	.game-picker__label { font-size: 0.85rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 0.5rem; }
 	.game-picker__list { max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.25rem; }
 	.game-picker__item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer; padding: 0.25rem 0.35rem; border-radius: 4px; }
 	.game-picker__item:hover { background: rgba(255,255,255,0.05); }
 	.game-picker__item input { accent-color: var(--accent); }
 
-	/* Confirmation */
-	.confirm-box {
-		margin-top: 0.75rem; padding: 0.85rem;
-		background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.2);
-		border-radius: 8px;
-	}
+	/* Confirm */
+	.confirm-box { margin-top: 0.75rem; padding: 0.85rem; background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; }
 	.confirm-box p { margin: 0 0 0.75rem; font-size: 0.9rem; line-height: 1.6; }
 	.confirm-box__actions { display: flex; gap: 0.5rem; }
+
+	/* Pagination */
+	.pagination { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1rem; padding: 1rem; }
+
+	/* Export */
+	.export-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+	@media (max-width: 640px) {
+		.filters__row { flex-direction: column; align-items: stretch; }
+		.user-card__header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+		.user-card__meta { width: 100%; justify-content: space-between; }
+		.user-details { grid-template-columns: 1fr 1fr; }
+	}
 </style>

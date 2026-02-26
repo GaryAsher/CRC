@@ -16,12 +16,16 @@
 	type UpdateStatus = 'pending' | 'acknowledged' | 'resolved' | 'dismissed' | 'all';
 	let statusFilter = $state<UpdateStatus>('pending');
 	let gameFilter = $state('');
+	let dateFrom = $state('');
+	let dateTo = $state('');
 
 	// ── Derived ───────────────────────────────────────────────────────────────
 	let filteredRequests = $derived.by(() => {
 		let result = requests;
 		if (statusFilter !== 'all') result = result.filter(r => r.status === statusFilter);
 		if (gameFilter) result = result.filter(r => r.game_id === gameFilter);
+		if (dateFrom) result = result.filter(r => r.created_at >= dateFrom);
+		if (dateTo) result = result.filter(r => r.created_at <= dateTo + 'T23:59:59');
 		return result;
 	});
 
@@ -150,6 +154,19 @@
 					<button class="btn btn--small" onclick={loadRequests} disabled={loading}>↻ Refresh</button>
 				</div>
 			</div>
+			<div class="filters__advanced">
+				<div class="filter-group">
+					<label class="filter-label">Date From</label>
+					<input type="date" class="filter-input" bind:value={dateFrom} />
+				</div>
+				<div class="filter-group">
+					<label class="filter-label">Date To</label>
+					<input type="date" class="filter-input" bind:value={dateTo} />
+				</div>
+				{#if gameFilter || dateFrom || dateTo}
+					<button class="btn btn--small" onclick={() => { gameFilter = ''; dateFrom = ''; dateTo = ''; }}>✕ Clear</button>
+				{/if}
+			</div>
 		</div>
 
 		<!-- Requests List -->
@@ -260,6 +277,11 @@
 	.filter-tab__count { display: inline-block; background: rgba(255,255,255,0.25); padding: 0 6px; border-radius: 10px; font-size: 0.75rem; margin-left: 4px; font-weight: 700; }
 	.filters__controls { display: flex; gap: 0.5rem; align-items: center; }
 	.filters__controls select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.85rem; color: var(--fg); font-family: inherit; }
+	.filters__advanced { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+	.filter-group { display: flex; flex-direction: column; gap: 0.25rem; }
+	.filter-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+	.filter-input { padding: 0.35rem 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 0.85rem; font-family: inherit; }
+	.filter-input:focus { border-color: var(--accent); outline: none; }
 
 	/* Request cards */
 	.requests-list { display: flex; flex-direction: column; gap: 0.75rem; }

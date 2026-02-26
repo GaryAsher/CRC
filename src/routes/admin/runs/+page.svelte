@@ -263,19 +263,19 @@
 					<button class="btn btn--small" onclick={loadRuns} disabled={loading}>↻ Refresh</button>
 				</div>
 			</div>
-			{#if dateFrom || dateTo}
-				<div class="filters__advanced">
-					<div class="filter-group">
-						<label class="filter-label">Date From</label>
-						<input type="date" class="filter-input" bind:value={dateFrom} />
-					</div>
-					<div class="filter-group">
-						<label class="filter-label">Date To</label>
-						<input type="date" class="filter-input" bind:value={dateTo} />
-					</div>
-					<button class="btn btn--small" onclick={() => { dateFrom = ''; dateTo = ''; }}>✕ Clear</button>
+			<div class="filters__advanced">
+				<div class="filter-group">
+					<label class="filter-label">Date From</label>
+					<input type="date" class="filter-input" bind:value={dateFrom} />
 				</div>
-			{/if}
+				<div class="filter-group">
+					<label class="filter-label">Date To</label>
+					<input type="date" class="filter-input" bind:value={dateTo} />
+				</div>
+				{#if gameFilter || dateFrom || dateTo}
+					<button class="btn btn--small" onclick={() => { gameFilter = ''; dateFrom = ''; dateTo = ''; }}>✕ Clear</button>
+				{/if}
+			</div>
 		</div>
 
 		<!-- Runs List -->

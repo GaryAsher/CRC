@@ -110,17 +110,15 @@
 	{:else if !authorized}
 		<div class="center"><h2>🔒 Access Denied</h2><p class="muted">Super Admin privileges required.</p><a href="/" class="btn">Go Home</a></div>
 	{:else}
-		<div class="page-header">
-			<span class="super-badge">🔒 Super Admin Only</span>
-			<h1>💚 Site Health</h1>
-			<p class="muted">System monitoring and diagnostics</p>
-		</div>
+		<h1>💚 Site Health</h1>
+		<p class="muted mb-2">System monitoring and diagnostics.</p>
 
 		<!-- Overall Status Bar -->
 		<div class="health-bar" style:border-color={overallColors[overallStatus]}>
 			<span class="health-dot" style:background={overallColors[overallStatus]}></span>
 			<span class="health-text">{overallLabels[overallStatus]}</span>
 			{#if lastCheckTime}<span class="health-time">{lastCheckTime}</span>{/if}
+			<button class="btn btn--small" onclick={runChecks} disabled={overallStatus === 'checking'}>↻ Refresh</button>
 		</div>
 
 		<!-- Quick Stats -->
@@ -185,14 +183,6 @@
 			</div>
 		</div>
 
-		<!-- Actions -->
-		<div class="card mt-4">
-			<h2>🔧 Actions</h2>
-			<div class="actions-row">
-				<button class="btn" onclick={runChecks}>🔄 Re-run All Checks</button>
-				<a href="/admin/debug" class="btn">🔧 Debug Tools</a>
-			</div>
-		</div>
 	{/if}
 </div>
 
@@ -201,10 +191,11 @@
 	.center { text-align: center; padding: 4rem 0; }
 	.spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; margin: 0 auto 1rem; animation: spin 0.8s linear infinite; }
 	@keyframes spin { to { transform: rotate(360deg); } }
-	.btn { display: inline-block; padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; color: var(--fg); background: transparent; cursor: pointer; font-size: 0.85rem; text-decoration: none; }
+	.btn { display: inline-block; padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; color: var(--fg); background: transparent; cursor: pointer; font-size: 0.85rem; text-decoration: none; font-family: inherit; }
+	.btn--small { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
+	.btn:disabled { opacity: 0.4; cursor: not-allowed; }
 	.mt-4 { margin-top: 1.5rem; } .mb-2 { margin-bottom: 1rem; }
-	.super-badge { display: inline-block; background: #9b59b6; color: white; font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.75rem; border-radius: 4px; margin-bottom: 0.5rem; }
-	.page-header { margin-bottom: 1.5rem; } .page-header h1 { margin-bottom: 0.25rem; }
+	h1 { margin: 0 0 0.25rem; }
 	.r { text-align: right; }
 
 	.health-bar { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.25rem; background: var(--surface); border: 1px solid; border-radius: 10px; margin-bottom: 1.5rem; }
@@ -239,6 +230,4 @@
 	.usage-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.5s; }
 	.usage-bar--warn { background: #f0ad4e; }
 	.usage-val { font-size: 0.8rem; color: var(--text-muted); }
-
-	.actions-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 </style>
