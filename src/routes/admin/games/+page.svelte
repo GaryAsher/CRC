@@ -121,7 +121,7 @@
 	});
 </script>
 
-<svelte:head><title>🎯 Pending Games | Admin | CRC</title></svelte:head>
+<svelte:head><title>🎯 Games | Admin | CRC</title></svelte:head>
 
 <div class="page-width">
 	<p class="back"><a href="/admin">← Dashboard</a></p>
@@ -131,8 +131,8 @@
 	{:else if !authorized}
 		<div class="center"><h2>🔒 Access Denied</h2><a href="/" class="btn">Go Home</a></div>
 	{:else}
-		<h1>🎯 Pending Games</h1>
-		<p class="muted mb-2">Review user-submitted game proposals.</p>
+		<h1>🎯 Games</h1>
+		<p class="muted mb-2">Review pending games and manage approved submissions.</p>
 
 		{#if actionMessage}
 			<div class="toast toast--{actionMessage.type}">{actionMessage.text}</div>

@@ -406,12 +406,12 @@
 				<div class="admin-panel__section-title">Admin</div>
 				<a href="/admin/profiles" class="admin-panel__item" class:is-active={isAdminActive('/admin/profiles')} onclick={closeAdminPanel}>
 					<span class="admin-panel__icon">👥</span>
-					<span class="admin-panel__text">Pending Profiles</span>
+					<span class="admin-panel__text">Profiles</span>
 					{#if adminCounts.pendingProfiles > 0}<span class="admin-panel__badge">{adminCounts.pendingProfiles}</span>{/if}
 				</a>
 				<a href="/admin/games" class="admin-panel__item" class:is-active={isAdminActive('/admin/games')} onclick={closeAdminPanel}>
 					<span class="admin-panel__icon">🎮</span>
-					<span class="admin-panel__text">Pending Games</span>
+					<span class="admin-panel__text">Games</span>
 					{#if adminCounts.pendingGames > 0}<span class="admin-panel__badge">{adminCounts.pendingGames}</span>{/if}
 				</a>
 			{/if}

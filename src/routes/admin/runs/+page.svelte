@@ -225,20 +225,13 @@
 	{:else if !authorized}
 		<div class="center"><h2>🔒 Access Denied</h2><p class="muted">You need verifier, moderator, or admin privileges to review runs.</p><a href="/" class="btn">Go Home</a></div>
 	{:else}
-		<div class="page-header">
-			<div>
-				<h1>🏃 Runs</h1>
-				<p class="muted">
-					Review pending runs and manage approved runs.
-					{#if !isSuperAdmin && !isAdmin && assignedGameIds.size > 0}
-						You have {assignedGameIds.size} assigned game{assignedGameIds.size !== 1 ? 's' : ''}.
-					{/if}
-				</p>
-			</div>
-			<div class="page-header__actions">
-				<button class="btn btn--small" onclick={loadRuns} disabled={loading}>↻ Refresh</button>
-			</div>
-		</div>
+		<h1>🏃 Runs</h1>
+		<p class="muted mb-2">
+			Review pending runs and manage approved runs.
+			{#if !isSuperAdmin && !isAdmin && assignedGameIds.size > 0}
+				You have {assignedGameIds.size} assigned game{assignedGameIds.size !== 1 ? 's' : ''}.
+			{/if}
+		</p>
 
 		{#if actionMessage}
 			<div class="toast toast--{actionMessage.type}">{actionMessage.text}</div>
@@ -267,6 +260,7 @@
 							<option value={gid}>{fmt(gid)}</option>
 						{/each}
 					</select>
+					<button class="btn btn--small" onclick={loadRuns} disabled={loading}>↻ Refresh</button>
 				</div>
 			</div>
 			{#if dateFrom || dateTo}
@@ -439,10 +433,6 @@
 	.btn--small { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
 	.btn:disabled { opacity: 0.4; cursor: not-allowed; }
 	.mono { font-family: monospace; font-size: 0.85rem; }
-
-	/* Header */
-	.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
-	.page-header__actions { display: flex; gap: 0.5rem; }
 
 	/* Toast */
 	.toast { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 500; }

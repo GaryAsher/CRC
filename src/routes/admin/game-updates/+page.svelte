@@ -117,15 +117,8 @@
 	{:else if !authorized}
 		<div class="center"><h2>🔒 Access Denied</h2><p class="muted">Verifier or admin privileges required.</p><a href="/" class="btn">Go Home</a></div>
 	{:else}
-		<div class="page-header">
-			<div>
-				<h1>📝 Game Updates</h1>
-				<p class="muted">Review pending updates and manage approved corrections.</p>
-			</div>
-			<div class="page-header__actions">
-				<button class="btn btn--small" onclick={loadRequests} disabled={loading}>↻ Refresh</button>
-			</div>
-		</div>
+		<h1>📝 Game Updates</h1>
+		<p class="muted mb-2">Review pending updates and manage approved corrections.</p>
 
 		{#if toast}
 			<div class="toast toast--success">{toast}</div>
@@ -154,6 +147,7 @@
 							<option value={gid}>{fmt(gid)}</option>
 						{/each}
 					</select>
+					<button class="btn btn--small" onclick={loadRequests} disabled={loading}>↻ Refresh</button>
 				</div>
 			</div>
 		</div>
@@ -242,7 +236,7 @@
 
 <style>
 	.back { margin: 1rem 0 0.5rem; } .back a { color: var(--muted); text-decoration: none; } .back a:hover { color: var(--fg); }
-	h1 { margin: 0 0 0.25rem; }
+	h1 { margin: 0 0 0.25rem; } .mb-2 { margin-bottom: 1rem; }
 	.center { text-align: center; padding: 4rem 0; }
 	.center-sm { text-align: center; padding: 2rem; }
 	.spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; margin: 0 auto 1rem; animation: spin 0.8s linear infinite; }
@@ -251,10 +245,6 @@
 	.btn:hover { border-color: var(--accent); color: var(--accent); }
 	.btn--small { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
 	.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-	/* Header */
-	.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
-	.page-header__actions { display: flex; gap: 0.5rem; }
 
 	/* Toast */
 	.toast { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 500; }

@@ -68,8 +68,8 @@
 		{ key: 'health',       icon: '💚', title: 'Site Health',      desc: 'Performance, storage, and system status.',               href: '/admin/health' },
 		{ key: 'financials',   icon: '💰', title: 'Financials',       desc: 'Track site income and expenses.',                         href: '/admin/financials' },
 		// Admin
-		{ key: 'profiles',     icon: '👥', title: 'Pending Profiles', desc: 'Review runner profile applications.',                      href: '/admin/profiles',    countKey: 'pendingProfiles' },
-		{ key: 'games',        icon: '🎮', title: 'Pending Games',    desc: 'Review new game submissions.',                            href: '/admin/games',       countKey: 'pendingGames' },
+		{ key: 'profiles',     icon: '👥', title: 'Profiles',         desc: 'Review pending profiles and manage approved submissions.',  href: '/admin/profiles',    countKey: 'pendingProfiles' },
+		{ key: 'games',        icon: '🎮', title: 'Games',            desc: 'Review pending games and manage approved submissions.',    href: '/admin/games',       countKey: 'pendingGames' },
 		// Moderator
 		{ key: 'users',        icon: '👥', title: 'Users & Roles',    desc: 'Manage users and assign staff roles.',                    href: '/admin/users' },
 		{ key: 'debug',        icon: '🔧', title: 'Debug Tools',      desc: 'Role simulation, system diagnostics.',                    href: '/admin/debug' },
