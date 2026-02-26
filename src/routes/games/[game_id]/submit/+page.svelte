@@ -169,7 +169,6 @@
 				runner_id: profile.runner_id,
 				video_url: videoUrl,
 				submitted_at: new Date().toISOString(),
-				source: 'site_form',
 				submitter_notes: submitterNotes.trim() || undefined,
 			};
 
@@ -352,18 +351,20 @@
 				{/if}
 			</p>
 			<div class="field-row">
-				<div class="field">
-					<label for="time-rta" class="field-label">RTA Time</label>
-					<input id="time-rta" type="text" bind:value={runTimeRta} placeholder="HH:MM:SS or MM:SS" />
-					<span class="field-hint">Real-time (wall clock)</span>
-				</div>
 				{#if showRtaSeparately}
 					<div class="field">
 						<label for="time-primary" class="field-label">{gameTimingLabel} Time</label>
 						<input id="time-primary" type="text" bind:value={runTimePrimary} placeholder="HH:MM:SS or MM:SS" />
 						<span class="field-hint">{game.game_name}'s tracked timing</span>
 					</div>
+				{:else}
+					<div class="field"></div>
 				{/if}
+				<div class="field">
+					<label for="time-rta" class="field-label">RTA Time</label>
+					<input id="time-rta" type="text" bind:value={runTimeRta} placeholder="HH:MM:SS or MM:SS" />
+					<span class="field-hint">Real-time (wall clock)</span>
+				</div>
 			</div>
 		</div>
 
@@ -413,41 +414,26 @@
 					Submit Run
 				{/if}
 			</button>
-			<a href="/games/{game.game_id}/rules" class="btn">View Rules</a>
 		</div>
 	</form>
-
-	<!-- Requirements Reminder -->
-	<section class="card mt-section">
-		<h3>Submission Requirements</h3>
-		<ul class="req-list">
-			<li><strong>Video proof</strong> — Full unedited recording of the run</li>
-			<li><strong>Category</strong> — Select the correct category for your run</li>
-			<li><strong>Timer visible</strong> — In-game timer should be shown if applicable</li>
-			<li><strong>No cheats or mods</strong> — Unless specifically allowed by category rules</li>
-		</ul>
-		<p class="muted mt-1">
-			Review the full rules on the <a href="/games/{game.game_id}/rules">Rules tab</a> before submitting.
-		</p>
-	</section>
 {/if}
 
 <style>
-	h2 { margin: 0 0 0.25rem; }
-	.mb-3 { margin-bottom: 1rem; }
+	h2 { margin: 0 0 0.25rem; text-align: center; }
+	.mb-3 { margin-bottom: 1rem; text-align: center; }
 	.mt-1 { margin-top: 0.5rem; }
 	.mt-2 { margin-top: 0.75rem; }
 	.mt-section { margin-top: 1.5rem; }
 	.required-hint { font-size: 0.8rem; }
 	.req { color: #ef4444; font-weight: 600; }
 
-	.empty-state, .success-state { text-align: center; padding: 2rem 1rem; }
+	.empty-state, .success-state { text-align: center; padding: 2rem 1rem; max-width: 720px; margin: 0 auto; }
 	.empty-state__icon, .success-state__icon { display: block; font-size: 3rem; margin-bottom: 0.75rem; opacity: 0.5; }
 	.empty-state h3, .success-state h3 { margin: 0 0 0.5rem; }
 	.empty-state p, .success-state p { margin: 0; max-width: 400px; margin-inline: auto; }
 	.success-actions { display: flex; gap: 0.75rem; justify-content: center; margin-top: 1rem; }
 
-	.submit-form { display: flex; flex-direction: column; gap: 1.5rem; }
+	.submit-form { display: flex; flex-direction: column; gap: 1.5rem; max-width: 720px; margin: 0 auto; }
 	.submit-section { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
 	.submit-section__title { margin: 0 0 0.25rem; font-weight: 600; font-size: 0.95rem; }
 	.submit-section__sub { margin: 0 0 0.75rem; font-size: 0.8rem; color: var(--text-muted); }
@@ -463,7 +449,7 @@
 		border-radius: 6px; color: var(--fg); font-size: 0.9rem; font-family: inherit; resize: vertical;
 	}
 	input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
-	input::placeholder, textarea::placeholder { color: var(--text-muted); }
+	input::placeholder, textarea::placeholder { color: var(--border); }
 	select:disabled { opacity: 0.5; }
 	.field--error { border-color: #ef4444 !important; }
 	.field-error { color: #ef4444; font-size: 0.75rem; }
@@ -485,7 +471,7 @@
 	.chip:hover { border-color: var(--accent); }
 	.chip--active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-	.submit-actions { display: flex; gap: 0.75rem; align-items: center; }
+	.submit-actions { display: flex; gap: 0.75rem; align-items: center; justify-content: flex-end; }
 	.btn--accent {
 		background: var(--accent); color: #fff; padding: 0.6rem 1.5rem; border-radius: 8px;
 		border: none; font-weight: 600; font-size: 0.95rem; cursor: pointer; text-decoration: none;
@@ -496,12 +482,6 @@
 	.btn { display: inline-flex; align-items: center; padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: none; color: var(--fg); text-decoration: none; font-size: 0.9rem; cursor: pointer; }
 
 	.submit-error { padding: 0.6rem 0.75rem; border-radius: 6px; font-size: 0.85rem; background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
-
-	.req-list { padding-left: 1.5rem; margin: 0.5rem 0 0; }
-	.req-list li { margin-bottom: 0.5rem; line-height: 1.5; }
-	section a { color: var(--accent); text-decoration: none; }
-	section a:hover { text-decoration: underline; }
-	h3 { margin: 0 0 0.5rem; }
 
 	.spinner--small { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; display: inline-block; animation: spin 0.6s linear infinite; }
 	@keyframes spin { to { transform: rotate(360deg); } }

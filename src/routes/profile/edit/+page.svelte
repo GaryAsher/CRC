@@ -1299,7 +1299,7 @@
 	/* Sticky header: preview + tabs */
 	.edit-sticky-header {
 		position: sticky; top: calc(4rem - 8px); z-index: 10;
-		background: var(--bg); padding-top: 16px; padding-bottom: 0;
+		background: var(--bg); padding-top: 24px; padding-bottom: 0;
 		margin-bottom: 1.5rem;
 	}
 	.edit-content { display: flex; flex-direction: column; gap: 1.5rem; }
@@ -1325,7 +1325,7 @@
 	.preview-card--bg-mode .preview-card__header { position: relative; z-index: 1; }
 	.preview-card--bg-mode .preview-shell { background: transparent; }
 	.preview-card__header {
-		display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+		display: flex; align-items: center; justify-content: space-between;
 		padding: 0.5rem 1rem 0;
 	}
 	.preview-label { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 0; }
