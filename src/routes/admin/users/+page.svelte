@@ -197,7 +197,7 @@
 		setTimeout(() => toast = null, 4000);
 	}
 
-	// ── Export (admin+ only) ──────────────────────────────────────────────────
+	// ── Bulk Export (admin+ only) ─────────────────────────────────────────────
 	function exportCSV() {
 		const header = 'Runner ID,Display Name,Role,Status,Created';
 		const rows = users.map(u => {
@@ -217,6 +217,90 @@
 			pronouns: u.pronouns,
 		}));
 		downloadFile(JSON.stringify(safe, null, 2), 'crc-users.json', 'application/json');
+	}
+
+	// ── Per-User Full Data Export (GDPR/CCPA compliance) ──────────────────────
+	let userExporting = $state(false);
+	let userExportError = $state('');
+
+	async function exportUserData(user: any) {
+		if (!isAdmin) return;
+		userExporting = true;
+		userExportError = '';
+
+		const userId = user.user_id;
+		const runnerId = user.runner_id;
+
+		try {
+			// Fetch all user-related data in parallel
+			const [
+				profileRes,
+				pendingProfileRes,
+				runsRes,
+				pendingRunsRes,
+				achievementsRes,
+				linkedAccountsRes,
+				ticketsRes,
+				messagesRes,
+				gameUpdatesRes,
+				pendingGamesRes,
+				reportsRes,
+				verifierRolesRes,
+				moderatorRolesRes,
+				profileAuditRes,
+			] = await Promise.all([
+				supabase.from('profiles').select('*').eq('user_id', userId),
+				supabase.from('pending_profiles').select('*').eq('user_id', userId),
+				runnerId ? supabase.from('runs').select('*').eq('runner_id', runnerId) : { data: [], error: null },
+				supabase.from('pending_runs').select('*').eq('submitted_by', userId),
+				runnerId ? supabase.from('game_achievements').select('*').eq('runner_id', runnerId) : { data: [], error: null },
+				supabase.from('linked_accounts').select('*').eq('user_id', userId),
+				supabase.from('support_tickets').select('*').eq('submitted_by', userId),
+				supabase.from('support_messages').select('*').eq('sender_id', userId),
+				supabase.from('game_update_requests').select('*').eq('user_id', userId),
+				supabase.from('pending_games').select('*').eq('submitted_by', userId),
+				supabase.from('user_reports').select('*').eq('reported_by', userId),
+				supabase.from('role_game_verifiers').select('*').eq('user_id', userId),
+				supabase.from('role_game_moderators').select('*').eq('user_id', userId),
+				supabase.from('audit_profile_log').select('*').eq('user_id', userId),
+			]);
+
+			const exportData = {
+				export_metadata: {
+					exported_at: new Date().toISOString(),
+					exported_by: 'CRC Admin Panel',
+					user_id: userId,
+					runner_id: runnerId || null,
+					reason: 'Data subject access request (Privacy Policy Section 8)',
+				},
+				profile: profileRes.data || [],
+				pending_profiles: pendingProfileRes.data || [],
+				runs: runsRes.data || [],
+				pending_runs: pendingRunsRes.data || [],
+				achievements: achievementsRes.data || [],
+				linked_accounts: linkedAccountsRes.data || [],
+				support_tickets: ticketsRes.data || [],
+				support_messages: messagesRes.data || [],
+				game_update_requests: gameUpdatesRes.data || [],
+				pending_games: pendingGamesRes.data || [],
+				user_reports_filed: reportsRes.data || [],
+				role_assignments: {
+					verifier: verifierRolesRes.data || [],
+					moderator: moderatorRolesRes.data || [],
+				},
+				profile_audit_log: profileAuditRes.data || [],
+			};
+
+			const filename = `crc-user-export-${runnerId || userId}-${new Date().toISOString().slice(0,10)}.json`;
+			downloadFile(JSON.stringify(exportData, null, 2), filename, 'application/json');
+			toast = { type: 'success', text: `Full data export generated for ${user.display_name || runnerId}` };
+			setTimeout(() => toast = null, 4000);
+		} catch (e: any) {
+			userExportError = e.message || 'Export failed';
+			toast = { type: 'error', text: 'Failed to generate user data export' };
+			setTimeout(() => toast = null, 4000);
+		}
+		userExporting = false;
 	}
 	function downloadFile(content: string, filename: string, type: string) {
 		const blob = new Blob([content], { type });
@@ -407,6 +491,11 @@
 
 								<div class="user-card__footer">
 									<a href="/runners/{user.runner_id}" class="btn btn--small" target="_blank">View Profile ↗</a>
+									{#if isAdmin}
+										<button class="btn btn--small" onclick={() => exportUserData(user)} disabled={userExporting}>
+											{userExporting ? 'Exporting...' : '📥 Export User Data'}
+										</button>
+									{/if}
 								</div>
 							</div>
 						{/if}
@@ -427,18 +516,27 @@
 		<!-- Export -->
 		{#if isAdmin}
 			<div class="card mt-3">
-				<h2>📥 Export User Data</h2>
-				<p class="muted mb-2">Export user data for compliance or backup purposes.</p>
-				<div class="export-actions">
-					<button class="btn" onclick={exportCSV}>📄 Export CSV</button>
-					<button class="btn" onclick={exportJSON}>📋 Export JSON</button>
+				<h2>📥 Export</h2>
+				<div class="export-section">
+					<div class="export-block">
+						<h3>Bulk User List</h3>
+						<p class="muted">Overview of all users (runner ID, display name, role, status, join date). Does not contain personal data.</p>
+						<div class="export-actions">
+							<button class="btn btn--small" onclick={exportCSV}>📄 CSV</button>
+							<button class="btn btn--small" onclick={exportJSON}>📋 JSON</button>
+						</div>
+					</div>
+					<div class="export-block">
+						<h3>Individual User Data (GDPR/CCPA)</h3>
+						<p class="muted">Full data export for a specific user — includes profile, runs, achievements, linked accounts, support tickets, and all associated records. Use the <strong>📥 Export User Data</strong> button on any expanded user card above.</p>
+					</div>
 				</div>
-				<p class="muted mt-1" style="font-size:0.8rem;">⚠️ Exports contain user data. Only export for legitimate purposes (GDPR requests, backups).</p>
+				<p class="muted mt-1" style="font-size:0.8rem;">⚠️ Exports are logged. Only export for legitimate purposes (data subject requests, backups).</p>
 			</div>
 		{:else}
 			<div class="card mt-3">
 				<h2>📥 Export User Data</h2>
-				<p class="muted">User data exports are available to admins only. If you need an export, please contact an admin.</p>
+				<p class="muted">User data exports are available to admins only. If you need an export for a data subject request, please contact an admin.</p>
 			</div>
 		{/if}
 	{/if}
@@ -549,6 +647,11 @@
 
 	/* Export */
 	.export-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+	.export-section { display: flex; flex-direction: column; gap: 1rem; }
+	.export-block { padding: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+	.export-block h3 { font-size: 0.95rem; margin: 0 0 0.35rem; }
+	.export-block p { margin: 0 0 0.5rem; font-size: 0.85rem; }
+	.export-block .export-actions { margin-top: 0.5rem; }
 
 	@media (max-width: 640px) {
 		.filters__row { flex-direction: column; align-items: stretch; }

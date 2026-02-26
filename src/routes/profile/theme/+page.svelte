@@ -52,75 +52,6 @@
 		},
 	];
 
-	// Flag banner presets grouped by continent
-	const FLAG_PRESETS: { continent: string; emoji: string; flags: { code: string; name: string }[] }[] = [
-		{
-			continent: 'Africa', emoji: '🌍',
-			flags: [
-				{ code: 'dz', name: 'Algeria' }, { code: 'ao', name: 'Angola' }, { code: 'cm', name: 'Cameroon' },
-				{ code: 'eg', name: 'Egypt' }, { code: 'et', name: 'Ethiopia' }, { code: 'gh', name: 'Ghana' },
-				{ code: 'ke', name: 'Kenya' }, { code: 'ma', name: 'Morocco' }, { code: 'ng', name: 'Nigeria' },
-				{ code: 'za', name: 'South Africa' }, { code: 'tz', name: 'Tanzania' }, { code: 'tn', name: 'Tunisia' },
-				{ code: 'ug', name: 'Uganda' }, { code: 'sn', name: 'Senegal' }, { code: 'ci', name: 'Côte d\'Ivoire' },
-			]
-		},
-		{
-			continent: 'Asia', emoji: '🌏',
-			flags: [
-				{ code: 'cn', name: 'China' }, { code: 'in', name: 'India' }, { code: 'id', name: 'Indonesia' },
-				{ code: 'jp', name: 'Japan' }, { code: 'kr', name: 'South Korea' }, { code: 'my', name: 'Malaysia' },
-				{ code: 'ph', name: 'Philippines' }, { code: 'sg', name: 'Singapore' }, { code: 'th', name: 'Thailand' },
-				{ code: 'tw', name: 'Taiwan' }, { code: 'vn', name: 'Vietnam' }, { code: 'pk', name: 'Pakistan' },
-				{ code: 'bd', name: 'Bangladesh' }, { code: 'sa', name: 'Saudi Arabia' }, { code: 'ae', name: 'UAE' },
-				{ code: 'il', name: 'Israel' }, { code: 'tr', name: 'Turkey' }, { code: 'hk', name: 'Hong Kong' },
-			]
-		},
-		{
-			continent: 'Europe', emoji: '🇪🇺',
-			flags: [
-				{ code: 'at', name: 'Austria' }, { code: 'be', name: 'Belgium' }, { code: 'hr', name: 'Croatia' },
-				{ code: 'cz', name: 'Czechia' }, { code: 'dk', name: 'Denmark' }, { code: 'fi', name: 'Finland' },
-				{ code: 'fr', name: 'France' }, { code: 'de', name: 'Germany' }, { code: 'gr', name: 'Greece' },
-				{ code: 'hu', name: 'Hungary' }, { code: 'ie', name: 'Ireland' }, { code: 'it', name: 'Italy' },
-				{ code: 'nl', name: 'Netherlands' }, { code: 'no', name: 'Norway' }, { code: 'pl', name: 'Poland' },
-				{ code: 'pt', name: 'Portugal' }, { code: 'ro', name: 'Romania' }, { code: 'es', name: 'Spain' },
-				{ code: 'se', name: 'Sweden' }, { code: 'ch', name: 'Switzerland' }, { code: 'ua', name: 'Ukraine' },
-				{ code: 'gb', name: 'United Kingdom' },
-			]
-		},
-		{
-			continent: 'North America', emoji: '🌎',
-			flags: [
-				{ code: 'ca', name: 'Canada' }, { code: 'cr', name: 'Costa Rica' }, { code: 'cu', name: 'Cuba' },
-				{ code: 'do', name: 'Dominican Republic' }, { code: 'sv', name: 'El Salvador' },
-				{ code: 'gt', name: 'Guatemala' }, { code: 'ht', name: 'Haiti' }, { code: 'hn', name: 'Honduras' },
-				{ code: 'jm', name: 'Jamaica' }, { code: 'mx', name: 'Mexico' }, { code: 'pa', name: 'Panama' },
-				{ code: 'pr', name: 'Puerto Rico' }, { code: 'tt', name: 'Trinidad and Tobago' },
-				{ code: 'us', name: 'United States' },
-			]
-		},
-		{
-			continent: 'South America', emoji: '🌎',
-			flags: [
-				{ code: 'ar', name: 'Argentina' }, { code: 'bo', name: 'Bolivia' }, { code: 'br', name: 'Brazil' },
-				{ code: 'cl', name: 'Chile' }, { code: 'co', name: 'Colombia' }, { code: 'ec', name: 'Ecuador' },
-				{ code: 'py', name: 'Paraguay' }, { code: 'pe', name: 'Peru' }, { code: 'uy', name: 'Uruguay' },
-				{ code: 've', name: 'Venezuela' },
-			]
-		},
-		{
-			continent: 'Oceania', emoji: '🌊',
-			flags: [
-				{ code: 'au', name: 'Australia' }, { code: 'fj', name: 'Fiji' }, { code: 'nz', name: 'New Zealand' },
-				{ code: 'pg', name: 'Papua New Guinea' },
-			]
-		},
-	];
-
-	// State for flag accordion: which continent is open
-	let openFlagContinent = $state<string | null>(null);
-	let flagsGroupOpen = $state(false);
-
 	// Which preset group is expanded
 	let openPresetGroup = $state<string | null>(null);
 
@@ -327,7 +258,7 @@
 		try {
 			const { data: profile, error } = await supabase
 				.from('profiles')
-				.select('runner_id, display_name, pronouns, location, bio, status_message, avatar_url, banner_url, socials, personal_goals, featured_runs, other_links_pending, status, accent_color, created_at')
+				.select('runner_id, display_name, pronouns, location, bio, status_message, avatar_url, banner_url, socials, personal_goals, featured_runs, other_links_pending, status, created_at')
 				.eq('user_id', $user!.id)
 				.maybeSingle();
 
@@ -374,7 +305,7 @@
 			socialTwitch = s.twitch || '';
 
 			// Preview-only data
-			accentColor = profile.accent_color || '';
+			accentColor = '';
 			memberSince = profile.created_at || '';
 			socialYoutube = s.youtube || '';
 			socialDiscord = s.discord || '';
@@ -969,46 +900,6 @@
 						<div class="fg">
 							<label class="fl">🎨 Banner Presets</label>
 							<div class="preset-accordion">
-								<!-- Flag presets (nested: Flags → Continent → Countries) -->
-								<div class="preset-group">
-									<button
-										type="button"
-										class="preset-group__toggle"
-										class:preset-group__toggle--open={flagsGroupOpen}
-										onclick={() => { flagsGroupOpen = !flagsGroupOpen; if (!flagsGroupOpen) openFlagContinent = null; }}
-									>🏳️ Flags <span class="preset-group__chevron">{flagsGroupOpen ? '▲' : '▼'}</span></button>
-									{#if flagsGroupOpen}
-										<div class="flag-continents">
-											{#each FLAG_PRESETS as cont}
-												<div class="flag-continent">
-													<button
-														type="button"
-														class="flag-continent__toggle"
-														class:flag-continent__toggle--open={openFlagContinent === cont.continent}
-														onclick={() => openFlagContinent = openFlagContinent === cont.continent ? null : cont.continent}
-													>{cont.emoji} {cont.continent} <span class="preset-group__chevron">{openFlagContinent === cont.continent ? '▲' : '▼'}</span></button>
-													{#if openFlagContinent === cont.continent}
-														<div class="preset-grid preset-grid--flags">
-															{#each cont.flags as flag}
-																{@const flagGradient = `url('https://flagcdn.com/w1280/${flag.code}.png')`}
-																<button
-																	type="button"
-																	class="preset-swatch"
-																	class:preset-swatch--active={bannerGradient === flagGradient}
-																	title={flag.name}
-																	onclick={() => selectPreset(flagGradient)}
-																>
-																	<div class="preset-swatch__preview preset-swatch__preview--flag" style="background-image:url('https://flagcdn.com/w320/{flag.code}.png'); background-size:cover; background-position:center;"></div>
-																	<span class="preset-swatch__label">{flag.name}</span>
-																</button>
-															{/each}
-														</div>
-													{/if}
-												</div>
-											{/each}
-										</div>
-									{/if}
-								</div>
 								{#each BANNER_PRESETS as group}
 									<div class="preset-group">
 										<button
@@ -1657,22 +1548,4 @@
 	.video-meta--success { padding: 0.5rem 0.75rem; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; }
 	.video-meta--warn { padding: 0.4rem 0.75rem; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.15); border-radius: 6px; }
 	.video-meta__title { color: var(--fg); font-weight: 500; }
-
-	/* Flag banner presets — nested accordion */
-	.flag-continents { background: var(--bg); }
-	.flag-continent { border-bottom: 1px solid var(--border); }
-	.flag-continent:last-child { border-bottom: none; }
-	.flag-continent__toggle {
-		display: flex; justify-content: space-between; align-items: center;
-		width: 100%; padding: 0.5rem 0.9rem 0.5rem 1.5rem; background: var(--bg);
-		border: none; cursor: pointer; font-size: 0.85rem; font-weight: 500; color: var(--fg);
-		text-align: left;
-	}
-	.flag-continent__toggle:hover { background: var(--bg-hover, var(--surface)); }
-	.flag-continent__toggle--open { color: var(--accent); }
-	.preset-grid--flags { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
-	.preset-swatch__preview--flag { border-radius: 2px; }
-
-	/* Flag images in preview */
-	.flag-img { display: inline-block; vertical-align: middle; border-radius: 2px; margin-right: 0.15rem; box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
 </style>
