@@ -122,6 +122,12 @@
 			: profileInfo?.is_admin === true
 	);
 
+	let sidebarIsModerator = $derived(
+		$debugRole
+			? ['super_admin', 'admin', 'moderator'].includes($debugRole)
+			: profileInfo?.is_admin === true
+	);
+
 	let sidebarIsVerifier = $derived(
 		$debugRole
 			? ['super_admin', 'admin', 'moderator', 'verifier'].includes($debugRole)
@@ -363,7 +369,7 @@
 				<span class="admin-panel__role-badge">
 					{sidebarRoleBadge}
 				</span>
-				Moderation
+				Staff Panel
 			</span>
 			<button type="button" class="admin-panel__close" onclick={closeAdminPanel}>&times;</button>
 		</div>
@@ -383,12 +389,6 @@
 				<a href="/admin/financials" class="admin-panel__item" class:is-active={isAdminActive('/admin/financials')} onclick={closeAdminPanel}>
 					<span class="admin-panel__icon">💰</span><span class="admin-panel__text">Financials</span>
 				</a>
-				<a href="/admin/users" class="admin-panel__item" class:is-active={isAdminActive('/admin/users')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">👤</span><span class="admin-panel__text">Users</span>
-				</a>
-				<a href="/admin/debug" class="admin-panel__item" class:is-active={isAdminActive('/admin/debug')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">🔧</span><span class="admin-panel__text">Debug Tools</span>
-				</a>
 			{/if}
 
 			{#if sidebarIsAdmin}
@@ -406,11 +406,18 @@
 				</a>
 				<a href="/admin/runs" class="admin-panel__item" class:is-active={isAdminActive('/admin/runs')} onclick={closeAdminPanel}>
 					<span class="admin-panel__icon">🏃</span>
-					<span class="admin-panel__text">Pending Runs</span>
-					{#if adminCounts.pendingRuns > 0}<span class="admin-panel__badge">{adminCounts.pendingRuns}</span>{/if}
+					<span class="admin-panel__text">Approved Runs</span>
 				</a>
-				<a href="/admin/staff-guides" class="admin-panel__item" class:is-active={isAdminActive('/admin/staff-guides')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">📖</span><span class="admin-panel__text">Staff Guides</span>
+			{/if}
+
+			{#if sidebarIsModerator}
+				<hr class="admin-panel__divider" />
+				<div class="admin-panel__section-title">Moderator</div>
+				<a href="/admin/users" class="admin-panel__item" class:is-active={isAdminActive('/admin/users')} onclick={closeAdminPanel}>
+					<span class="admin-panel__icon">👤</span><span class="admin-panel__text">Users & Roles</span>
+				</a>
+				<a href="/admin/debug" class="admin-panel__item" class:is-active={isAdminActive('/admin/debug')} onclick={closeAdminPanel}>
+					<span class="admin-panel__icon">🔧</span><span class="admin-panel__text">Debug Tools</span>
 				</a>
 			{/if}
 
@@ -421,9 +428,16 @@
 					<span class="admin-panel__icon">📝</span><span class="admin-panel__text">Game Updates</span>
 				</a>
 				<a href="/admin/runs-queue" class="admin-panel__item" class:is-active={isAdminActive('/admin/runs-queue')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">✅</span><span class="admin-panel__text">Runs in Queue</span>
+					<span class="admin-panel__icon">✅</span><span class="admin-panel__text">Runs Queue</span>
+					{#if adminCounts.pendingRuns > 0}<span class="admin-panel__badge">{adminCounts.pendingRuns}</span>{/if}
 				</a>
 			{/if}
+
+			<!-- Staff Guides — all staff roles -->
+			<hr class="admin-panel__divider" />
+			<a href="/admin/staff-guides" class="admin-panel__item" class:is-active={isAdminActive('/admin/staff-guides')} onclick={closeAdminPanel}>
+				<span class="admin-panel__icon">📖</span><span class="admin-panel__text">Staff Guides</span>
+			</a>
 		</nav>
 
 		<div class="admin-panel__footer">

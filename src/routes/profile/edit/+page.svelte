@@ -11,14 +11,25 @@
 	// Banner preset groups — each uses a CSS gradient as background (no external URLs, always works)
 	const BANNER_PRESETS: { group: string; emoji: string; items: { label: string; gradient: string }[] }[] = [
 		{
-			group: '🌌 Dark Themes',
-			emoji: '🌌',
+			group: '🏁 Nationality Flags',
+			emoji: '🏁',
 			items: [
-				{ label: 'Midnight', gradient: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)' },
-				{ label: 'Deep Ocean', gradient: 'linear-gradient(135deg, #0f2027, #203a43, #2c5364)' },
-				{ label: 'Abyss', gradient: 'linear-gradient(180deg, #000000, #1a1a2e)' },
-				{ label: 'Eclipse', gradient: 'linear-gradient(135deg, #0d0d0d, #1a0533, #0d0d0d)' },
-				{ label: 'Void Storm', gradient: 'linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)' },
+				{ label: '🇺🇸 USA', gradient: 'linear-gradient(180deg, #B22234 0%, #B22234 30%, #FFFFFF 30%, #FFFFFF 50%, #3C3B6E 50%, #3C3B6E 100%)' },
+				{ label: '🇬🇧 UK', gradient: 'linear-gradient(180deg, #00247D 0%, #CF142B 40%, #FFFFFF 50%, #CF142B 60%, #00247D 100%)' },
+				{ label: '🇨🇦 Canada', gradient: 'linear-gradient(90deg, #FF0000 0%, #FF0000 25%, #FFFFFF 25%, #FFFFFF 75%, #FF0000 75%, #FF0000 100%)' },
+				{ label: '🇩🇪 Germany', gradient: 'linear-gradient(180deg, #000000 0%, #000000 33.33%, #DD0000 33.33%, #DD0000 66.66%, #FFCC00 66.66%, #FFCC00 100%)' },
+				{ label: '🇫🇷 France', gradient: 'linear-gradient(90deg, #002395 0%, #002395 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #ED2939 66.66%, #ED2939 100%)' },
+				{ label: '🇮🇹 Italy', gradient: 'linear-gradient(90deg, #008C45 0%, #008C45 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #CD212A 66.66%, #CD212A 100%)' },
+				{ label: '🇪🇸 Spain', gradient: 'linear-gradient(180deg, #AA151B 0%, #AA151B 25%, #F1BF00 25%, #F1BF00 75%, #AA151B 75%, #AA151B 100%)' },
+				{ label: '🇧🇷 Brazil', gradient: 'linear-gradient(180deg, #009C3B 0%, #009C3B 35%, #FFDF00 35%, #FFDF00 65%, #009C3B 65%, #009C3B 100%)' },
+				{ label: '🇯🇵 Japan', gradient: 'radial-gradient(circle at 50% 50%, #BC002D 25%, #FFFFFF 25%)' },
+				{ label: '🇰🇷 S. Korea', gradient: 'linear-gradient(180deg, #FFFFFF 0%, #CD2E3A 50%, #0047A0 100%)' },
+				{ label: '🇲🇽 Mexico', gradient: 'linear-gradient(90deg, #006847 0%, #006847 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #CE1126 66.66%, #CE1126 100%)' },
+				{ label: '🇦🇺 Australia', gradient: 'linear-gradient(180deg, #00008B 0%, #00008B 60%, #FFFFFF 80%, #FF0000 100%)' },
+				{ label: '🇸🇪 Sweden', gradient: 'linear-gradient(90deg, #006AA7 0%, #006AA7 35%, #FECC02 35%, #FECC02 45%, #006AA7 45%, #006AA7 100%)' },
+				{ label: '🇳🇱 Netherlands', gradient: 'linear-gradient(180deg, #AE1C28 0%, #AE1C28 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #21468B 66.66%, #21468B 100%)' },
+				{ label: '🇵🇱 Poland', gradient: 'linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 50%, #DC143C 50%, #DC143C 100%)' },
+				{ label: '🇺🇦 Ukraine', gradient: 'linear-gradient(180deg, #005BBB 0%, #005BBB 50%, #FFD500 50%, #FFD500 100%)' },
 			]
 		},
 		{
@@ -901,7 +912,7 @@
 								<div class="banner-opt-row">
 									<span class="banner-opt-label">Position</span>
 									<div class="banner-opt-btns">
-										{#each [['above','⬆️ Above Profile'],['background','🌅 Page Background']] as [val,lbl]}
+										{#each [['above','⬆️ Above Profile'],['background','🎴 Card Background']] as [val,lbl]}
 											<button type="button" class="opt-btn" class:opt-btn--active={bannerMode === val} onclick={() => bannerMode = val as 'above'|'background'}>{lbl}</button>
 										{/each}
 									</div>
@@ -1275,7 +1286,7 @@
 
 	/* Sticky header: preview + tabs */
 	.edit-sticky-header {
-		position: sticky; top: calc(4rem - 4px); z-index: 10;
+		position: sticky; top: calc(4rem - 8px); z-index: 10;
 		background: var(--bg); padding-top: 4px; padding-bottom: 0;
 		margin-bottom: 1.5rem;
 	}
@@ -1305,12 +1316,12 @@
 	}
 	.preview-label { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 0; }
 	.preview-toggle {
-		background: none; border: none; cursor: pointer;
-		font-size: 0.72rem; font-weight: 600; color: var(--muted);
-		padding: 0.2rem 0.4rem; border-radius: 4px;
-		letter-spacing: 0.3px;
+		background: none; border: 1px solid var(--border); cursor: pointer;
+		font-size: 0.85rem; font-weight: 600; color: var(--muted);
+		padding: 0.35rem 0.75rem; border-radius: 6px;
+		transition: color 0.15s, border-color 0.15s;
 	}
-	.preview-toggle:hover { color: var(--fg); background: var(--surface); }
+	.preview-toggle:hover { color: var(--fg); border-color: var(--accent); }
 	.preview-shell { position: relative; background: var(--bg); }
 	.preview-bg-banner { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: 0; }
 	.preview-top-banner { position: relative; height: 110px; overflow: hidden; }

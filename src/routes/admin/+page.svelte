@@ -61,19 +61,24 @@
 		countsLoading = false;
 	}
 
-	// Navigation sections — uses permissions from permissions.ts
-	// Each section specifies its href; canAccessRoute() handles the rest.
+	// Navigation sections — ordered to match the Staff Panel sidebar.
+	// canAccessRoute() from permissions.ts handles per-role filtering.
 	const NAV_SECTIONS = [
+		// Super Admin
+		{ key: 'health',       icon: '💚', title: 'Site Health',      desc: 'Performance, storage, and system status.',   href: '/admin/health' },
+		{ key: 'financials',   icon: '💰', title: 'Financials',       desc: 'Track site income and expenses.',             href: '/admin/financials' },
+		// Admin
 		{ key: 'profiles',     icon: '👥', title: 'Pending Profiles', desc: 'Review runner profile applications.',          href: '/admin/profiles',    countKey: 'pendingProfiles' },
 		{ key: 'games',        icon: '🎮', title: 'Pending Games',    desc: 'Review new game submissions.',                href: '/admin/games',       countKey: 'pendingGames' },
-		{ key: 'runs',         icon: '🏃', title: 'Approved Runs',    desc: 'Manage and view all approved runs.',          href: '/admin/runs',        countKey: 'pendingRuns' },
-		{ key: 'runs-queue',   icon: '📋', title: 'Runs Queue',       desc: 'Review, approve, or reject submitted runs.',  href: '/admin/runs-queue',  countKey: 'pendingRunsQueue' },
-		{ key: 'game-updates', icon: '📝', title: 'Game Updates',     desc: 'Review user-submitted game page corrections.', href: '/admin/game-updates' },
+		{ key: 'runs',         icon: '🏃', title: 'Approved Runs',    desc: 'Manage and view all approved runs.',          href: '/admin/runs' },
+		// Moderator
 		{ key: 'users',        icon: '👥', title: 'Users & Roles',    desc: 'Manage users and assign staff roles.',        href: '/admin/users' },
-		{ key: 'financials',   icon: '💰', title: 'Financials',       desc: 'Track site income and expenses.',             href: '/admin/financials' },
-		{ key: 'health',       icon: '💚', title: 'Site Health',      desc: 'Performance, storage, and system status.',   href: '/admin/health' },
+		{ key: 'debug',        icon: '🔧', title: 'Debug Tools',      desc: 'Role simulation, system diagnostics.',        href: '/admin/debug' },
+		// Verifier
+		{ key: 'game-updates', icon: '📝', title: 'Game Updates',     desc: 'Review user-submitted game page corrections.', href: '/admin/game-updates' },
+		{ key: 'runs-queue',   icon: '📋', title: 'Runs Queue',       desc: 'Review, approve, or reject submitted runs.',  href: '/admin/runs-queue',  countKey: 'pendingRunsQueue' },
+		// All staff
 		{ key: 'staff-guides', icon: '📖', title: 'Staff Guides',     desc: 'Internal documentation for staff.',           href: '/admin/staff-guides' },
-		{ key: 'debug',        icon: '🔧', title: 'Debug Tools',      desc: 'Role simulation, system diagnostics.',        href: '/admin/debug' }
 	];
 
 	// Filter nav cards based on effective role (real or debug)
@@ -83,6 +88,11 @@
 
 	let totalPending = $derived(
 		(counts.pendingProfiles ?? 0) + (counts.pendingGames ?? 0) + (counts.pendingRuns ?? 0)
+	);
+
+	// Admin+ can see profile/game pending counts; lower roles only see runs
+	let isAdminPlus = $derived(
+		effectiveRole === 'super_admin' || effectiveRole === 'admin'
 	);
 </script>
 
@@ -127,22 +137,26 @@
 
 			<!-- Stats row -->
 			<div class="dash-stats">
-				<div class="dash-stat" class:dash-stat--alert={counts.pendingProfiles > 0}>
-					<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingProfiles ?? 0}</span>
-					<span class="dash-stat__label">Pending Profiles</span>
-				</div>
-				<div class="dash-stat" class:dash-stat--alert={counts.pendingGames > 0}>
-					<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingGames ?? 0}</span>
-					<span class="dash-stat__label">Pending Games</span>
-				</div>
+				{#if isAdminPlus}
+					<div class="dash-stat" class:dash-stat--alert={counts.pendingProfiles > 0}>
+						<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingProfiles ?? 0}</span>
+						<span class="dash-stat__label">Pending Profiles</span>
+					</div>
+					<div class="dash-stat" class:dash-stat--alert={counts.pendingGames > 0}>
+						<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingGames ?? 0}</span>
+						<span class="dash-stat__label">Pending Games</span>
+					</div>
+				{/if}
 				<div class="dash-stat" class:dash-stat--alert={counts.pendingRuns > 0}>
 					<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingRuns ?? 0}</span>
 					<span class="dash-stat__label">Pending Runs</span>
 				</div>
-				<div class="dash-stat">
-					<span class="dash-stat__value">{totalPending}</span>
-					<span class="dash-stat__label">Total Pending</span>
-				</div>
+				{#if isAdminPlus}
+					<div class="dash-stat">
+						<span class="dash-stat__value">{totalPending}</span>
+						<span class="dash-stat__label">Total Pending</span>
+					</div>
+				{/if}
 			</div>
 
 			<!-- Navigation grid -->
