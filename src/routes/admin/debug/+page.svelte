@@ -5,6 +5,7 @@
 	import { checkAdminRole } from '$lib/admin';
 	import { debugRole } from '$stores/debug';
 	import { getDebugableRoles, realRoleToDebugId } from '$lib/permissions';
+	import { supabase } from '$lib/supabase';
 	import type { DebugRoleId } from '$stores/debug';
 
 	let checking = $state(true);
@@ -13,6 +14,40 @@
 	let actualRoleId = $state<DebugRoleId>('user');
 	let runnerId = $state('—');
 	let userId = $state('—');
+
+	// ── Game picker for mod/verifier simulation ──
+	let allGames = $state<{ game_id: string; game_name: string }[]>([]);
+	let gameSearch = $state('');
+	let selectedGame = $state<string | null>(null);
+	let gameDropdownOpen = $state(false);
+	let filteredGames = $derived.by(() => {
+		if (!gameSearch.trim()) return allGames;
+		const q = gameSearch.toLowerCase();
+		return allGames.filter(g =>
+			g.game_name.toLowerCase().includes(q) || g.game_id.toLowerCase().includes(q)
+		);
+	});
+
+	async function loadGames() {
+		try {
+			const { data } = await supabase
+				.from('games')
+				.select('game_id, game_name')
+				.order('game_name');
+			if (data) allGames = data;
+		} catch { /* ignore */ }
+	}
+
+	function selectGame(game: { game_id: string; game_name: string }) {
+		selectedGame = game.game_id;
+		gameSearch = game.game_name;
+		gameDropdownOpen = false;
+	}
+
+	function clearGame() {
+		selectedGame = null;
+		gameSearch = '';
+	}
 
 
 
@@ -67,6 +102,7 @@
 				runnerId = role?.runnerId || '—';
 				userId = sess?.user?.id || '—';
 				checking = false;
+				if (authorized) loadGames();
 			}
 		});
 		return unsub;
@@ -127,6 +163,41 @@
 				{/if}
 				{#if $debugRole}
 					<p class="muted mt-2" style="font-size:0.85rem">Tip: Use the <strong>🗺️ Navigate</strong> button in the debug bar above to quickly jump to any page on the site.</p>
+				{/if}
+				{#if $debugRole === 'verifier' || $debugRole === 'moderator'}
+					<div class="game-picker mt-2">
+						<h3 class="game-picker__title">🎮 Assigned Game (Optional)</h3>
+						<p class="muted" style="font-size:0.85rem; margin-bottom:0.5rem">Simulate being assigned to a specific game. This helps verify that game-based restrictions display correctly.</p>
+						<div class="game-picker__input-wrap">
+							<input
+								type="text"
+								class="game-picker__input"
+								placeholder="Search games..."
+								bind:value={gameSearch}
+								onfocus={() => gameDropdownOpen = true}
+								oninput={() => { gameDropdownOpen = true; selectedGame = null; }}
+							/>
+							{#if selectedGame}
+								<button class="game-picker__clear" onclick={clearGame} title="Clear selection">✕</button>
+							{/if}
+						</div>
+						{#if gameDropdownOpen && !selectedGame && filteredGames.length > 0}
+							<div class="game-picker__dropdown">
+								{#each filteredGames.slice(0, 10) as game}
+									<button class="game-picker__option" onclick={() => selectGame(game)}>
+										<span class="game-picker__option-name">{game.game_name}</span>
+										<span class="game-picker__option-id">{game.game_id}</span>
+									</button>
+								{/each}
+								{#if filteredGames.length > 10}
+									<div class="game-picker__more">{filteredGames.length - 10} more — type to narrow</div>
+								{/if}
+							</div>
+						{/if}
+						{#if selectedGame}
+							<p class="game-picker__selected">Simulating assignment to <strong>{gameSearch}</strong> <span class="mono">({selectedGame})</span></p>
+						{/if}
+					</div>
 				{/if}
 			</div>
 
@@ -206,4 +277,22 @@
 	.placeholder span { font-size: 3rem; display: block; margin-bottom: 0.75rem; opacity: 0.4; }
 	.placeholder h3 { margin: 0 0 0.5rem; }
 	.placeholder p { max-width: 400px; margin-inline: auto; }
+
+	/* Game picker */
+	.game-picker { border-top: 1px solid var(--border); padding-top: 1rem; }
+	.game-picker__title { font-size: 0.95rem; margin: 0 0 0.25rem; }
+	.game-picker__input-wrap { position: relative; max-width: 400px; }
+	.game-picker__input { width: 100%; padding: 0.5rem 2rem 0.5rem 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 0.9rem; font-family: inherit; }
+	.game-picker__input:focus { border-color: var(--accent); outline: none; }
+	.game-picker__clear { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.85rem; padding: 0.25rem; }
+	.game-picker__clear:hover { color: var(--fg); }
+	.game-picker__dropdown { position: absolute; z-index: 10; width: 100%; max-width: 400px; max-height: 240px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 6px 6px; }
+	.game-picker__option { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 0.5rem 0.75rem; background: none; border: none; border-bottom: 1px solid var(--border); color: var(--fg); cursor: pointer; text-align: left; font-family: inherit; font-size: 0.85rem; gap: 0.5rem; }
+	.game-picker__option:last-child { border-bottom: none; }
+	.game-picker__option:hover { background: rgba(255,255,255,0.04); }
+	.game-picker__option-name { font-weight: 500; }
+	.game-picker__option-id { font-size: 0.75rem; color: var(--text-muted); font-family: monospace; }
+	.game-picker__more { padding: 0.4rem 0.75rem; font-size: 0.8rem; color: var(--text-muted); text-align: center; }
+	.game-picker__selected { font-size: 0.85rem; margin-top: 0.5rem; color: var(--accent); }
+	.mono { font-family: monospace; font-size: 0.8rem; }
 </style>

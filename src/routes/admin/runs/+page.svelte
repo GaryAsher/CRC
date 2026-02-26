@@ -229,9 +229,9 @@
 			<div>
 				<h1>🏃 Runs</h1>
 				<p class="muted">
-					{roleLabel}
+					Review pending runs and manage approved runs.
 					{#if !isSuperAdmin && !isAdmin && assignedGameIds.size > 0}
-						· {assignedGameIds.size} assigned game{assignedGameIds.size !== 1 ? 's' : ''}
+						You have {assignedGameIds.size} assigned game{assignedGameIds.size !== 1 ? 's' : ''}.
 					{/if}
 				</p>
 			</div>

@@ -333,6 +333,7 @@
 
 			if (error || !profile) {
 				msg = { type: 'error', text: 'No profile found. Please create a profile first.' };
+				profileApprovalStatus = 'not_found';
 				loading = false;
 				return;
 			}
@@ -711,7 +712,7 @@
 				<div class="alert alert--{msg.type}">{msg.text}</div>
 			{/if}
 
-			{#if profileApprovalStatus !== 'approved' && !loading}
+			{#if profileApprovalStatus === 'pending' && !loading}
 				<div class="alert alert--warning">⏳ Your profile is pending approval. You can view your profile details, but editing is locked until an admin approves it.</div>
 			{/if}
 

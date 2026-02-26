@@ -11,28 +11,6 @@
 	// Banner preset groups — each uses a CSS gradient as background (no external URLs, always works)
 	const BANNER_PRESETS: { group: string; emoji: string; items: { label: string; gradient: string }[] }[] = [
 		{
-			group: '🏁 Nationality Flags',
-			emoji: '🏁',
-			items: [
-				{ label: '🇺🇸 USA', gradient: 'linear-gradient(180deg, #B22234 0%, #B22234 30%, #FFFFFF 30%, #FFFFFF 50%, #3C3B6E 50%, #3C3B6E 100%)' },
-				{ label: '🇬🇧 UK', gradient: 'linear-gradient(180deg, #00247D 0%, #CF142B 40%, #FFFFFF 50%, #CF142B 60%, #00247D 100%)' },
-				{ label: '🇨🇦 Canada', gradient: 'linear-gradient(90deg, #FF0000 0%, #FF0000 25%, #FFFFFF 25%, #FFFFFF 75%, #FF0000 75%, #FF0000 100%)' },
-				{ label: '🇩🇪 Germany', gradient: 'linear-gradient(180deg, #000000 0%, #000000 33.33%, #DD0000 33.33%, #DD0000 66.66%, #FFCC00 66.66%, #FFCC00 100%)' },
-				{ label: '🇫🇷 France', gradient: 'linear-gradient(90deg, #002395 0%, #002395 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #ED2939 66.66%, #ED2939 100%)' },
-				{ label: '🇮🇹 Italy', gradient: 'linear-gradient(90deg, #008C45 0%, #008C45 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #CD212A 66.66%, #CD212A 100%)' },
-				{ label: '🇪🇸 Spain', gradient: 'linear-gradient(180deg, #AA151B 0%, #AA151B 25%, #F1BF00 25%, #F1BF00 75%, #AA151B 75%, #AA151B 100%)' },
-				{ label: '🇧🇷 Brazil', gradient: 'linear-gradient(180deg, #009C3B 0%, #009C3B 35%, #FFDF00 35%, #FFDF00 65%, #009C3B 65%, #009C3B 100%)' },
-				{ label: '🇯🇵 Japan', gradient: 'radial-gradient(circle at 50% 50%, #BC002D 25%, #FFFFFF 25%)' },
-				{ label: '🇰🇷 S. Korea', gradient: 'linear-gradient(180deg, #FFFFFF 0%, #CD2E3A 50%, #0047A0 100%)' },
-				{ label: '🇲🇽 Mexico', gradient: 'linear-gradient(90deg, #006847 0%, #006847 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #CE1126 66.66%, #CE1126 100%)' },
-				{ label: '🇦🇺 Australia', gradient: 'linear-gradient(180deg, #00008B 0%, #00008B 60%, #FFFFFF 80%, #FF0000 100%)' },
-				{ label: '🇸🇪 Sweden', gradient: 'linear-gradient(90deg, #006AA7 0%, #006AA7 35%, #FECC02 35%, #FECC02 45%, #006AA7 45%, #006AA7 100%)' },
-				{ label: '🇳🇱 Netherlands', gradient: 'linear-gradient(180deg, #AE1C28 0%, #AE1C28 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #21468B 66.66%, #21468B 100%)' },
-				{ label: '🇵🇱 Poland', gradient: 'linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 50%, #DC143C 50%, #DC143C 100%)' },
-				{ label: '🇺🇦 Ukraine', gradient: 'linear-gradient(180deg, #005BBB 0%, #005BBB 50%, #FFD500 50%, #FFD500 100%)' },
-			]
-		},
-		{
 			group: '🎮 Gaming',
 			emoji: '🎮',
 			items: [
@@ -256,6 +234,7 @@
 
 			if (error || !profile) {
 				msg = { type: 'error', text: 'No profile found. Please create a profile first.' };
+				profileApprovalStatus = 'not_found';
 				loading = false;
 				return;
 			}
@@ -625,7 +604,7 @@
 				<div class="alert alert--{msg.type}">{msg.text}</div>
 			{/if}
 
-			{#if profileApprovalStatus !== 'approved' && !loading}
+			{#if profileApprovalStatus === 'pending' && !loading}
 				<div class="alert alert--warning">⏳ Your profile is pending approval. You can view your profile details, but editing is locked until an admin approves it.</div>
 			{/if}
 
