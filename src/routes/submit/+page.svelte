@@ -1,338 +1,496 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { PUBLIC_WORKER_URL, PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
+	import { session, user } from '$stores/auth';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { supabase } from '$lib/supabase';
+	import { isValidVideoUrl } from '$lib/utils';
+	import { checkBannedTerms } from '$lib/utils/banned-terms';
 
 	let { data } = $props();
-	const { games, runners } = data;
+	const game = $derived(data.game);
 
-	// ── Form State ────────────────────────────────────────────────────────────
-	let gameId = $state('');
+	// ── Form State ──
 	let categoryTier = $state('');
 	let categorySlug = $state('');
-	let runnerId = $state('');
-	let newRunnerName = $state('');
-	let videoUrl = $state('');
+	let selectedChallenges = $state<string[]>([]);
 	let character = $state('');
+	let glitchId = $state('');
+	let selectedRestrictions = $state<string[]>([]);
+	let videoUrl = $state('');
 	let dateCompleted = $state('');
-	let runTime = $state('');
-	let turnstileToken = $state('');
+	let runTimeRta = $state('');
+	let runTimePrimary = $state('');
+	let submitterNotes = $state('');
 
+	// ── Video Metadata State ──
+	let videoTitle = $state('');
+	let videoFetching = $state(false);
+	let videoFetchError = $state('');
+
+	// ── UI State ──
 	let submitting = $state(false);
-	let result = $state<{ ok: boolean; message: string; id?: string } | null>(null);
-	let turnstileReady = $state(false);
-	let turnstileWidgetId = $state<string | null>(null);
+	let errorMsg = $state('');
+	let successMsg = $state('');
 
-	// ── Derived Data ──────────────────────────────────────────────────────────
-	let selectedGame = $derived(games.find((g: any) => g.game_id === gameId));
+	// ── Game timing config ──
+	const gameTimingMethod = $derived(game.timing_method || '');
+	const hasGameTiming = $derived(!!gameTimingMethod && gameTimingMethod.toLowerCase() !== 'rta');
+	const gameTimingLabel = $derived(gameTimingMethod || 'Primary Time');
+	// RTA is always available unless game explicitly removes it
+	// If game timing IS rta, we only show one field
+	const showRtaSeparately = $derived(hasGameTiming);
 
-	let filteredCategories = $derived.by(() => {
-		if (!selectedGame) return { full_runs: [], mini_challenges: [], player_made: [] };
-		const cats = selectedGame.categories || [];
-		return {
-			full_runs: cats.filter((c: any) => c.tier === 'full-runs'),
-			mini_challenges: cats.filter((c: any) => c.tier === 'mini-challenges'),
-			player_made: cats.filter((c: any) => c.tier === 'player-made')
-		};
+	// ── Derived category options ──
+	const tierOptions = $derived(() => {
+		const tiers: { value: string; label: string; categories: { slug: string; label: string }[] }[] = [];
+		if (game.full_runs?.length) tiers.push({ value: 'full_runs', label: 'Full Runs', categories: game.full_runs.map((c: any) => ({ slug: c.slug, label: c.label })) });
+		if (game.mini_challenges?.length) {
+			const cats: { slug: string; label: string }[] = [];
+			for (const group of game.mini_challenges) {
+				if (group.children?.length) {
+					for (const child of group.children) cats.push({ slug: child.slug, label: `${group.label} › ${child.label}` });
+				} else {
+					cats.push({ slug: group.slug, label: group.label });
+				}
+			}
+			tiers.push({ value: 'mini_challenges', label: 'Mini-Challenges', categories: cats });
+		}
+		if (game.player_made?.length) tiers.push({ value: 'player_made', label: 'Player-Made', categories: game.player_made.map((c: any) => ({ slug: c.slug, label: c.label })) });
+		return tiers;
 	});
 
-	let characters = $derived(selectedGame?.characters_data || []);
-	let isNewRunner = $derived(runnerId === '__new__');
+	const currentTier = $derived(tierOptions().find(t => t.value === categoryTier));
+	const categoryOptions = $derived(currentTier?.categories || []);
 
-	// ── Turnstile Setup ───────────────────────────────────────────────────────
-	onMount(() => {
-		if (!document.querySelector('script[src*="turnstile"]')) {
-			const script = document.createElement('script');
-			script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&render=explicit';
-			script.async = true;
-			document.head.appendChild(script);
-		}
-
-		(window as any).onTurnstileLoad = () => {
-			turnstileReady = true;
-			renderTurnstile();
-		};
-
-		if ((window as any).turnstile) {
-			turnstileReady = true;
-			renderTurnstile();
-		}
-	});
-
-	function renderTurnstile() {
-		const container = document.getElementById('turnstile-container');
-		if (!container || !(window as any).turnstile) return;
-		if (turnstileWidgetId !== null) {
-			(window as any).turnstile.reset(turnstileWidgetId);
-			return;
-		}
-		turnstileWidgetId = (window as any).turnstile.render('#turnstile-container', {
-			sitekey: PUBLIC_TURNSTILE_SITE_KEY,
-			callback: (token: string) => { turnstileToken = token; },
-			'expired-callback': () => { turnstileToken = ''; },
-			theme: 'auto'
-		});
-	}
-
-	// Reset dependent fields when game changes
-	$effect(() => {
-		if (gameId) {
-			categoryTier = '';
-			categorySlug = '';
-			character = '';
-		}
-	});
-
-	// ── Video URL parsing ─────────────────────────────────────────────────────
-	function parseVideoUrl(url: string) {
-		try {
-			const u = new URL(url);
-			const host = u.hostname.replace(/^www\./, '').toLowerCase();
-			if (host === 'youtube.com' || host === 'm.youtube.com') return { host: 'youtube', id: u.searchParams.get('v') || '' };
-			if (host === 'youtu.be') return { host: 'youtube', id: u.pathname.slice(1) };
-			if (host.includes('twitch.tv')) return { host: 'twitch', id: u.pathname.split('/').pop() || '' };
-			return { host, id: '' };
-		} catch { return { host: '', id: '' }; }
-	}
-
-	let canSubmit = $derived(
-		gameId && categorySlug &&
-		(runnerId && runnerId !== '__new__' || newRunnerName) &&
-		videoUrl && turnstileToken && !submitting
+	// ── Validation ──
+	const videoValid = $derived(!videoUrl || isValidVideoUrl(videoUrl));
+	const notesWarning = $derived(checkBannedTerms(submitterNotes));
+	const canSubmit = $derived(
+		!!$session &&
+		!!categoryTier &&
+		!!categorySlug &&
+		!!videoUrl &&
+		videoValid &&
+		!notesWarning &&
+		!submitting
 	);
 
-	async function handleSubmit() {
-		if (!canSubmit) return;
-		submitting = true;
-		result = null;
+	// ── Video Title Fetch ──
+	let fetchDebounce: ReturnType<typeof setTimeout> | null = null;
 
-		const video = parseVideoUrl(videoUrl);
-		const finalRunnerId = isNewRunner
-			? newRunnerName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-			: runnerId;
+	function onVideoUrlChange() {
+		videoTitle = '';
+		videoFetchError = '';
+		if (fetchDebounce) clearTimeout(fetchDebounce);
+		if (!videoUrl || !isValidVideoUrl(videoUrl)) return;
+		videoFetching = true;
+		fetchDebounce = setTimeout(() => fetchVideoMeta(videoUrl), 600);
+	}
 
-		const tierMap: Record<string, string> = {
-			'full-runs': 'full_runs', 'mini-challenges': 'mini_challenges', 'player-made': 'player_made'
-		};
-
-		const payload = {
-			game_id: gameId,
-			category_tier: tierMap[categoryTier] || categoryTier,
-			category_slug: categorySlug,
-			runner_id: finalRunnerId,
-			video_url: videoUrl,
-			video_host: video.host,
-			video_id: video.id,
-			character: character || null,
-			date_completed: dateCompleted || null,
-			run_time: runTime || null,
-			turnstile_token: turnstileToken,
-			source: 'site_form'
-		};
-
+	async function fetchVideoMeta(url: string) {
 		try {
-			const res = await fetch(PUBLIC_WORKER_URL, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
-			const data = await res.json();
-			if (res.ok && data.ok) {
-				result = { ok: true, message: `Run submitted! Submission ID: ${data.submission_id}`, id: data.submission_id };
+			const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
+			if (!res.ok) throw new Error('Fetch failed');
+			const json = await res.json();
+			if (json.error) {
+				videoFetchError = 'Could not retrieve video info.';
 			} else {
-				result = { ok: false, message: data.error || 'Submission failed. Please try again.' };
+				videoTitle = json.title || '';
+				// Try to extract upload date from YouTube video
+				if (!dateCompleted && json.upload_date) {
+					// noembed sometimes returns upload_date as YYYY-MM-DD
+					dateCompleted = json.upload_date;
+				}
 			}
 		} catch {
-			result = { ok: false, message: 'Network error. Please check your connection and try again.' };
+			videoFetchError = 'Could not retrieve video info.';
+		} finally {
+			videoFetching = false;
+		}
+	}
+
+	// Auto-fetch when video URL changes
+	$effect(() => {
+		videoUrl;
+		onVideoUrlChange();
+	});
+
+	// ── Helpers ──
+	function toggleChallenge(slug: string) {
+		if (selectedChallenges.includes(slug)) {
+			selectedChallenges = selectedChallenges.filter(c => c !== slug);
+		} else {
+			selectedChallenges = [...selectedChallenges, slug];
+		}
+	}
+
+	function toggleRestriction(slug: string) {
+		if (selectedRestrictions.includes(slug)) {
+			selectedRestrictions = selectedRestrictions.filter(r => r !== slug);
+		} else {
+			selectedRestrictions = [...selectedRestrictions, slug];
+		}
+	}
+
+	async function handleSubmit(e: Event) {
+		e.preventDefault();
+		submitting = true;
+		errorMsg = '';
+		successMsg = '';
+
+		try {
+			const { data: userData } = await supabase.auth.getUser();
+			if (!userData?.user) throw new Error('You must be signed in to submit a run.');
+
+			const { data: profile } = await supabase
+				.from('profiles')
+				.select('runner_id, status')
+				.eq('user_id', userData.user.id)
+				.single();
+
+			if (!profile?.runner_id) {
+				errorMsg = 'You need a runner ID to submit runs.';
+				goto(`/profile/setup?next=${encodeURIComponent($page.url.pathname)}`);
+				return;
+			}
+			if (profile.status !== 'approved') {
+				throw new Error('Your profile is still pending approval. You can browse the site, but submissions are locked until an admin approves your profile.');
+			}
+
+			const payload: Record<string, any> = {
+				schema_version: 7,
+				game_id: game.game_id,
+				category_tier: categoryTier,
+				category: categorySlug,
+				standard_challenges: selectedChallenges,
+				character: character || undefined,
+				glitch_id: glitchId || undefined,
+				restrictions: selectedRestrictions.length > 0 ? selectedRestrictions : undefined,
+				runner_id: profile.runner_id,
+				submitted_by: userData.user.id,
+				video_url: videoUrl,
+				submitted_at: new Date().toISOString(),
+				submitter_notes: submitterNotes.trim() || undefined,
+			};
+
+			// Date (optional)
+			if (dateCompleted) payload.run_date = dateCompleted;
+
+			// Timing: RTA is always captured
+			if (runTimeRta) payload.time_rta = runTimeRta;
+
+			// Game-specific timing (IGT, etc.)
+			if (showRtaSeparately && runTimePrimary) {
+				payload.time_primary = runTimePrimary;
+			} else if (!showRtaSeparately && runTimeRta) {
+				// If game timing IS rta (or unset), time_primary = rta
+				payload.time_primary = runTimeRta;
+			}
+
+			const { error } = await supabase.from('pending_runs').insert(payload);
+			if (error) throw error;
+
+			successMsg = 'Run submitted successfully! A verifier will review it shortly.';
+			categoryTier = ''; categorySlug = ''; selectedChallenges = []; character = '';
+			glitchId = ''; selectedRestrictions = []; videoUrl = ''; dateCompleted = '';
+			runTimeRta = ''; runTimePrimary = ''; submitterNotes = ''; videoTitle = '';
+		} catch (err: any) {
+			errorMsg = err.message || 'Submission failed. Please try again.';
 		} finally {
 			submitting = false;
-			if (turnstileWidgetId !== null && (window as any).turnstile) {
-				(window as any).turnstile.reset(turnstileWidgetId);
-				turnstileToken = '';
-			}
 		}
 	}
 </script>
 
-<svelte:head><title>Submit a Run | Challenge Run Community</title></svelte:head>
+<svelte:head>
+	<title>Submit Run - {game.game_name} | CRC</title>
+</svelte:head>
 
-<div class="page-width">
-	<div class="submit-page">
-		<h1>Submit a Run</h1>
-		<p class="muted">Submit your challenge run for review. All submissions require video proof.</p>
+<h2>Submit a {game.game_name} Run</h2>
+<p class="muted mb-3">
+	Fill in your run details below. All options are specific to {game.game_name}.
+	<span class="required-hint"><span class="req">*</span> indicates required fields</span>
+</p>
 
-		{#if result}
-			<div class="alert alert--{result.ok ? 'success' : 'error'}">
-				{result.message}
-				{#if result.ok}
-					<p style="margin-top: 0.5rem;"><a href="/games/{gameId}/runs">View runs for this game →</a></p>
-				{/if}
-			</div>
-			{#if result.ok}
-				<button class="btn btn--outline" onclick={() => { result = null; gameId = ''; categorySlug = ''; runnerId = ''; videoUrl = ''; }}>
-					Submit Another Run
-				</button>
-			{/if}
-		{/if}
-
-		{#if !result?.ok}
-			<div class="form">
-				<div class="form-group">
-					<label for="game">Game <span class="req">*</span></label>
-					<select id="game" bind:value={gameId}>
-						<option value="">Select a game...</option>
-						{#each games as game}
-							<option value={game.game_id}>{game.game_name}</option>
-						{/each}
-					</select>
-				</div>
-
-				{#if gameId && selectedGame}
-					<div class="form-group">
-						<label for="category">Category <span class="req">*</span></label>
-						<select id="category" bind:value={categorySlug} onchange={(e) => {
-							const opt = (e.target as HTMLSelectElement).selectedOptions[0];
-							categoryTier = opt?.dataset.tier || '';
-						}}>
-							<option value="">Select a category...</option>
-							{#if filteredCategories.full_runs.length}
-								<optgroup label="Full Runs">
-									{#each filteredCategories.full_runs as cat}
-										<option value={cat.slug} data-tier="full-runs">{cat.label}</option>
-									{/each}
-								</optgroup>
-							{/if}
-							{#if filteredCategories.mini_challenges.length}
-								<optgroup label="Mini-Challenges">
-									{#each filteredCategories.mini_challenges as cat}
-										<option value={cat.slug} data-tier="mini-challenges">
-											{cat.parentGroupLabel ? `${cat.parentGroupLabel} → ` : ''}{cat.label}
-										</option>
-									{/each}
-								</optgroup>
-							{/if}
-							{#if filteredCategories.player_made.length}
-								<optgroup label="Player-Made">
-									{#each filteredCategories.player_made as cat}
-										<option value={cat.slug} data-tier="player-made">{cat.label}</option>
-									{/each}
-								</optgroup>
-							{/if}
-						</select>
-					</div>
-
-					{#if characters.length}
-						<div class="form-group">
-							<label for="character">Character / Weapon</label>
-							<select id="character" bind:value={character}>
-								<option value="">Any / Not Applicable</option>
-								{#each characters as char}
-									<option value={char.slug}>{char.label}</option>
-								{/each}
-							</select>
-						</div>
-					{/if}
-				{/if}
-
-				<div class="form-group">
-					<label for="runner">Runner <span class="req">*</span></label>
-					<select id="runner" bind:value={runnerId}>
-						<option value="">Select your runner profile...</option>
-						{#each runners as runner}
-							<option value={runner.runner_id}>{runner.name}</option>
-						{/each}
-						<option value="__new__">+ New Runner (not listed)</option>
-					</select>
-				</div>
-
-				{#if isNewRunner}
-					<div class="form-group">
-						<label for="newRunner">Runner Name <span class="req">*</span></label>
-						<input id="newRunner" type="text" bind:value={newRunnerName} placeholder="Your runner name" maxlength="50" />
-						<span class="hint">A runner profile will be created during review.</span>
-					</div>
-				{/if}
-
-				<div class="form-group">
-					<label for="video">Video URL <span class="req">*</span></label>
-					<input id="video" type="url" bind:value={videoUrl} placeholder="https://youtube.com/watch?v=... or https://twitch.tv/videos/..." />
-					<span class="hint">YouTube, Twitch, Bilibili, or Nicovideo links accepted.</span>
-				</div>
-
-				<details class="optional-section">
-					<summary>Optional Details</summary>
-					<div class="optional-fields">
-						<div class="form-group">
-							<label for="dateCompleted">Date Completed</label>
-							<input id="dateCompleted" type="date" bind:value={dateCompleted} />
-						</div>
-						<div class="form-group">
-							<label for="runTime">Run Time</label>
-							<input id="runTime" type="text" bind:value={runTime} placeholder="e.g. 1:23:45" />
-						</div>
-					</div>
-				</details>
-
-				<div class="form-group turnstile-group">
-					<div id="turnstile-container"></div>
-					{#if !turnstileReady}<p class="hint">Loading verification...</p>{/if}
-				</div>
-
-				<div class="form-actions">
-					<button class="btn btn--submit" onclick={handleSubmit} disabled={!canSubmit}>
-						{submitting ? 'Submitting...' : 'Submit Run'}
-					</button>
-				</div>
-			</div>
-		{/if}
-
-		<div class="submit-links">
-			<p>Looking to submit a new game instead? <a href="/submit-game">Request a Game</a></p>
+{#if !$session}
+	<div class="card">
+		<div class="empty-state">
+			<span class="empty-state__icon">🔐</span>
+			<h3>Sign In Required</h3>
+			<p class="muted">You need to be signed in to submit a run.</p>
+			<a href="/sign-in?redirect=/games/{game.game_id}/submit" class="btn btn--accent mt-2">Sign In</a>
 		</div>
 	</div>
-</div>
+{:else if successMsg}
+	<div class="card">
+		<div class="success-state">
+			<span class="success-state__icon">✅</span>
+			<h3>Submitted!</h3>
+			<p class="muted">{successMsg}</p>
+			<div class="success-actions">
+				<button class="btn btn--accent" onclick={() => successMsg = ''}>Submit Another</button>
+				<a href="/games/{game.game_id}/runs" class="btn">View Runs</a>
+			</div>
+		</div>
+	</div>
+{:else}
+	<form class="submit-form" onsubmit={handleSubmit}>
+		<!-- Category Selection -->
+		<div class="submit-section">
+			<p class="submit-section__title">Category <span class="req">*</span></p>
+			<p class="submit-section__sub">Select the run tier and category.</p>
+			<div class="field-row">
+				<div class="field">
+					<label for="tier" class="field-label">Tier <span class="req">*</span></label>
+					<select id="tier" bind:value={categoryTier} required>
+						<option value="">Select tier...</option>
+						{#each tierOptions() as tier}
+							<option value={tier.value}>{tier.label}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="field">
+					<label for="category" class="field-label">Category <span class="req">*</span></label>
+					<select id="category" bind:value={categorySlug} required disabled={!categoryTier}>
+						<option value="">Select category...</option>
+						{#each categoryOptions as cat}
+							<option value={cat.slug}>{cat.label}</option>
+						{/each}
+					</select>
+				</div>
+			</div>
+		</div>
+
+		<!-- Challenges -->
+		{#if game.challenges_data?.length}
+			<div class="submit-section">
+				<p class="submit-section__title">Challenges</p>
+				<p class="submit-section__sub">Select all challenges completed in this run.</p>
+				<div class="chip-grid">
+					{#each game.challenges_data as ch}
+						<button type="button" class="chip" class:chip--active={selectedChallenges.includes(ch.slug)} onclick={() => toggleChallenge(ch.slug)}>{ch.label}</button>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
+		<!-- Character -->
+		{#if game.character_column?.enabled && game.characters_data?.length}
+			<div class="submit-section">
+				<p class="submit-section__title">{game.character_column.label}</p>
+				<div class="field">
+					<select bind:value={character}>
+						<option value="">Select {game.character_column.label.toLowerCase()}...</option>
+						{#each game.characters_data as ch}
+							<option value={ch.slug}>{ch.label}</option>
+						{/each}
+					</select>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Glitch Category -->
+		{#if game.glitches_data?.length}
+			<div class="submit-section">
+				<p class="submit-section__title">Glitch Category</p>
+				<div class="field">
+					<select bind:value={glitchId}>
+						<option value="">Select glitch policy...</option>
+						{#each game.glitches_data as g}
+							<option value={g.slug}>{g.label}</option>
+						{/each}
+					</select>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Restrictions -->
+		{#if game.restrictions_data?.length}
+			<div class="submit-section">
+				<p class="submit-section__title">Restrictions</p>
+				<p class="submit-section__sub">Select any optional restrictions applied to this run.</p>
+				<div class="chip-grid">
+					{#each game.restrictions_data as r}
+						<button type="button" class="chip" class:chip--active={selectedRestrictions.includes(r.slug)} onclick={() => toggleRestriction(r.slug)}>{r.label}</button>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
+		<!-- Video Proof -->
+		<div class="submit-section">
+			<p class="submit-section__title">Video Proof <span class="req">*</span></p>
+			<div class="field">
+				<label for="video" class="field-label">Video URL <span class="req">*</span></label>
+				<input id="video" type="url" bind:value={videoUrl} required placeholder="https://youtube.com/watch?v=..." class:field--error={videoUrl && !videoValid} />
+				{#if videoUrl && !videoValid}
+					<span class="field-error">Must be a YouTube, Twitch, or supported video URL</span>
+				{/if}
+			</div>
+			{#if videoFetching}
+				<div class="video-meta"><span class="spinner spinner--small"></span> <span class="muted">Fetching video info...</span></div>
+			{/if}
+			{#if videoTitle}
+				<div class="video-meta video-meta--success">
+					<span class="video-meta__icon">🎬</span>
+					<span class="video-meta__title">{videoTitle}</span>
+				</div>
+			{/if}
+			{#if videoFetchError}
+				<div class="video-meta video-meta--warn"><span class="muted">{videoFetchError}</span></div>
+			{/if}
+		</div>
+
+		<!-- Run Timing -->
+		<div class="submit-section">
+			<p class="submit-section__title">Run Timing</p>
+			<p class="submit-section__sub">
+				{#if showRtaSeparately}
+					Enter your RTA (real-time) and {gameTimingLabel} times. Both are optional but help with verification.
+				{:else}
+					Enter your run time. Format: HH:MM:SS or MM:SS. Optional but recommended.
+				{/if}
+			</p>
+			<div class="field-row">
+				{#if showRtaSeparately}
+					<div class="field">
+						<label for="time-primary" class="field-label">{gameTimingLabel} Time</label>
+						<input id="time-primary" type="text" bind:value={runTimePrimary} placeholder="HH:MM:SS or MM:SS" />
+						<span class="field-hint">{game.game_name}'s tracked timing</span>
+					</div>
+				{:else}
+					<div class="field"></div>
+				{/if}
+				<div class="field">
+					<label for="time-rta" class="field-label">RTA Time</label>
+					<input id="time-rta" type="text" bind:value={runTimeRta} placeholder="HH:MM:SS or MM:SS" />
+					<span class="field-hint">Real-time (wall clock)</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Date Completed -->
+		<div class="submit-section">
+			<p class="submit-section__title">Date Completed</p>
+			<p class="submit-section__sub">When was this run completed? Optional — will use submission date if left blank.</p>
+			<div class="field" style="max-width: 240px;">
+				<input id="date" type="date" bind:value={dateCompleted} max={new Date().toISOString().split('T')[0]} />
+			</div>
+		</div>
+
+		<!-- Runner Notes -->
+		<div class="submit-section">
+			<p class="submit-section__title">Runner Notes</p>
+			<p class="submit-section__sub">Optional notes about your run (strategy, memorable moments, attempts count, etc.). Max 500 characters.</p>
+			<div class="field">
+				<textarea
+					bind:value={submitterNotes}
+					placeholder="e.g. 'First clear after 47 attempts! Almost died to the final boss.'"
+					maxlength="500"
+					rows="3"
+					class:field--error={!!notesWarning}
+				></textarea>
+				<div class="field-row-between">
+					{#if notesWarning}
+						<span class="field-error">{notesWarning}</span>
+					{:else}
+						<span></span>
+					{/if}
+					<span class="field-hint">{submitterNotes.length}/500</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Error Message -->
+		{#if errorMsg}
+			<div class="submit-error">{errorMsg}</div>
+		{/if}
+
+		<!-- Submit -->
+		<div class="submit-actions">
+			<button type="submit" class="btn btn--accent" disabled={!canSubmit}>
+				{#if submitting}
+					<span class="spinner spinner--small"></span> Submitting...
+				{:else}
+					Submit Run
+				{/if}
+			</button>
+		</div>
+	</form>
+{/if}
 
 <style>
-	.submit-page { max-width: 640px; margin: 2rem auto; }
-	.form { margin-top: 1.5rem; }
-	.form-group { margin-bottom: 1.25rem; }
-	.form-group label { display: block; margin-bottom: 0.35rem; font-size: 0.85rem; font-weight: 600; color: var(--muted); }
-	.req { color: #ef4444; }
-	.form-group select,
-	.form-group input[type="text"],
-	.form-group input[type="url"],
-	.form-group input[type="date"] {
-		width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--border);
-		border-radius: 6px; background: var(--surface); color: var(--fg);
-		font-size: 0.95rem; font-family: inherit;
+	h2 { margin: 0 0 0.25rem; text-align: center; }
+	.mb-3 { margin-bottom: 1rem; text-align: center; }
+	.mt-1 { margin-top: 0.5rem; }
+	.mt-2 { margin-top: 0.75rem; }
+	.mt-section { margin-top: 1.5rem; }
+	.required-hint { font-size: 0.8rem; }
+	.req { color: #ef4444; font-weight: 600; }
+
+	.empty-state, .success-state { text-align: center; padding: 2rem 1rem; max-width: 720px; margin: 0 auto; }
+	.empty-state__icon, .success-state__icon { display: block; font-size: 3rem; margin-bottom: 0.75rem; opacity: 0.5; }
+	.empty-state h3, .success-state h3 { margin: 0 0 0.5rem; }
+	.empty-state p, .success-state p { margin: 0; max-width: 400px; margin-inline: auto; }
+	.success-actions { display: flex; gap: 0.75rem; justify-content: center; margin-top: 1rem; }
+
+	.submit-form { display: flex; flex-direction: column; gap: 1.5rem; max-width: 720px; margin: 0 auto; }
+	.submit-section { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+	.submit-section__title { margin: 0 0 0.25rem; font-weight: 600; font-size: 0.95rem; }
+	.submit-section__sub { margin: 0 0 0.75rem; font-size: 0.8rem; color: var(--text-muted); }
+
+	.field { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.5rem; }
+	.field-label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+	.field-hint { font-size: 0.75rem; color: var(--text-muted); }
+	.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+	.field-row-between { display: flex; justify-content: space-between; align-items: center; }
+
+	input, select, textarea {
+		width: 100%; padding: 0.5rem 0.75rem; background: var(--bg); border: 1px solid var(--border);
+		border-radius: 6px; color: var(--fg); font-size: 0.9rem; font-family: inherit; resize: vertical;
 	}
-	.form-group select:focus, .form-group input:focus {
-		outline: none; border-color: var(--accent);
-		box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+	input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+	input::placeholder, textarea::placeholder { color: var(--border); }
+	select:disabled { opacity: 0.5; }
+	.field--error { border-color: #ef4444 !important; }
+	.field-error { color: #ef4444; font-size: 0.75rem; }
+
+	/* Video meta */
+	.video-meta { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.85rem; }
+	.video-meta--success { padding: 0.5rem 0.75rem; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; }
+	.video-meta--warn { padding: 0.4rem 0.75rem; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.15); border-radius: 6px; }
+	.video-meta__icon { font-size: 1rem; }
+	.video-meta__title { color: var(--fg); font-weight: 500; }
+
+	/* Chip Grid */
+	.chip-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+	.chip {
+		padding: 0.4rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-family: inherit;
+		background: var(--surface); border: 1px solid var(--border); color: var(--fg);
+		cursor: pointer; transition: all 0.15s;
 	}
-	.hint { display: block; margin-top: 0.3rem; font-size: 0.8rem; color: var(--muted); }
-	.optional-section { margin: 1.5rem 0; border: 1px solid var(--border); border-radius: 8px; }
-	.optional-section summary { padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; font-size: 0.9rem; color: var(--muted); }
-	.optional-section summary:hover { color: var(--fg); }
-	.optional-fields { padding: 0 1rem 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-	.turnstile-group { margin-top: 1.5rem; }
-	.form-actions { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
-	.btn--submit {
-		background: var(--accent); color: #fff; border: none; padding: 0.75rem 2rem;
-		border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%;
+	.chip:hover { border-color: var(--accent); }
+	.chip--active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+	.submit-actions { display: flex; gap: 0.75rem; align-items: center; justify-content: flex-end; }
+	.btn--accent {
+		background: var(--accent); color: #fff; padding: 0.6rem 1.5rem; border-radius: 8px;
+		border: 1px solid var(--accent); font-weight: 600; font-size: 0.95rem; cursor: pointer; text-decoration: none;
+		display: inline-flex; align-items: center; gap: 0.5rem;
+		box-shadow: 0 0 12px rgba(var(--accent-rgb, 59, 195, 110), 0.3);
 	}
-	.btn--submit:hover:not(:disabled) { opacity: 0.9; }
-	.btn--submit:disabled { opacity: 0.4; cursor: not-allowed; }
-	.btn--outline {
-		display: inline-block; margin-top: 1rem; padding: 0.5rem 1.25rem;
-		border: 1px solid var(--border); border-radius: 6px; background: none;
-		color: var(--fg); cursor: pointer; font-size: 0.9rem;
+	.btn--accent:hover { opacity: 0.9; }
+	.btn--accent:disabled { opacity: 0.5; cursor: not-allowed; }
+	.btn { display: inline-flex; align-items: center; padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: none; color: var(--fg); text-decoration: none; font-size: 0.9rem; cursor: pointer; }
+
+	.submit-error { padding: 0.6rem 0.75rem; border-radius: 6px; font-size: 0.85rem; background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+
+	.spinner--small { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; display: inline-block; animation: spin 0.6s linear infinite; }
+	@keyframes spin { to { transform: rotate(360deg); } }
+
+	@media (max-width: 640px) {
+		.field-row { grid-template-columns: 1fr; }
+		.submit-actions { flex-direction: column; }
+		.btn--accent, .btn { width: 100%; justify-content: center; text-align: center; }
 	}
-	.btn--outline:hover { border-color: var(--accent); color: var(--accent); }
-	.alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.5rem; }
-	.alert a { color: inherit; text-decoration: underline; }
-	.alert--success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #22c55e; }
-	.alert--error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; }
-	.submit-links { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
-	.submit-links a { color: var(--accent); }
-	@media (max-width: 500px) { .optional-fields { grid-template-columns: 1fr; } }
 </style>
