@@ -14,6 +14,7 @@
 	let categorySlug = $state('');
 	let selectedChallenges = $state<string[]>([]);
 	let character = $state('');
+	let platform = $state('');
 	let glitchId = $state('');
 	let selectedRestrictions = $state<string[]>([]);
 	let videoUrl = $state('');
@@ -166,7 +167,9 @@
 				character: character || undefined,
 				glitch_id: glitchId || undefined,
 				restrictions: selectedRestrictions.length > 0 ? selectedRestrictions : undefined,
+				platform: platform || undefined,
 				runner_id: profile.runner_id,
+				submitted_by: userData.user.id,
 				video_url: videoUrl,
 				submitted_at: new Date().toISOString(),
 				submitter_notes: submitterNotes.trim() || undefined,
@@ -315,6 +318,31 @@
 				</div>
 			</div>
 		{/if}
+
+		<!-- Platform -->
+		<div class="submit-section">
+			<p class="submit-section__title">Platform</p>
+			<p class="submit-section__sub">What platform did you play on? Optional but helpful for verification.</p>
+			<div class="field" style="max-width: 280px;">
+				<select bind:value={platform}>
+					<option value="">Select platform...</option>
+					<option value="pc">PC</option>
+					<option value="ps5">PlayStation 5</option>
+					<option value="ps4">PlayStation 4</option>
+					<option value="ps3">PlayStation 3</option>
+					<option value="xbox-series">Xbox Series X|S</option>
+					<option value="xbox-one">Xbox One</option>
+					<option value="xbox-360">Xbox 360</option>
+					<option value="switch">Nintendo Switch</option>
+					<option value="wii-u">Wii U</option>
+					<option value="wii">Wii</option>
+					<option value="3ds">Nintendo 3DS</option>
+					<option value="steam-deck">Steam Deck</option>
+					<option value="mobile">Mobile (iOS/Android)</option>
+					<option value="other">Other</option>
+				</select>
+			</div>
+		</div>
 
 		<!-- Video Proof -->
 		<div class="submit-section">

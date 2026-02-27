@@ -7,7 +7,8 @@
 	import { checkBannedTerms } from '$lib/utils/banned-terms';
 
 	let { data } = $props();
-	const game = $derived(data.game);
+	let selectedGameId = $state('');
+	const game = $derived(data.games.find((g: any) => g.game_id === selectedGameId) as any);
 
 	// ── Form State ──
 	let categoryTier = $state('');
@@ -203,10 +204,28 @@
 </script>
 
 <svelte:head>
-	<title>Submit Run - {game.game_name} | CRC</title>
+	<title>Submit Run{game ? ` - ${game.game_name}` : ''} | CRC</title>
 </svelte:head>
 
-<h2>Submit a {game.game_name} Run</h2>
+<h2>Submit a Run</h2>
+
+<!-- Game Selector -->
+<div class="submit-section">
+	<p class="submit-section__title">Select Game <span class="req">*</span></p>
+	<div class="field" style="max-width: 320px;">
+		<select bind:value={selectedGameId}>
+			<option value="">Choose a game...</option>
+			{#each data.games as g}
+				<option value={g.game_id}>{g.game_name}</option>
+			{/each}
+		</select>
+	</div>
+</div>
+
+{#if !game}
+	<p class="muted" style="text-align:center; padding: 2rem 0;">Select a game above to see the submission form, or go to a game's page and click "Submit Run" there.</p>
+{:else}
+
 <p class="muted mb-3">
 	Fill in your run details below. All options are specific to {game.game_name}.
 	<span class="required-hint"><span class="req">*</span> indicates required fields</span>
@@ -417,6 +436,7 @@
 			</button>
 		</div>
 	</form>
+{/if}
 {/if}
 
 <style>

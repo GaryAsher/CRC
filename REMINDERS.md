@@ -35,9 +35,7 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ## Revisit (Needs Polish)
 
 ### Admin Panel
-- [ ] Debug View — needs revamp (currently basic)
-- [ ] Site Health — performance report needs revamp
-- [ ] Game picker on debug page — functional but could be improved
+- [ ] Improve Submission Testers and figure out if we need it
 
 ### Global
 - [ ] Icons for Admins, Super Admins, Verifiers — attach to profiles
@@ -50,33 +48,22 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ## Short-Term Priorities
 
 ### 1. Supabase Migration — Tables + Seed (Phase 1-2)
-Switch page loads from markdown to live Supabase queries.
-See `CLAUDE.md` Phase 1-4 for full checklist.
-- [ ] Create tables: `games`, `runs`, `runners`, `achievements`, `teams`
-- [ ] Seed script: read existing `.md` files → insert into Supabase
-- [ ] Switch page loads (`/games`, `/runners`, `/teams`, homepage)
 - [ ] Server-side pagination for runs (cursor-based)
 
 ### 2. Content & Polish
 - [ ] Fill glossary definitions (hit, damage, death, hitless vs damageless, etc.)
 - [ ] Fill support page (FAQ, staff section, privacy request form)
-- [ ] Wire cookie consent banner (`CookieConsent.svelte` exists but needs activation)
 - [ ] Test Discord webhooks (run submission, game submission)
 - [ ] Audit SCSS for dead code
 
 ### 3. Infrastructure
 - [ ] Add `static/_headers` file (move CSP from Cloudflare dashboard into version control)
-- [ ] Add `src/routes/sitemap.xml/+server.ts`
-- [ ] Create `.github/workflows/ci.yml` (pnpm build, YAML validation)
-- [ ] Create `.github/CODEOWNERS`
-- [ ] Normalize image paths (remove duplicate `static/assets/img/`, keep `static/img/`)
 
 ### 4. Legal & Compliance
 - [ ] Review Terms of Service line-by-line
 - [ ] Review Privacy Policy line-by-line
 - [ ] Make email accounts for privacy and legal contacts
 - [ ] Test user data export feature (GDPR compliance)
-- [ ] Remove Privacy Policy 5.2: "GitHub (Microsoft)" after full Supabase migration
 - [ ] Create disaster recovery plan document
 - [ ] DMCA safe harbor policy + designated agent registration ($6)
 
@@ -113,9 +100,6 @@ See `CLAUDE.md` Phase 1-4 for full checklist.
 
 ### Modded Game Support
 - [ ] Separate game pages for modded versions (Option A from earlier discussion)
-- [ ] `is_modded` + `base_game` fields linking modded ↔ vanilla
-- [ ] "🔧 MODDED" badge on game cards and hero images
-- [ ] Cross-linking: base game shows "Modded versions available", modded shows "Looking for vanilla?"
 
 ### Multi-Game Run Support
 - [ ] `is_multi_game` + `related_games` fields

@@ -35,12 +35,38 @@
 
 	// ── Modals ────────────────────────────────────────────────────────────────
 	let rejectModalOpen = $state(false);
-	let changesModalOpen = $state(false);
+	let editModalOpen = $state(false);
+	let editDiffStep = $state(false);
 	let modalRunId = $state<string | null>(null);
 	let modalInfo = $state('');
 	let rejectReason = $state('');
 	let rejectNotes = $state('');
-	let changesNotes = $state('');
+	let editFields = $state<Record<string, any>>({});
+	let originalFields = $state<Record<string, any>>({});
+	let editNotes = $state('');
+
+	/** Fields that verifiers can edit */
+	const EDITABLE_FIELDS = [
+		{ key: 'category_tier', label: 'Tier', type: 'text' },
+		{ key: 'category', label: 'Category', type: 'text' },
+		{ key: 'character', label: 'Character', type: 'text' },
+		{ key: 'time_primary', label: 'Primary Time', type: 'text' },
+		{ key: 'time_rta', label: 'RTA Time', type: 'text' },
+		{ key: 'run_date', label: 'Date Completed', type: 'date' },
+		{ key: 'glitch_id', label: 'Glitch Category', type: 'text' },
+		{ key: 'platform', label: 'Platform', type: 'text' },
+	];
+
+	/** Get fields that were actually changed */
+	let editedFields = $derived.by(() => {
+		const changed: { key: string; label: string; from: any; to: any }[] = [];
+		for (const f of EDITABLE_FIELDS) {
+			const orig = originalFields[f.key] || '';
+			const edit = editFields[f.key] || '';
+			if (orig !== edit) changed.push({ key: f.key, label: f.label, from: orig, to: edit });
+		}
+		return changed;
+	});
 
 	// ── Derived ───────────────────────────────────────────────────────────────
 	let filteredRuns = $derived.by(() => {
@@ -64,7 +90,11 @@
 
 	// ── Helpers ───────────────────────────────────────────────────────────────
 	function fmt(id: string): string {
-		return (id || '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+		return (id || '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+	}
+	function fmtTier(tier: string): string {
+		const map: Record<string, string> = { full_runs: 'Full Runs', mini_challenges: 'Mini-Challenges', player_made: 'Player-Made' };
+		return map[tier] || fmt(tier);
 	}
 	function fmtDate(d: string): string {
 		if (!d) return '—';
@@ -99,6 +129,27 @@
 		return null;
 	}
 
+	// ── Game configs (for "Not Applicable" logic) ────────────────────────────
+	let gameConfigs = $state<Record<string, any>>({});
+
+	// ── Helpers for "Not Applicable" ──────────────────────────────────────────
+	function fieldApplicable(run: any, field: string): boolean {
+		const g = gameConfigs[run.game_id];
+		if (!g) return true; // if we don't have config, assume applicable
+		switch (field) {
+			case 'character': return !!(g.character_column?.enabled && g.characters_data?.length);
+			case 'challenges': return !!(g.challenges_data?.length);
+			case 'glitch': return !!(g.glitches_data?.length);
+			case 'restrictions': return !!(g.restrictions_data?.length);
+			case 'platform': return true; // always applicable
+			default: return true;
+		}
+	}
+	function fieldValue(run: any, field: string, rawValue: string): string {
+		if (!fieldApplicable(run, field)) return 'n/a';
+		return rawValue;
+	}
+
 	// ── Data Loading ──────────────────────────────────────────────────────────
 	async function loadRuns() {
 		loading = true;
@@ -111,7 +162,33 @@
 				`${PUBLIC_SUPABASE_URL}/rest/v1/pending_runs?order=submitted_at.desc&limit=500`,
 				{ headers: { 'apikey': PUBLIC_SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` } }
 			);
-			if (res.ok) runs = await res.json();
+			if (res.ok) {
+				const data = await res.json();
+
+				// Resolve claimed_by UUIDs to runner_ids
+				const claimerIds = [...new Set(data.filter((r: any) => r.claimed_by).map((r: any) => r.claimed_by))];
+				let claimerMap: Record<string, string> = {};
+				if (claimerIds.length > 0) {
+					const { data: profiles } = await supabase.from('profiles').select('user_id, runner_id, display_name').in('user_id', claimerIds);
+					for (const p of (profiles || [])) {
+						claimerMap[p.user_id] = p.runner_id || p.display_name || 'Staff';
+					}
+				}
+
+				runs = data.map((r: any) => ({
+					...r,
+					claimed_by_name: r.claimed_by ? (claimerMap[r.claimed_by] || 'Staff') : null
+				}));
+
+				// Load game configs for "Not Applicable" logic
+				const gameIds = [...new Set(data.map((r: any) => r.game_id).filter(Boolean))];
+				if (gameIds.length > 0) {
+					const { data: games } = await supabase.from('games').select('game_id, character_column, characters_data, challenges_data, glitches_data, restrictions_data').in('game_id', gameIds);
+					const configs: Record<string, any> = {};
+					for (const g of (games || [])) configs[g.game_id] = g;
+					gameConfigs = configs;
+				}
+			}
 		} catch { /* ignore */ }
 		loading = false;
 	}
@@ -158,29 +235,79 @@
 		setTimeout(() => actionMessage = null, 3000);
 	}
 
-	function openChangesModal(run: any) {
+	function openEditModal(run: any) {
 		modalRunId = run.id;
 		modalInfo = `${fmt(run.game_id)} by ${run.runner_id}`;
-		changesNotes = '';
-		changesModalOpen = true;
+		editNotes = '';
+		editDiffStep = false;
+		// Pre-populate fields from current run data
+		const fields: Record<string, any> = {};
+		const orig: Record<string, any> = {};
+		for (const f of EDITABLE_FIELDS) {
+			fields[f.key] = run[f.key] || '';
+			orig[f.key] = run[f.key] || '';
+		}
+		editFields = fields;
+		originalFields = orig;
+		editModalOpen = true;
 	}
 
-	async function confirmChanges() {
-		if (!modalRunId || !changesNotes.trim()) return;
+	function showEditDiff() {
+		if (editedFields.length === 0 && !editNotes.trim()) return;
+		editDiffStep = true;
+	}
+
+	async function confirmEdit() {
+		if (!modalRunId) return;
 		processingId = modalRunId;
-		const result = await adminAction('/admin/request-changes', {
-			run_id: modalRunId, notes: changesNotes.trim()
-		});
-		if (result.ok) {
-			runs = runs.map(r => r.id === modalRunId ? { ...r, status: 'needs_changes', verifier_notes: changesNotes } : r);
-			actionMessage = { type: 'success', text: 'Changes requested.' };
-		} else {
-			actionMessage = { type: 'error', text: result.message };
+
+		// Build the update payload (only changed fields)
+		const updates: Record<string, any> = {};
+		for (const f of editedFields) updates[f.key] = editFields[f.key] || null;
+
+		// If there are edits, update the pending run
+		if (Object.keys(updates).length > 0) {
+			updates.verifier_notes = editNotes.trim() || `Fields edited: ${editedFields.map(f => f.label).join(', ')}`;
+			const { error } = await supabase.from('pending_runs').update(updates).eq('id', modalRunId);
+			if (error) {
+				actionMessage = { type: 'error', text: `Edit failed: ${error.message}` };
+				processingId = null;
+				return;
+			}
+
+			// Write audit log entry
+			try {
+				const { data: { user: u } } = await supabase.auth.getUser();
+				await supabase.from('audit_log').insert({
+					table_name: 'pending_runs',
+					action: 'run_edited',
+					record_id: modalRunId,
+					user_id: u?.id,
+					old_data: Object.fromEntries(editedFields.map(f => [f.key, f.from])),
+					new_data: { ...Object.fromEntries(editedFields.map(f => [f.key, f.to])), notes: editNotes.trim() }
+				});
+			} catch { /* audit log write is best-effort */ }
+
+			// Update local state
+			runs = runs.map(r => r.id === modalRunId ? { ...r, ...updates } : r);
+			actionMessage = { type: 'success', text: `Run updated (${editedFields.length} field${editedFields.length !== 1 ? 's' : ''} changed).` };
+		} else if (editNotes.trim()) {
+			// Notes only, no field changes — behave like old "Request Changes"
+			const result = await adminAction('/admin/request-changes', {
+				run_id: modalRunId, notes: editNotes.trim()
+			});
+			if (result.ok) {
+				runs = runs.map(r => r.id === modalRunId ? { ...r, status: 'needs_changes', verifier_notes: editNotes } : r);
+				actionMessage = { type: 'success', text: 'Changes requested.' };
+			} else {
+				actionMessage = { type: 'error', text: result.message };
+			}
 		}
-		changesModalOpen = false;
+
+		editModalOpen = false;
 		processingId = null;
 		modalRunId = null;
-		setTimeout(() => actionMessage = null, 3000);
+		setTimeout(() => actionMessage = null, 4000);
 	}
 
 	async function claimRun(id: string) {
@@ -189,12 +316,17 @@
 		try {
 			const { data: { user: u } } = await supabase.auth.getUser();
 			if (!u) throw new Error('Not authenticated');
+
+			// Look up runner_id from profiles
+			const { data: profile } = await supabase.from('profiles').select('runner_id, display_name').eq('user_id', u.id).single();
+			const claimName = profile?.runner_id || profile?.display_name || 'Unknown';
+
 			const { error } = await supabase.from('pending_runs').update({
 				claimed_by: u.id,
 				claimed_at: new Date().toISOString()
 			}).eq('id', id);
 			if (error) throw error;
-			runs = runs.map(r => r.id === id ? { ...r, claimed_by: u.id, claimed_by_name: u.user_metadata?.display_name || u.email, claimed_at: new Date().toISOString() } : r);
+			runs = runs.map(r => r.id === id ? { ...r, claimed_by: u.id, claimed_by_name: claimName, claimed_at: new Date().toISOString() } : r);
 			actionMessage = { type: 'success', text: 'Run claimed for review.' };
 		} catch (e: any) {
 			actionMessage = { type: 'error', text: `Claim failed: ${e.message}` };
@@ -327,7 +459,7 @@
 										<span class="run-card__viewonly">👁 View Only</span>
 									{/if}
 								</div>
-								<span class="run-card__runner">by {run.runner_id} · {fmt(run.category_tier || '')} › {fmt(run.category || '')}{#if run.time_primary} · <span class="mono">{run.time_primary}</span>{/if}</span>
+								<span class="run-card__runner">by {run.runner_id} · {fmtTier(run.category_tier || '')} › {fmt(run.category || '')}{#if run.time_primary} · <span class="mono">{run.time_primary}</span>{/if}</span>
 							</div>
 							<span class="run-card__date muted">{fmtAgo(run.submitted_at)}</span>
 						</button>
@@ -347,16 +479,28 @@
 
 								<div class="run-details">
 									<div class="run-detail"><span class="run-detail__label">Game</span><span class="run-detail__value">{fmt(run.game_id || '—')}</span></div>
-									<div class="run-detail"><span class="run-detail__label">Tier</span><span class="run-detail__value">{fmt(run.category_tier || '—')}</span></div>
+									<div class="run-detail"><span class="run-detail__label">Tier</span><span class="run-detail__value">{fmtTier(run.category_tier || '—')}</span></div>
 									<div class="run-detail"><span class="run-detail__label">Category</span><span class="run-detail__value">{fmt(run.category || '—')}</span></div>
-									<div class="run-detail"><span class="run-detail__label">Character</span><span class="run-detail__value">{run.character ? fmt(run.character) : '—'}</span></div>
+									<div class="run-detail"><span class="run-detail__label">Character</span>
+										{#if !fieldApplicable(run, 'character')}<span class="run-detail__na">Not Applicable</span>
+										{:else}<span class="run-detail__value">{run.character ? fmt(run.character) : '—'}</span>{/if}
+									</div>
 									<div class="run-detail"><span class="run-detail__label">Primary Time</span><span class="run-detail__value mono">{run.time_primary || '—'}</span></div>
 									<div class="run-detail"><span class="run-detail__label">RTA Time</span><span class="run-detail__value mono">{run.time_rta || '—'}</span></div>
 									<div class="run-detail"><span class="run-detail__label">Date Completed</span><span class="run-detail__value">{fmtDate(run.run_date)}</span></div>
 									<div class="run-detail"><span class="run-detail__label">Submitted</span><span class="run-detail__value">{fmtDate(run.submitted_at)}</span></div>
-									<div class="run-detail"><span class="run-detail__label">Challenges</span><span class="run-detail__value">{fmtArray(run.standard_challenges)}</span></div>
-									<div class="run-detail"><span class="run-detail__label">Glitch Category</span><span class="run-detail__value">{run.glitch_id ? fmt(run.glitch_id) : '—'}</span></div>
-									<div class="run-detail"><span class="run-detail__label">Restrictions</span><span class="run-detail__value">{fmtArray(run.restrictions)}</span></div>
+									<div class="run-detail"><span class="run-detail__label">Challenges</span>
+										{#if !fieldApplicable(run, 'challenges')}<span class="run-detail__na">Not Applicable</span>
+										{:else}<span class="run-detail__value">{fmtArray(run.standard_challenges)}</span>{/if}
+									</div>
+									<div class="run-detail"><span class="run-detail__label">Glitch Category</span>
+										{#if !fieldApplicable(run, 'glitch')}<span class="run-detail__na">Not Applicable</span>
+										{:else}<span class="run-detail__value">{run.glitch_id ? fmt(run.glitch_id) : '—'}</span>{/if}
+									</div>
+									<div class="run-detail"><span class="run-detail__label">Restrictions</span>
+										{#if !fieldApplicable(run, 'restrictions')}<span class="run-detail__na">Not Applicable</span>
+										{:else}<span class="run-detail__value">{fmtArray(run.restrictions)}</span>{/if}
+									</div>
 									<div class="run-detail"><span class="run-detail__label">Platform</span><span class="run-detail__value">{run.platform ? fmt(run.platform) : '—'}</span></div>
 									{#if run.submitter_notes}
 										<div class="run-detail run-detail--wide"><span class="run-detail__label">Runner Notes</span><span class="run-detail__value">{run.submitter_notes}</span></div>
@@ -387,8 +531,8 @@
 										<button class="btn btn--approve" onclick={() => approveRun(run.id)} disabled={processingId === run.id}>
 											{processingId === run.id ? '...' : '✅ Approve'}
 										</button>
-										<button class="btn btn--changes" onclick={() => openChangesModal(run)} disabled={processingId === run.id}>
-											✏️ Request Changes
+										<button class="btn btn--changes" onclick={() => openEditModal(run)} disabled={processingId === run.id}>
+											✏️ Edit / Request Changes
 										</button>
 										<button class="btn btn--reject" onclick={() => openRejectModal(run)} disabled={processingId === run.id}>
 											❌ Reject
@@ -438,21 +582,77 @@
 		{/if}
 
 		<!-- Changes Modal -->
-		{#if changesModalOpen}
-			<div class="modal-backdrop" onclick={() => changesModalOpen = false}></div>
-			<div class="modal">
-				<h3>Request Changes</h3>
-				<p class="muted mb-2">{modalInfo}</p>
-				<div class="form-field">
-					<label for="changes-notes">What needs to be changed? <span class="required">*</span></label>
-					<textarea id="changes-notes" rows="4" bind:value={changesNotes} placeholder="Describe what the runner needs to fix..."></textarea>
-				</div>
-				<div class="modal__actions">
-					<button class="btn btn--changes" onclick={confirmChanges} disabled={!changesNotes.trim() || processingId !== null}>
-						{processingId ? 'Sending...' : 'Send Request'}
-					</button>
-					<button class="btn" onclick={() => changesModalOpen = false}>Cancel</button>
-				</div>
+		{#if editModalOpen}
+			<div class="modal-backdrop" onclick={() => editModalOpen = false}></div>
+			<div class="modal modal--wide">
+				{#if !editDiffStep}
+					<!-- Step 1: Edit Fields -->
+					<h3>Edit / Request Changes</h3>
+					<p class="muted mb-2">{modalInfo}</p>
+					<div class="edit-grid">
+						{#each EDITABLE_FIELDS as field}
+							<div class="form-field form-field--inline">
+								<label for="edit-{field.key}">{field.label}</label>
+								{#if field.key === 'category_tier'}
+									<select id="edit-{field.key}" bind:value={editFields[field.key]}>
+										<option value="">—</option>
+										<option value="full_runs">Full Runs</option>
+										<option value="mini_challenges">Mini-Challenges</option>
+										<option value="player_made">Player-Made</option>
+									</select>
+								{:else}
+									<input id="edit-{field.key}" type={field.type} bind:value={editFields[field.key]} />
+								{/if}
+							</div>
+						{/each}
+					</div>
+					<div class="form-field mt-1">
+						<label for="edit-notes">Notes for the runner (optional)</label>
+						<textarea id="edit-notes" rows="3" bind:value={editNotes} placeholder="Explain the changes or what the runner needs to do..."></textarea>
+					</div>
+					<p class="muted note-placeholder">📬 Runner notifications coming soon — for now, changes are logged and visible in the audit trail.</p>
+					<div class="modal__actions">
+						<button class="btn btn--changes" onclick={showEditDiff} disabled={editedFields.length === 0 && !editNotes.trim()}>
+							Review Changes ({editedFields.length})
+						</button>
+						<button class="btn" onclick={() => editModalOpen = false}>Cancel</button>
+					</div>
+				{:else}
+					<!-- Step 2: Diff Confirmation -->
+					<h3>Confirm Changes</h3>
+					<p class="muted mb-2">{modalInfo}</p>
+
+					{#if editedFields.length > 0}
+						<div class="diff-table">
+							<div class="diff-header">
+								<span>Field</span><span>Original</span><span>Updated</span>
+							</div>
+							{#each editedFields as f}
+								<div class="diff-row">
+									<span class="diff-field">{f.label}</span>
+									<span class="diff-old">{f.key === 'category_tier' ? fmtTier(f.from) : (f.from || '—')}</span>
+									<span class="diff-new">{f.key === 'category_tier' ? fmtTier(f.to) : (f.to || '—')}</span>
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					{#if editNotes.trim()}
+						<div class="diff-notes">
+							<strong>Notes:</strong> {editNotes}
+						</div>
+					{/if}
+
+					<p class="muted mt-1">Are you sure you would like to make these changes? This will be recorded in the audit log.</p>
+
+					<div class="modal__actions">
+						<button class="btn btn--approve" onclick={confirmEdit} disabled={processingId !== null}>
+							{processingId ? 'Saving...' : '✅ Confirm Changes'}
+						</button>
+						<button class="btn" onclick={() => editDiffStep = false}>← Back to Edit</button>
+						<button class="btn" onclick={() => editModalOpen = false}>Cancel</button>
+					</div>
+				{/if}
 			</div>
 		{/if}
 	{/if}
@@ -515,6 +715,7 @@
 	.run-detail--wide { grid-column: 1 / -1; }
 	.run-detail__label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); font-weight: 700; }
 	.run-detail__value { font-weight: 500; word-break: break-word; color: var(--fg); }
+	.run-detail__na { font-size: 0.85rem; color: var(--muted); opacity: 0.5; font-style: italic; }
 
 	/* Claim bar */
 	.run-claim-bar { margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
@@ -553,7 +754,27 @@
 	.form-field label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.35rem; }
 	.form-field select, .form-field textarea { width: 100%; padding: 0.5rem 0.6rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 0.9rem; font-family: inherit; }
 	.form-field select:focus, .form-field textarea:focus { outline: none; border-color: var(--accent); }
+	.form-field input { width: 100%; padding: 0.5rem 0.6rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 0.9rem; font-family: inherit; }
+	.form-field input:focus { outline: none; border-color: var(--accent); }
+	.form-field--inline { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+	.form-field--inline label { font-size: 0.8rem; font-weight: 600; color: var(--muted); margin: 0; }
 	.required { color: #dc3545; }
+	.mt-1 { margin-top: 0.75rem; }
+	.note-placeholder { font-size: 0.8rem; font-style: italic; margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: rgba(59, 130, 246, 0.06); border-radius: 6px; border: 1px dashed rgba(59, 130, 246, 0.2); }
+
+	/* Edit modal */
+	.modal--wide { max-width: 640px; }
+	.edit-grid { display: flex; flex-direction: column; gap: 0; }
+
+	/* Diff table */
+	.diff-table { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+	.diff-header { display: grid; grid-template-columns: 120px 1fr 1fr; gap: 0.5rem; padding: 0.5rem 0.75rem; background: var(--surface); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); border-bottom: 1px solid var(--border); }
+	.diff-row { display: grid; grid-template-columns: 120px 1fr 1fr; gap: 0.5rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+	.diff-row:last-child { border-bottom: none; }
+	.diff-field { font-weight: 600; color: var(--muted); font-size: 0.8rem; }
+	.diff-old { color: #ef4444; text-decoration: line-through; opacity: 0.7; }
+	.diff-new { color: #22c55e; font-weight: 600; }
+	.diff-notes { padding: 0.6rem 0.75rem; background: rgba(59, 130, 246, 0.06); border: 1px solid rgba(59, 130, 246, 0.15); border-radius: 6px; font-size: 0.85rem; margin-bottom: 0.75rem; }
 
 	@media (max-width: 640px) {
 		.filters__row { flex-direction: column; align-items: stretch; }

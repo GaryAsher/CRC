@@ -164,6 +164,7 @@ export interface RunnerSocials {
 		opacity?: number;
 		mode?: 'above' | 'background';
 		gradient?: string;
+		container_opacity?: number;
 	};
 	hide_activity?: boolean;
 }
