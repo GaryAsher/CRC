@@ -44,26 +44,35 @@
 	let editFields = $state<Record<string, any>>({});
 	let originalFields = $state<Record<string, any>>({});
 	let editNotes = $state('');
+	const modalRun = $derived(runs.find(r => r.id === modalRunId));
 
 	/** Fields that verifiers can edit */
 	const EDITABLE_FIELDS = [
-		{ key: 'category_tier', label: 'Tier', type: 'text' },
-		{ key: 'category', label: 'Category', type: 'text' },
-		{ key: 'character', label: 'Character', type: 'text' },
+		{ key: 'category_tier', label: 'Tier', type: 'select' },
+		{ key: 'category', label: 'Category', type: 'select' },
+		{ key: 'character', label: 'Character', type: 'select' },
 		{ key: 'time_primary', label: 'Primary Time', type: 'text' },
 		{ key: 'time_rta', label: 'RTA Time', type: 'text' },
 		{ key: 'run_date', label: 'Date Completed', type: 'date' },
-		{ key: 'glitch_id', label: 'Glitch Category', type: 'text' },
-		{ key: 'platform', label: 'Platform', type: 'text' },
+		{ key: 'standard_challenges', label: 'Challenges', type: 'multi' },
+		{ key: 'glitch_id', label: 'Glitch Category', type: 'select' },
+		{ key: 'restrictions', label: 'Restrictions', type: 'multi' },
+		{ key: 'platform', label: 'Platform', type: 'select' },
 	];
 
 	/** Get fields that were actually changed */
 	let editedFields = $derived.by(() => {
 		const changed: { key: string; label: string; from: any; to: any }[] = [];
 		for (const f of EDITABLE_FIELDS) {
-			const orig = originalFields[f.key] || '';
-			const edit = editFields[f.key] || '';
-			if (orig !== edit) changed.push({ key: f.key, label: f.label, from: orig, to: edit });
+			const orig = originalFields[f.key];
+			const edit = editFields[f.key];
+			if (f.type === 'multi') {
+				const a = JSON.stringify((orig || []).slice().sort());
+				const b = JSON.stringify((edit || []).slice().sort());
+				if (a !== b) changed.push({ key: f.key, label: f.label, from: orig || [], to: edit || [] });
+			} else {
+				if ((orig || '') !== (edit || '')) changed.push({ key: f.key, label: f.label, from: orig || '', to: edit || '' });
+			}
 		}
 		return changed;
 	});
@@ -150,6 +159,116 @@
 		return rawValue;
 	}
 
+	/** Platform options (matches platforms.yml) */
+	const PLATFORM_OPTIONS = [
+		{ value: '3do', label: '3DO' },
+		{ value: 'android', label: 'Android' },
+		{ value: 'atari-2600', label: 'Atari 2600' },
+		{ value: 'atari-7600', label: 'Atari 7600' },
+		{ value: 'atari-lynx', label: 'Atari Lynx' },
+		{ value: 'atari-jaguar', label: 'Atari: Jaguar' },
+		{ value: 'colecovision', label: 'ColecoVision' },
+		{ value: 'fairchild-channel-f', label: 'Fairchild Channel F' },
+		{ value: 'nintendo-game-boy', label: 'Game Boy' },
+		{ value: 'nintendo-game-boy-advance', label: 'Game Boy Advance' },
+		{ value: 'nintendo-game-boy-color', label: 'Game Boy Color' },
+		{ value: 'sega-game-gear', label: 'Game Gear' },
+		{ value: 'sega-genesis-nomad', label: 'Genesis Nomad' },
+		{ value: 'intellivision', label: 'Intellivision' },
+		{ value: 'magnavox-odyssey-2', label: 'Magnavox Odyssey 2' },
+		{ value: 'n-gage', label: 'N-Gage' },
+		{ value: 'nintendo-entertainment-system', label: 'NES' },
+		{ value: 'neo-geo', label: 'Neo Geo' },
+		{ value: 'neo-geo-pocket', label: 'Neo Geo Pocket' },
+		{ value: 'neo-geo-x', label: 'Neo Geo X' },
+		{ value: 'nintendo-3ds', label: 'Nintendo 3DS' },
+		{ value: 'nintendo-64', label: 'Nintendo 64' },
+		{ value: 'nintendo-ds', label: 'Nintendo DS' },
+		{ value: 'nintendo-gamecube', label: 'Nintendo GameCube' },
+		{ value: 'nintendo-switch', label: 'Nintendo Switch' },
+		{ value: 'nintendo-switch-2', label: 'Nintendo Switch 2' },
+		{ value: 'nintendo-wii', label: 'Nintendo Wii' },
+		{ value: 'nintendo-wii-u', label: 'Nintendo Wii U' },
+		{ value: 'pc-epic-games', label: 'PC: Epic Games' },
+		{ value: 'pc-gog', label: 'PC: GOG' },
+		{ value: 'pc-other', label: 'PC: Other' },
+		{ value: 'pc-steam', label: 'PC: Steam' },
+		{ value: 'playstation', label: 'PlayStation' },
+		{ value: 'playstation-2', label: 'PlayStation 2' },
+		{ value: 'playstation-3', label: 'PlayStation 3' },
+		{ value: 'playstation-4', label: 'PlayStation 4' },
+		{ value: 'playstation-5', label: 'PlayStation 5' },
+		{ value: 'playstation-portable', label: 'PlayStation Portable' },
+		{ value: 'playstation-vita', label: 'PlayStation Vita' },
+		{ value: 'rog-xbox-ally', label: 'ROG Xbox Ally' },
+		{ value: 'super-nintendo-entertainment-system', label: 'SNES' },
+		{ value: 'sega-dreamcast', label: 'Sega Dreamcast' },
+		{ value: 'sega-genesis', label: 'Sega Genesis' },
+		{ value: 'sega-saturn', label: 'Sega Saturn' },
+		{ value: 'sega-master-system', label: 'Sega: Master System' },
+		{ value: 'steam-deck', label: 'Steam Deck' },
+		{ value: 'nec-turboexpress', label: 'TurboExpress' },
+		{ value: 'turbografx-16', label: 'TurboGrafx-16' },
+		{ value: 'bandai-wonderswan', label: 'WonderSwan' },
+		{ value: 'xbox', label: 'Xbox' },
+		{ value: 'xbox-360', label: 'Xbox 360' },
+		{ value: 'xbox-one', label: 'Xbox One' },
+		{ value: 'xbox-series-x-s', label: 'Xbox Series X|S' },
+		{ value: 'ios', label: 'iOS' },
+	];
+
+	/** Get dropdown options for an editable field based on game config */
+	function getFieldOptions(run: any, fieldKey: string): { value: string; label: string }[] | null {
+		const g = gameConfigs[run?.game_id];
+		switch (fieldKey) {
+			case 'category_tier':
+				return [
+					{ value: 'full_runs', label: 'Full Runs' },
+					{ value: 'mini_challenges', label: 'Mini-Challenges' },
+					{ value: 'player_made', label: 'Player-Made' }
+				];
+			case 'category': {
+				if (!g) return null;
+				const cats: { value: string; label: string }[] = [];
+				for (const c of (g.full_runs || [])) cats.push({ value: c.slug, label: c.label });
+				for (const group of (g.mini_challenges || [])) {
+					cats.push({ value: group.slug, label: group.label });
+					for (const child of (group.children || [])) cats.push({ value: child.slug, label: `  ${group.label} › ${child.label}` });
+				}
+				for (const c of (g.player_made || [])) cats.push({ value: c.slug, label: c.label });
+				return cats.length ? cats : null;
+			}
+			case 'character': {
+				if (!g?.characters_data?.length) return null;
+				return g.characters_data.map((c: any) => ({ value: c.slug || c.id || c.label, label: c.label || c.name || c.slug }));
+			}
+			case 'glitch_id': {
+				if (!g?.glitches_data?.length) return null;
+				return g.glitches_data.map((gl: any) => ({ value: gl.slug || gl.id || gl.label, label: gl.label || gl.name || gl.slug }));
+			}
+			case 'platform':
+				return PLATFORM_OPTIONS;
+			default:
+				return null;
+		}
+	}
+
+	/** Get checkbox options for multi-select fields */
+	function getMultiOptions(run: any, fieldKey: string): { value: string; label: string }[] | null {
+		const g = gameConfigs[run?.game_id];
+		switch (fieldKey) {
+			case 'standard_challenges': {
+				if (!g?.challenges_data?.length) return null;
+				return g.challenges_data.map((c: any) => ({ value: c.slug || c.id || c.label, label: c.label || c.name || c.slug }));
+			}
+			case 'restrictions': {
+				if (!g?.restrictions_data?.length) return null;
+				return g.restrictions_data.map((r: any) => ({ value: r.slug || r.id || r.label, label: r.label || r.name || r.slug }));
+			}
+			default: return null;
+		}
+	}
+
 	// ── Data Loading ──────────────────────────────────────────────────────────
 	async function loadRuns() {
 		loading = true;
@@ -183,7 +302,7 @@
 				// Load game configs for "Not Applicable" logic
 				const gameIds = [...new Set(data.map((r: any) => r.game_id).filter(Boolean))];
 				if (gameIds.length > 0) {
-					const { data: games } = await supabase.from('games').select('game_id, character_column, characters_data, challenges_data, glitches_data, restrictions_data').in('game_id', gameIds);
+					const { data: games } = await supabase.from('games').select('game_id, character_column, characters_data, challenges_data, glitches_data, restrictions_data, full_runs, mini_challenges, player_made').in('game_id', gameIds);
 					const configs: Record<string, any> = {};
 					for (const g of (games || [])) configs[g.game_id] = g;
 					gameConfigs = configs;
@@ -240,16 +359,27 @@
 		modalInfo = `${fmt(run.game_id)} by ${run.runner_id}`;
 		editNotes = '';
 		editDiffStep = false;
-		// Pre-populate fields from current run data
 		const fields: Record<string, any> = {};
 		const orig: Record<string, any> = {};
 		for (const f of EDITABLE_FIELDS) {
-			fields[f.key] = run[f.key] || '';
-			orig[f.key] = run[f.key] || '';
+			if (f.type === 'multi') {
+				fields[f.key] = [...(run[f.key] || [])];
+				orig[f.key] = [...(run[f.key] || [])];
+			} else {
+				fields[f.key] = run[f.key] || '';
+				orig[f.key] = run[f.key] || '';
+			}
 		}
 		editFields = fields;
 		originalFields = orig;
 		editModalOpen = true;
+	}
+
+	function toggleMulti(fieldKey: string, value: string) {
+		const arr = [...(editFields[fieldKey] || [])];
+		const idx = arr.indexOf(value);
+		if (idx >= 0) arr.splice(idx, 1); else arr.push(value);
+		editFields = { ...editFields, [fieldKey]: arr };
 	}
 
 	function showEditDiff() {
@@ -591,19 +721,39 @@
 					<p class="muted mb-2">{modalInfo}</p>
 					<div class="edit-grid">
 						{#each EDITABLE_FIELDS as field}
-							<div class="form-field form-field--inline">
-								<label for="edit-{field.key}">{field.label}</label>
-								{#if field.key === 'category_tier'}
-									<select id="edit-{field.key}" bind:value={editFields[field.key]}>
-										<option value="">—</option>
-										<option value="full_runs">Full Runs</option>
-										<option value="mini_challenges">Mini-Challenges</option>
-										<option value="player_made">Player-Made</option>
-									</select>
-								{:else}
-									<input id="edit-{field.key}" type={field.type} bind:value={editFields[field.key]} />
-								{/if}
-							</div>
+							{@const opts = field.type === 'select' ? getFieldOptions(modalRun, field.key) : null}
+							{@const multiOpts = field.type === 'multi' ? getMultiOptions(modalRun, field.key) : null}
+							{#if field.type === 'multi' && multiOpts}
+								<div class="form-field form-field--multi">
+									<label>{field.label}</label>
+									<div class="chip-grid chip-grid--sm">
+										{#each multiOpts as opt}
+											<button type="button" class="chip-sm" class:chip-sm--active={(editFields[field.key] || []).includes(opt.value)} onclick={() => toggleMulti(field.key, opt.value)}>{opt.label}</button>
+										{/each}
+									</div>
+								</div>
+							{:else if field.type === 'multi'}
+								<div class="form-field form-field--inline">
+									<label>{field.label}</label>
+									<span class="run-detail__na">Not Applicable</span>
+								</div>
+							{:else}
+								<div class="form-field form-field--inline">
+									<label for="edit-{field.key}">{field.label}</label>
+									{#if opts}
+										<select id="edit-{field.key}" bind:value={editFields[field.key]}>
+											<option value="">—</option>
+											{#each opts as opt}
+												<option value={opt.value}>{opt.label}</option>
+											{/each}
+										</select>
+									{:else if field.type === 'select'}
+										<span class="run-detail__na">Not Applicable</span>
+									{:else}
+										<input id="edit-{field.key}" type={field.type === 'date' ? 'date' : 'text'} bind:value={editFields[field.key]} />
+									{/if}
+								</div>
+							{/if}
 						{/each}
 					</div>
 					<div class="form-field mt-1">
@@ -628,10 +778,15 @@
 								<span>Field</span><span>Original</span><span>Updated</span>
 							</div>
 							{#each editedFields as f}
+								{@const fmtDiff = (v: any) => {
+									if (f.key === 'category_tier') return fmtTier(v);
+									if (Array.isArray(v)) return v.length ? v.map(s => fmt(s)).join(', ') : '—';
+									return v ? fmt(String(v)) : '—';
+								}}
 								<div class="diff-row">
 									<span class="diff-field">{f.label}</span>
-									<span class="diff-old">{f.key === 'category_tier' ? fmtTier(f.from) : (f.from || '—')}</span>
-									<span class="diff-new">{f.key === 'category_tier' ? fmtTier(f.to) : (f.to || '—')}</span>
+									<span class="diff-old">{fmtDiff(f.from)}</span>
+									<span class="diff-new">{fmtDiff(f.to)}</span>
 								</div>
 							{/each}
 						</div>
@@ -765,6 +920,12 @@
 	/* Edit modal */
 	.modal--wide { max-width: 640px; }
 	.edit-grid { display: flex; flex-direction: column; gap: 0; }
+	.form-field--multi { margin-bottom: 0.6rem; }
+	.form-field--multi > label { font-size: 0.8rem; font-weight: 600; color: var(--muted); margin: 0 0 0.35rem; display: block; }
+	.chip-grid--sm { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+	.chip-sm { padding: 0.25rem 0.6rem; border-radius: 14px; font-size: 0.75rem; font-family: inherit; background: var(--surface); border: 1px solid var(--border); color: var(--fg); cursor: pointer; transition: all 0.15s; }
+	.chip-sm:hover { border-color: var(--accent); }
+	.chip-sm--active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 	/* Diff table */
 	.diff-table { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }

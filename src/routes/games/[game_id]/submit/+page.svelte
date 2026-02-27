@@ -8,16 +8,17 @@
 
 	let { data } = $props();
 	const game = $derived(data.game);
+	const platforms = $derived(data.platforms || []);
 
 	// ── Form State ──
 	let categoryTier = $state('');
 	let categorySlug = $state('');
 	let selectedChallenges = $state<string[]>([]);
 	let character = $state('');
-	let platform = $state('');
 	let glitchId = $state('');
 	let selectedRestrictions = $state<string[]>([]);
 	let videoUrl = $state('');
+	let platform = $state('');
 	let dateCompleted = $state('');
 	let runTimeRta = $state('');
 	let runTimePrimary = $state('');
@@ -169,7 +170,6 @@
 				restrictions: selectedRestrictions.length > 0 ? selectedRestrictions : undefined,
 				platform: platform || undefined,
 				runner_id: profile.runner_id,
-				submitted_by: userData.user.id,
 				video_url: videoUrl,
 				submitted_at: new Date().toISOString(),
 				submitter_notes: submitterNotes.trim() || undefined,
@@ -194,7 +194,7 @@
 
 			successMsg = 'Run submitted successfully! A verifier will review it shortly.';
 			categoryTier = ''; categorySlug = ''; selectedChallenges = []; character = '';
-			glitchId = ''; selectedRestrictions = []; videoUrl = ''; dateCompleted = '';
+			glitchId = ''; selectedRestrictions = []; videoUrl = ''; platform = ''; dateCompleted = '';
 			runTimeRta = ''; runTimePrimary = ''; submitterNotes = ''; videoTitle = '';
 		} catch (err: any) {
 			errorMsg = err.message || 'Submission failed. Please try again.';
@@ -319,31 +319,6 @@
 			</div>
 		{/if}
 
-		<!-- Platform -->
-		<div class="submit-section">
-			<p class="submit-section__title">Platform</p>
-			<p class="submit-section__sub">What platform did you play on? Optional but helpful for verification.</p>
-			<div class="field" style="max-width: 280px;">
-				<select bind:value={platform}>
-					<option value="">Select platform...</option>
-					<option value="pc">PC</option>
-					<option value="ps5">PlayStation 5</option>
-					<option value="ps4">PlayStation 4</option>
-					<option value="ps3">PlayStation 3</option>
-					<option value="xbox-series">Xbox Series X|S</option>
-					<option value="xbox-one">Xbox One</option>
-					<option value="xbox-360">Xbox 360</option>
-					<option value="switch">Nintendo Switch</option>
-					<option value="wii-u">Wii U</option>
-					<option value="wii">Wii</option>
-					<option value="3ds">Nintendo 3DS</option>
-					<option value="steam-deck">Steam Deck</option>
-					<option value="mobile">Mobile (iOS/Android)</option>
-					<option value="other">Other</option>
-				</select>
-			</div>
-		</div>
-
 		<!-- Video Proof -->
 		<div class="submit-section">
 			<p class="submit-section__title">Video Proof <span class="req">*</span></p>
@@ -366,6 +341,20 @@
 			{#if videoFetchError}
 				<div class="video-meta video-meta--warn"><span class="muted">{videoFetchError}</span></div>
 			{/if}
+		</div>
+
+		<!-- Platform -->
+		<div class="submit-section">
+			<p class="submit-section__title">Platform</p>
+			<p class="submit-section__sub">What platform did you play on? Optional but helpful for verification.</p>
+			<div class="field" style="max-width: 300px;">
+				<select bind:value={platform}>
+					<option value="">Select platform...</option>
+					{#each platforms as p}
+						<option value={p.id}>{p.label}</option>
+					{/each}
+				</select>
+			</div>
 		</div>
 
 		<!-- Run Timing -->
@@ -435,7 +424,7 @@
 
 		<!-- Submit -->
 		<div class="submit-actions">
-			<button type="submit" class="btn btn--accent" disabled={!canSubmit}>
+			<button type="submit" class="btn" class:btn--accent={canSubmit} class:btn--muted={!canSubmit} disabled={!canSubmit}>
 				{#if submitting}
 					<span class="spinner spinner--small"></span> Submitting...
 				{:else}
@@ -505,9 +494,15 @@
 		border: 1px solid var(--accent); font-weight: 600; font-size: 0.95rem; cursor: pointer; text-decoration: none;
 		display: inline-flex; align-items: center; gap: 0.5rem;
 		box-shadow: 0 0 12px rgba(var(--accent-rgb, 59, 195, 110), 0.3);
+		transition: opacity 0.15s, box-shadow 0.15s;
 	}
 	.btn--accent:hover { opacity: 0.9; }
-	.btn--accent:disabled { opacity: 0.5; cursor: not-allowed; }
+	.btn--muted {
+		padding: 0.6rem 1.5rem; border-radius: 8px; font-weight: 600; font-size: 0.95rem;
+		display: inline-flex; align-items: center; gap: 0.5rem;
+		background: var(--surface); color: var(--muted); border: 1px solid var(--border);
+		cursor: not-allowed; opacity: 0.6;
+	}
 	.btn { display: inline-flex; align-items: center; padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: none; color: var(--fg); text-decoration: none; font-size: 0.9rem; cursor: pointer; }
 
 	.submit-error { padding: 0.6rem 0.75rem; border-radius: 6px; font-size: 0.85rem; background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
