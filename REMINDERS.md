@@ -9,10 +9,14 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 
 ## Fix Now (Blocking or Broken)
 
-### Run Submission Bugs
-- [ ] **RLS INSERT policy on `pending_runs`** — authenticated users get 403 Forbidden on submit
-  - Need to add: `CREATE POLICY "Authenticated users can submit runs" ON pending_runs FOR INSERT TO authenticated WITH CHECK (true);`
-  - Verify existing policies first: `SELECT policyname, cmd FROM pg_policies WHERE tablename = 'pending_runs';`
+### Run Submission
+- [ ] **Drop permissive policy** — run: `DROP POLICY "Authenticated users can submit runs" ON pending_runs;`
+
+### Claim System (Pending Runs)
+- [ ] **Add columns to `pending_runs`**: `claimed_by` (uuid), `claimed_at` (timestamptz)
+  - UI is built but columns must exist for claims to work
+  - SQL: `ALTER TABLE pending_runs ADD COLUMN claimed_by uuid REFERENCES auth.users(id), ADD COLUMN claimed_at timestamptz;`
+  - Add UPDATE RLS policy for verifiers to claim runs
 
 ### Profile Approval → Runners Table Gap
 - [ ] When a profile is approved, a row must also be created in `runners` table
@@ -21,7 +25,7 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
   - Fix: update Worker approval endpoint to also insert into `runners`
 - [ ] Friend signed up, profile approved, but has no `runner_id` — needs manual fix or re-approval
 
-### Theme Page Recovery
+### Theme Page
 - [ ] Apply pending fixes to recovered theme page:
   - Remove `accent_color` from profile SELECT query (column doesn't exist on `profiles` table)
   - Remove FLAG_PRESETS / Nationality Flags section (banner presets only: Gaming, Vibes, Pride)
@@ -30,8 +34,10 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 
 ## Revisit (Needs Polish)
 
-### Submit Page (`/games/[game_id]/submit`)
-- [ ] End-to-end test (blocked by RLS policy)
+### Admin Panel
+- [ ] Debug View — needs revamp (currently basic)
+- [ ] Site Health — performance report needs revamp
+- [ ] Game picker on debug page — functional but could be improved
 
 ### Global
 - [ ] Icons for Admins, Super Admins, Verifiers — attach to profiles
@@ -56,7 +62,6 @@ See `CLAUDE.md` Phase 1-4 for full checklist.
 - [ ] Fill support page (FAQ, staff section, privacy request form)
 - [ ] Wire cookie consent banner (`CookieConsent.svelte` exists but needs activation)
 - [ ] Test Discord webhooks (run submission, game submission)
-- [ ] Test full end-to-end: submit → Worker → Supabase → approve → visible on site
 - [ ] Audit SCSS for dead code
 
 ### 3. Infrastructure
@@ -69,9 +74,9 @@ See `CLAUDE.md` Phase 1-4 for full checklist.
 ### 4. Legal & Compliance
 - [ ] Review Terms of Service line-by-line
 - [ ] Review Privacy Policy line-by-line
-- [ ] Review https://www.gdpradvisor.co.uk/gdpr-countries
 - [ ] Make email accounts for privacy and legal contacts
 - [ ] Test user data export feature (GDPR compliance)
+- [ ] Remove Privacy Policy 5.2: "GitHub (Microsoft)" after full Supabase migration
 - [ ] Create disaster recovery plan document
 - [ ] DMCA safe harbor policy + designated agent registration ($6)
 
@@ -140,7 +145,7 @@ Decision needed: GitHub Discussions vs Discord vs embedded mini-forum
 
 ---
 
-## Technical Debt
+## 🛠️ Technical Debt
 
 ### Supabase
 - [ ] Upgrade to paid plan (first service upgrade)

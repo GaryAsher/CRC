@@ -89,7 +89,7 @@
 			const u = new URL(url);
 			if (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) {
 				const id = u.hostname.includes('youtu.be') ? u.pathname.slice(1) : u.searchParams.get('v');
-				return id ? `https://www.youtube-nocookie.com/embed/${id}` : null;
+				return id ? `https://www.youtube.com/embed/${id}` : null;
 			}
 			if (u.hostname.includes('twitch.tv') && u.pathname.includes('/videos/')) {
 				const vid = u.pathname.split('/videos/')[1];
@@ -180,6 +180,26 @@
 		changesModalOpen = false;
 		processingId = null;
 		modalRunId = null;
+		setTimeout(() => actionMessage = null, 3000);
+	}
+
+	async function claimRun(id: string) {
+		processingId = id;
+		actionMessage = null;
+		try {
+			const { data: { user: u } } = await supabase.auth.getUser();
+			if (!u) throw new Error('Not authenticated');
+			const { error } = await supabase.from('pending_runs').update({
+				claimed_by: u.id,
+				claimed_at: new Date().toISOString()
+			}).eq('id', id);
+			if (error) throw error;
+			runs = runs.map(r => r.id === id ? { ...r, claimed_by: u.id, claimed_by_name: u.user_metadata?.display_name || u.email, claimed_at: new Date().toISOString() } : r);
+			actionMessage = { type: 'success', text: 'Run claimed for review.' };
+		} catch (e: any) {
+			actionMessage = { type: 'error', text: `Claim failed: ${e.message}` };
+		}
+		processingId = null;
 		setTimeout(() => actionMessage = null, 3000);
 	}
 
@@ -307,24 +327,41 @@
 										<span class="run-card__viewonly">👁 View Only</span>
 									{/if}
 								</div>
-								<span class="run-card__runner">by {run.runner_id} · {fmt(run.category_slug || '')}{#if run.run_time} · <span class="mono">{run.run_time}</span>{/if}</span>
+								<span class="run-card__runner">by {run.runner_id} · {fmt(run.category_tier || '')} › {fmt(run.category || '')}{#if run.time_primary} · <span class="mono">{run.time_primary}</span>{/if}</span>
 							</div>
 							<span class="run-card__date muted">{fmtAgo(run.submitted_at)}</span>
 						</button>
 
 						{#if isExpanded}
 							<div class="run-card__body">
+								<!-- Claim Bar -->
+								<div class="run-claim-bar">
+									{#if run.claimed_by}
+										<span class="claim-badge claim-badge--claimed">🔒 Claimed by {run.claimed_by_name || run.claimed_by}{#if run.claimed_at} · {fmtAgo(run.claimed_at)}{/if}</span>
+									{:else if canAct && isPending}
+										<button class="btn btn--claim" onclick={() => claimRun(run.id)} disabled={processingId === run.id}>🔐 Claim for Review</button>
+									{:else}
+										<span class="claim-badge claim-badge--unclaimed">Unclaimed</span>
+									{/if}
+								</div>
+
 								<div class="run-details">
-									<div class="run-detail"><span class="run-detail__label">Category</span><span class="run-detail__value">{fmt(run.category_slug || '—')}</span></div>
+									<div class="run-detail"><span class="run-detail__label">Game</span><span class="run-detail__value">{fmt(run.game_id || '—')}</span></div>
 									<div class="run-detail"><span class="run-detail__label">Tier</span><span class="run-detail__value">{fmt(run.category_tier || '—')}</span></div>
-									<div class="run-detail"><span class="run-detail__label">Time</span><span class="run-detail__value mono">{run.run_time || '—'}</span></div>
-									<div class="run-detail"><span class="run-detail__label">Date</span><span class="run-detail__value">{fmtDate(run.date_completed || run.run_date)}</span></div>
-									{#if run.character}<div class="run-detail"><span class="run-detail__label">Character</span><span class="run-detail__value">{fmt(run.character)}</span></div>{/if}
-									{#if run.glitch_category}<div class="run-detail"><span class="run-detail__label">Glitch Category</span><span class="run-detail__value">{run.glitch_category.toUpperCase()}</span></div>{/if}
-									{#if run.standard_challenges?.length}<div class="run-detail"><span class="run-detail__label">Challenges</span><span class="run-detail__value">{fmtArray(run.standard_challenges)}</span></div>{/if}
-									{#if run.restrictions?.length}<div class="run-detail"><span class="run-detail__label">Restrictions</span><span class="run-detail__value">{fmtArray(run.restrictions)}</span></div>{/if}
+									<div class="run-detail"><span class="run-detail__label">Category</span><span class="run-detail__value">{fmt(run.category || '—')}</span></div>
+									<div class="run-detail"><span class="run-detail__label">Character</span><span class="run-detail__value">{run.character ? fmt(run.character) : '—'}</span></div>
+									<div class="run-detail"><span class="run-detail__label">Primary Time</span><span class="run-detail__value mono">{run.time_primary || '—'}</span></div>
+									<div class="run-detail"><span class="run-detail__label">RTA Time</span><span class="run-detail__value mono">{run.time_rta || '—'}</span></div>
+									<div class="run-detail"><span class="run-detail__label">Date Completed</span><span class="run-detail__value">{fmtDate(run.run_date)}</span></div>
 									<div class="run-detail"><span class="run-detail__label">Submitted</span><span class="run-detail__value">{fmtDate(run.submitted_at)}</span></div>
-									{#if run.submission_id}<div class="run-detail"><span class="run-detail__label">ID</span><span class="run-detail__value mono">{run.submission_id}</span></div>{/if}
+									<div class="run-detail"><span class="run-detail__label">Challenges</span><span class="run-detail__value">{fmtArray(run.standard_challenges)}</span></div>
+									<div class="run-detail"><span class="run-detail__label">Glitch Category</span><span class="run-detail__value">{run.glitch_id ? fmt(run.glitch_id) : '—'}</span></div>
+									<div class="run-detail"><span class="run-detail__label">Restrictions</span><span class="run-detail__value">{fmtArray(run.restrictions)}</span></div>
+									<div class="run-detail"><span class="run-detail__label">Platform</span><span class="run-detail__value">{run.platform ? fmt(run.platform) : '—'}</span></div>
+									{#if run.submitter_notes}
+										<div class="run-detail run-detail--wide"><span class="run-detail__label">Runner Notes</span><span class="run-detail__value">{run.submitter_notes}</span></div>
+									{/if}
+									{#if run.submission_id}<div class="run-detail"><span class="run-detail__label">Submission ID</span><span class="run-detail__value mono">{run.submission_id}</span></div>{/if}
 								</div>
 
 								{#if run.video_url}
@@ -475,8 +512,17 @@
 	.run-card__body { border-top: 1px solid var(--border); padding: 1.25rem; }
 	.run-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
 	.run-detail { display: flex; flex-direction: column; gap: 0.2rem; }
-	.run-detail__label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
-	.run-detail__value { font-weight: 500; word-break: break-word; }
+	.run-detail--wide { grid-column: 1 / -1; }
+	.run-detail__label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); font-weight: 700; }
+	.run-detail__value { font-weight: 500; word-break: break-word; color: var(--fg); }
+
+	/* Claim bar */
+	.run-claim-bar { margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+	.claim-badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.65rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+	.claim-badge--claimed { background: rgba(59, 130, 246, 0.12); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.25); }
+	.claim-badge--unclaimed { background: rgba(107, 114, 128, 0.1); color: var(--muted); border: 1px solid var(--border); }
+	.btn--claim { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: #3b82f6; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+	.btn--claim:hover { background: rgba(59, 130, 246, 0.2); }
 	.run-video { margin-bottom: 1.25rem; }
 	.run-video a { color: var(--accent); word-break: break-all; text-decoration: none; font-size: 0.9rem; }
 	.run-video a:hover { text-decoration: underline; }
