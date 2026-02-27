@@ -387,19 +387,19 @@
 				</div>
 			</div>
 
-			{@const byCategory = Object.groupBy
-				? Object.groupBy(selectedGame.runs, (r) => r.category || r.category_slug)
-				: selectedGame.runs.reduce((acc, r) => {
+			{@const byCategory: Record<string, any[]> = Object.groupBy
+				? Object.groupBy(selectedGame.runs, (r: any) => r.category || r.category_slug) as Record<string, any[]>
+				: selectedGame.runs.reduce((acc: Record<string, any[]>, r: any) => {
 					const key = r.category || r.category_slug;
 					(acc[key] ||= []).push(r);
 					return acc;
-				}, {} as Record<string, typeof selectedGame.runs>)
+				}, {} as Record<string, any[]>)
 			}
 			{#each Object.entries(byCategory) as [category, catRuns]}
 				<div class="card runs-category">
 					<h3 class="runs-category__title">{category}</h3>
 					<div class="runs-list">
-						{#each catRuns as run}
+						{#each catRuns as run (run.id || run.video_url)}
 							<article class="run-row">
 								<div class="run-row__time">{formatTime(run.time_primary)}</div>
 								<div class="run-row__info">

@@ -17,7 +17,7 @@ import type {
 	FormFieldOrder,
 	BannedTermsConfig,
 	ChallengesConfig
-} from '$types';
+} from '$lib/types';
 
 // ─── Frontmatter Parser ─────────────────────────────────────────────────────
 

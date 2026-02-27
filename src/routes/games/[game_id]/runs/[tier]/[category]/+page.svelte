@@ -37,8 +37,8 @@
 	const hasAnyAdvanced = $derived(hasCharacters || hasChallenges || hasRestrictions || hasGlitches);
 
 	// Lookup maps
-	const challengeMap = $derived(new Map((game.challenges_data || []).map((c: any) => [c.slug, c.label])));
-	const restrictionMap = $derived(new Map((game.restrictions_data || []).map((r: any) => [r.slug, r.label])));
+	const challengeMap: Map<string, string> = $derived(new Map((game.challenges_data || []).map((c: any) => [c.slug, c.label] as [string, string])));
+	const restrictionMap: Map<string, string> = $derived(new Map((game.restrictions_data || []).map((r: any) => [r.slug, r.label] as [string, string])));
 	const characterMap = $derived(new Map((game.characters_data || []).map((c: any) => [c.slug, c.label])));
 	const glitchMap = $derived(new Map((game.glitches_data || []).map((g: any) => [g.slug, g.label])));
 

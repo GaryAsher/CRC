@@ -9,7 +9,7 @@
 // =============================================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Game, Runner, Run, Achievement, Team } from '$types';
+import type { Game, Runner, Run, Achievement, Team } from '$lib/types';
 
 // ─── Games ──────────────────────────────────────────────────────────────────
 
