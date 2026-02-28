@@ -319,12 +319,17 @@ The old `fixed_character` boolean on mini-challenge children. The new system is 
 - [x] CSP updated to allow noembed.com
 
 ### Known Pending Tasks
-- [ ] Migrate `/runners` page queries from `runners` table to `profiles` table
-- [ ] Drop `runners` table after migration
-- [ ] Global search feature (search across games, runners, runs, teams)
-- [ ] Profile page needs the full create form to still work for detailed profiles
-- [ ] Avatar upload (needs Supabase Storage bucket)
-- [ ] Friend's account: `runner_id` is null in `profiles` — manual SQL fix
+All pending tasks are tracked in `REMINDERS.md`. Do not duplicate them here.
+
+Previously listed items resolved as of Feb 28, 2026:
+- [x] ~~Profile page needs the full create form~~ — `/profile/create` has full form (bio, socials, avatar)
+- [x] ~~Avatar upload (needs Supabase Storage bucket)~~ — bucket `avatars` exists, upload UI in `/profile/edit`
+- [x] ~~Submit form tier/category dropdowns broken~~ — `+page.server.ts` was stripping required fields
+- [x] ~~Video URL "Could not retrieve video info"~~ — noembed Twitch fallback added
+
+Still in progress (see `REMINDERS.md` for details):
+- Runners table migration (partially complete — `profiles` is primary, `runners` is fallback)
+- Global search (searches games + runners, not yet runs/teams)
 
 ---
 
@@ -342,3 +347,11 @@ The user prefers:
     - Added `gameId &&` guard to fix the `string | undefined` type error
   - `src/lib/types/index.ts` — added `FixedLoadout` interface
 - **Mirror the repo's folder structure in file outputs.** If the changed file lives at `src/lib/data/countries.ts`, output it inside `src/lib/data/`. If it's a root file like `REMINDERS.md`, output it at the root. This lets the user drag files directly into the repo without renaming or reorganizing.
+- **Always include a destination table when presenting files.** Every response that delivers files must end with a table mapping output files to their repo paths. Example:
+
+  | Output file | Repo destination |
+  |-|-|
+  | `src/routes/submit/+page.server.ts` | `src/routes/submit/+page.server.ts` |
+  | `static/img/favicon.png` | `static/img/favicon.png` |
+
+  This removes all ambiguity about where files go and lets the user copy-paste without thinking.

@@ -5,6 +5,7 @@
 	import { supabase } from '$lib/supabase';
 	import { isValidVideoUrl } from '$lib/utils';
 	import { checkBannedTerms } from '$lib/utils/banned-terms';
+	import { showToast } from '$stores/toast';
 
 	let { data } = $props();
 	const game = $derived(data.game);
@@ -125,7 +126,13 @@
 			if (!res.ok) throw new Error('Fetch failed');
 			const json = await res.json();
 			if (json.error) {
-				videoFetchError = 'Could not retrieve video info.';
+				const host = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+				if (host === 'twitch.tv' || host.endsWith('.twitch.tv')) {
+					videoTitle = '';
+					videoFetchError = '';
+				} else {
+					videoFetchError = 'Could not retrieve video info.';
+				}
 			} else {
 				videoTitle = json.title || '';
 				// Try to extract upload date from YouTube video
@@ -135,7 +142,17 @@
 				}
 			}
 		} catch {
-			videoFetchError = 'Could not retrieve video info.';
+			try {
+				const host = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+				if (host === 'twitch.tv' || host.endsWith('.twitch.tv')) {
+					videoTitle = '';
+					videoFetchError = '';
+				} else {
+					videoFetchError = 'Could not retrieve video info.';
+				}
+			} catch {
+				videoFetchError = 'Could not retrieve video info.';
+			}
 		} finally {
 			videoFetching = false;
 		}
@@ -223,11 +240,13 @@
 			if (error) throw error;
 
 			successMsg = 'Run submitted successfully! A verifier will review it shortly.';
+			showToast('success', 'Run submitted! A verifier will review it shortly.');
 			categoryTier = ''; categorySlug = ''; selectedChallenges = []; character = '';
 			glitchId = ''; selectedRestrictions = []; videoUrl = ''; platform = ''; dateCompleted = '';
 			runTimeRta = ''; runTimePrimary = ''; submitterNotes = ''; videoTitle = '';
 		} catch (err: any) {
 			errorMsg = err.message || 'Submission failed. Please try again.';
+			showToast('error', err.message || 'Submission failed.');
 		} finally {
 			submitting = false;
 		}

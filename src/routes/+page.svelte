@@ -257,8 +257,8 @@
 	.news-carousel__link a:hover { color: var(--accent) !important; }
 
 	/* Community Board */
-	.board-item { padding: 0.75rem 0; border-bottom: 1px solid var(--border); }
-	.board-item:last-child { border-bottom: none; }
+	.board-item { padding: 0.75rem; border-bottom: 1px solid var(--border); background: var(--surface); border-radius: 6px; margin-bottom: 0.5rem; border: 1px solid var(--border); }
+	.board-item:last-child { margin-bottom: 0; }
 	.board-item__type { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
 	.board-item__text { margin: 0.25rem 0 0; font-size: 0.9rem; line-height: 1.4; }
 

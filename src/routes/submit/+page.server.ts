@@ -1,5 +1,4 @@
 import { getActiveGames, getRunners } from '$lib/server/supabase';
-import { getAllCategories } from '$lib/server/data';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -11,13 +10,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const games = rawGames.map((g) => ({
 		game_id: g.game_id,
 		game_name: g.game_name,
+		timing_method: g.timing_method || '',
+		full_runs: g.full_runs || [],
+		mini_challenges: g.mini_challenges || [],
+		player_made: g.player_made || [],
+		challenges_data: g.challenges_data || [],
+		glitches_data: g.glitches_data || [],
+		restrictions_data: g.restrictions_data || [],
+		character_column: g.character_column || { enabled: false, label: 'Character' },
 		characters_data: g.characters_data || [],
-		categories: getAllCategories(g).map((c) => ({
-			slug: c.slug,
-			label: c.label,
-			tier: c.tier,
-			parentGroupLabel: c.parentGroupLabel || null
-		}))
 	}));
 
 	const runners = rawRunners

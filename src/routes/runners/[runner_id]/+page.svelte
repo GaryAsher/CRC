@@ -75,7 +75,7 @@
 	<title>{runner.runner_name} | Challenge Run Community</title>
 </svelte:head>
 
-<div class="page-width">
+<div class="page-width runner-page">
 	<p class="muted page-back"><a href="/runners">← Runners</a></p>
 
 	<!-- Banner: opts derived in <script> as bo/bMode/bSize/bPos/bOpacity/bGradient/bBg -->
@@ -556,6 +556,7 @@
 
 <style>
 	/* Layout */
+	.runner-page { padding-bottom: 3rem; }
 	.page-back { margin: 1rem 0 0.5rem; }
 	.page-back a { color: var(--text-muted); text-decoration: none; }
 	.page-back a:hover { color: var(--fg); }
@@ -681,9 +682,10 @@
 
 	/* Achievements */
 	.community-achievements-list { display: flex; flex-direction: column; gap: 0.75rem; }
-	.community-achievement-item { display: flex; align-items: flex-start; gap: 1rem; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
-	.community-achievement-item__icon { font-size: 1.75rem; }
+	.community-achievement-item { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+	.community-achievement-item__icon { font-size: 1.75rem; flex-shrink: 0; }
 	.community-achievement-item__content { flex: 1; min-width: 0; }
+	.community-achievement-item .btn--small { flex-shrink: 0; margin-left: auto; }
 	.community-achievement-item__header { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.25rem; }
 	.community-achievement-item__header h4 { margin: 0; }
 	.community-achievement-item__meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.8rem; }

@@ -556,12 +556,26 @@
 			if (!res.ok) throw new Error('Fetch failed');
 			const json = await res.json();
 			if (json.error) {
-				videoMeta[index] = { fetching: false, title: '', error: 'Could not retrieve video info.' };
+				const host = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+				if (host === 'twitch.tv' || host.endsWith('.twitch.tv')) {
+					videoMeta[index] = { fetching: false, title: '', error: '' };
+				} else {
+					videoMeta[index] = { fetching: false, title: '', error: 'Could not retrieve video info.' };
+				}
 			} else {
 				videoMeta[index] = { fetching: false, title: json.title || '', error: '' };
 			}
 		} catch {
-			videoMeta[index] = { fetching: false, title: '', error: 'Could not retrieve video info.' };
+			try {
+				const host = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+				if (host === 'twitch.tv' || host.endsWith('.twitch.tv')) {
+					videoMeta[index] = { fetching: false, title: '', error: '' };
+				} else {
+					videoMeta[index] = { fetching: false, title: '', error: 'Could not retrieve video info.' };
+				}
+			} catch {
+				videoMeta[index] = { fetching: false, title: '', error: 'Could not retrieve video info.' };
+			}
 		}
 	}
 

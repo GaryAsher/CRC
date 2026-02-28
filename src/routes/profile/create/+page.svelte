@@ -5,6 +5,7 @@
 	import { debugRole, debugHidesAuth } from '$stores/debug';
 	import { supabase } from '$lib/supabase';
 	import { checkBannedTerms } from '$lib/utils/banned-terms';
+	import { showToast } from '$stores/toast';
 	import { COUNTRIES } from '$lib/data/countries';
 	import AuthGuard from '$components/auth/AuthGuard.svelte';
 
@@ -298,13 +299,16 @@
 				if (rpError) console.error('Failed to create profiles:', rpError);
 
 				message = { type: 'success', text: 'Profile created! Redirecting...' };
+				showToast('success', 'Profile created! Redirecting to your page...');
 				setTimeout(() => goto(`/runners/${finalId}`), 1500);
 			} else {
 				message = { type: 'success', text: 'Profile submitted for approval! Redirecting...' };
+				showToast('success', 'Profile submitted for approval!');
 				setTimeout(() => goto('/profile/status'), 1500);
 			}
 		} catch (err: any) {
 			message = { type: 'error', text: err?.message || 'Submission failed. Please try again.' };
+			showToast('error', err?.message || 'Submission failed. Please try again.');
 		} finally {
 			submitting = false;
 		}

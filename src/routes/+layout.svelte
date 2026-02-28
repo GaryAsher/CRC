@@ -10,6 +10,7 @@
 	import BackToTop from '$components/BackToTop.svelte';
 	import CookieConsent from '$components/CookieConsent.svelte';
 	import DebugBar from '$components/DebugBar.svelte';
+	import Toast from '$components/Toast.svelte';
 
 	let { data, children } = $props();
 
@@ -81,6 +82,7 @@
 	<Footer />
 	<BackToTop />
 	<CookieConsent />
+	<Toast />
 </div>
 
 <style>

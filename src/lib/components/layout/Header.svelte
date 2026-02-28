@@ -331,6 +331,7 @@
 										<span class="nav-user__menu-status">{roleLabel}</span>
 									{/if}
 								</div>
+								<button type="button" class="nav-user__menu-close" onclick={(e) => { e.stopPropagation(); userMenuOpen = false; }} aria-label="Close menu">✕</button>
 							</div>
 							<div class="nav-user__menu-items">
 								<a href={profileLink.href} class="nav-user__menu-item">

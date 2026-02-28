@@ -5,6 +5,7 @@
 	import { supabase } from '$lib/supabase';
 	import { isValidVideoUrl } from '$lib/utils';
 	import { checkBannedTerms } from '$lib/utils/banned-terms';
+	import { showToast } from '$stores/toast';
 
 	let { data } = $props();
 	let selectedGameId = $state('');
@@ -94,7 +95,14 @@
 			if (!res.ok) throw new Error('Fetch failed');
 			const json = await res.json();
 			if (json.error) {
-				videoFetchError = 'Could not retrieve video info.';
+				// noembed doesn't support all Twitch URL formats — fall back gracefully
+				const host = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+				if (host === 'twitch.tv' || host.endsWith('.twitch.tv')) {
+					videoTitle = '';
+					videoFetchError = '';
+				} else {
+					videoFetchError = 'Could not retrieve video info.';
+				}
 			} else {
 				videoTitle = json.title || '';
 				// Try to extract upload date from YouTube video
@@ -104,7 +112,18 @@
 				}
 			}
 		} catch {
-			videoFetchError = 'Could not retrieve video info.';
+			// Network error — check if it's a Twitch link (noembed often fails for Twitch)
+			try {
+				const host = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+				if (host === 'twitch.tv' || host.endsWith('.twitch.tv')) {
+					videoTitle = '';
+					videoFetchError = '';
+				} else {
+					videoFetchError = 'Could not retrieve video info.';
+				}
+			} catch {
+				videoFetchError = 'Could not retrieve video info.';
+			}
 		} finally {
 			videoFetching = false;
 		}
@@ -192,11 +211,13 @@
 			if (error) throw error;
 
 			successMsg = 'Run submitted successfully! A verifier will review it shortly.';
+			showToast('success', 'Run submitted! A verifier will review it shortly.');
 			categoryTier = ''; categorySlug = ''; selectedChallenges = []; character = '';
 			glitchId = ''; selectedRestrictions = []; videoUrl = ''; dateCompleted = '';
 			runTimeRta = ''; runTimePrimary = ''; submitterNotes = ''; videoTitle = '';
 		} catch (err: any) {
 			errorMsg = err.message || 'Submission failed. Please try again.';
+			showToast('error', err.message || 'Submission failed.');
 		} finally {
 			submitting = false;
 		}
@@ -209,6 +230,7 @@
 
 <h2>Submit a Run</h2>
 
+<div class="submit-wrapper">
 <!-- Game Selector -->
 <div class="submit-section">
 	<p class="submit-section__title">Select Game <span class="req">*</span></p>
@@ -438,6 +460,7 @@
 	</form>
 {/if}
 {/if}
+</div>
 
 <style>
 	h2 { margin: 0 0 0.25rem; text-align: center; }
@@ -454,7 +477,8 @@
 	.empty-state p, .success-state p { margin: 0; max-width: 400px; margin-inline: auto; }
 	.success-actions { display: flex; gap: 0.75rem; justify-content: center; margin-top: 1rem; }
 
-	.submit-form { display: flex; flex-direction: column; gap: 1.5rem; max-width: 720px; margin: 0 auto; }
+	.submit-wrapper { max-width: 720px; margin: 0 auto; padding: 0 1rem; }
+	.submit-form { display: flex; flex-direction: column; gap: 1.5rem; }
 	.submit-section { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
 	.submit-section__title { margin: 0 0 0.25rem; font-weight: 600; font-size: 0.95rem; }
 	.submit-section__sub { margin: 0 0 0.75rem; font-size: 0.8rem; color: var(--text-muted); }
