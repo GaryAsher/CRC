@@ -25,6 +25,11 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
   - Fix: update Worker approval endpoint to also insert into `runners`
 - [ ] Friend signed up, profile approved, but has no `runner_id` — needs manual fix or re-approval
 
+### Theme Page
+- [x] ~~Apply pending fixes to recovered theme page:~~
+  - ~~Remove `accent_color` from profile SELECT query (column doesn't exist on `profiles` table)~~
+  - ~~Remove FLAG_PRESETS / Nationality Flags section (banner presets only: Gaming, Vibes, Pride)~~
+
 ---
 
 ## Revisit (Needs Polish)
@@ -130,6 +135,15 @@ Decision needed: GitHub Discussions vs Discord vs embedded mini-forum
 
 ### Code Cleanup (After Supabase Migration)
 - [ ] Remove `src/data/games/`, `src/data/runners/`, `src/data/runs/` markdown files
+
+### Game Editor — Fixed Loadout (Site-Wide Feature)
+- [ ] Add `fixed_loadout` support to game categories (game editor + submit runs)
+  - When a challenge/mini-challenge has `fixed_loadout: true`, certain fields become locked for runners
+  - The editor should let staff define which fields are fixed: Character, Challenge, Restriction
+  - Example: "Trial of Moon" requires "Moonstone Axe — Charon Aspect", so character field is pre-filled and locked
+  - Needs changes in: game editor categories tab, submit run form, run display page
+  - Schema: add `fixed_loadout` object to category items (e.g. `{ enabled: bool, character?: string, challenge?: string, restriction?: string }`)
+  - Submit form should read these values and disable the corresponding dropdowns when a fixed-loadout category is selected
 
 ---
 
