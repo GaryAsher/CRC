@@ -627,7 +627,7 @@
 													{#if isLockedSlug(child.slug)}
 														<code class="slug-locked slug-locked--sm">{child.slug}</code>
 													{:else}
-														<input type="text" class="child-row__input" value={child.slug} disabled class="slug-auto" />
+														<input type="text" class="child-row__input slug-auto" value={child.slug} disabled />
 													{/if}
 													<input type="text" class="child-row__input child-row__input--wide" bind:value={child.label} oninput={() => { if (!isLockedSlug(child.slug)) child.slug = slugify(child.label); }} disabled={!canEdit} />
 													<label class="child-row__check"><input type="checkbox" bind:checked={child.fixed_character} disabled={!canEdit} /> Fixed char</label>
@@ -883,7 +883,7 @@
 													{#if isLockedSlug(child.slug)}
 														<code class="slug-locked slug-locked--sm">{child.slug}</code>
 													{:else}
-														<input type="text" class="child-row__input" value={child.slug} disabled class="slug-auto" />
+														<input type="text" class="child-row__input slug-auto" value={child.slug} disabled />
 													{/if}
 													<input type="text" class="child-row__input child-row__input--wide" bind:value={child.label} oninput={() => { if (!isLockedSlug(child.slug)) child.slug = slugify(child.label); }} disabled={!canEdit} />
 													{#if canEdit}<button class="item-btn item-btn--danger" onclick={() => { item.children = item.children.filter((_: any, j: number) => j !== ci); restrictionsData = [...restrictionsData]; }}>✕</button>{/if}
