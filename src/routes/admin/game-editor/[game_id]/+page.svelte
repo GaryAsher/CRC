@@ -334,7 +334,7 @@
 				// Access check: admins can edit all, moderators only their games
 				if (role?.admin) {
 					authorized = true;
-				} else if (role?.moderator && role.gameIds?.includes(gameId)) {
+				} else if (role?.moderator && gameId && role.gameIds?.includes(gameId)) {
 					authorized = true;
 				} else {
 					authorized = false;
