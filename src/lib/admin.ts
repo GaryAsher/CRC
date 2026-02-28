@@ -11,7 +11,7 @@ export async function getAccessToken(): Promise<string | null> {
 
 /**
  * Check if the current user is an admin by querying profiles.
- * Returns { admin, superAdmin, moderator, verifier, runnerId } or null if not authenticated.
+ * Returns role info including gameIds for per-game moderator access.
  */
 export async function checkAdminRole(): Promise<{
 	admin: boolean;
@@ -19,6 +19,7 @@ export async function checkAdminRole(): Promise<{
 	moderator: boolean;
 	verifier: boolean;
 	runnerId: string | null;
+	gameIds: string[];
 } | null> {
 	const { data: { session } } = await supabase.auth.getSession();
 	if (!session) return null;
@@ -36,6 +37,22 @@ export async function checkAdminRole(): Promise<{
 		}
 	);
 
+	// Also load game assignments (used by moderators for per-game access)
+	const gRes = await fetch(
+		`${PUBLIC_SUPABASE_URL}/rest/v1/role_game_verifiers?user_id=eq.${userId}&select=game_id`,
+		{
+			headers: {
+				'apikey': PUBLIC_SUPABASE_ANON_KEY,
+				'Authorization': `Bearer ${session.access_token}`
+			}
+		}
+	);
+	const assignedGameIds: string[] = [];
+	if (gRes.ok) {
+		const gData = await gRes.json();
+		for (const row of gData) if (row.game_id) assignedGameIds.push(row.game_id);
+	}
+
 	if (res.ok) {
 		const data = await res.json();
 		if (data.length > 0) {
@@ -49,31 +66,19 @@ export async function checkAdminRole(): Promise<{
 					superAdmin: isSuperAdmin,
 					moderator: isModerator,
 					verifier: false,
-					runnerId: p.runner_id
+					runnerId: p.runner_id,
+					gameIds: assignedGameIds
 				};
 			}
 		}
 	}
 
 	// Check if user is a game verifier (from role_game_verifiers)
-	const vRes = await fetch(
-		`${PUBLIC_SUPABASE_URL}/rest/v1/role_game_verifiers?user_id=eq.${userId}&select=game_id&limit=1`,
-		{
-			headers: {
-				'apikey': PUBLIC_SUPABASE_ANON_KEY,
-				'Authorization': `Bearer ${session.access_token}`
-			}
-		}
-	);
-
-	if (vRes.ok) {
-		const vData = await vRes.json();
-		if (vData.length > 0) {
-			return { admin: false, superAdmin: false, moderator: false, verifier: true, runnerId: null };
-		}
+	if (assignedGameIds.length > 0) {
+		return { admin: false, superAdmin: false, moderator: false, verifier: true, runnerId: null, gameIds: assignedGameIds };
 	}
 
-	return { admin: false, superAdmin: false, moderator: false, verifier: false, runnerId: null };
+	return { admin: false, superAdmin: false, moderator: false, verifier: false, runnerId: null, gameIds: [] };
 }
 
 /**

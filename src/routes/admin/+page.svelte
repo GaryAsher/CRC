@@ -76,6 +76,7 @@
 		// Verifier
 		{ key: 'runs',         icon: '🏃', title: 'Runs',             desc: 'Review pending runs and manage approved runs.',            href: '/admin/runs',        countKey: 'pendingRuns' },
 		{ key: 'game-updates', icon: '📝', title: 'Game Updates',     desc: 'Review pending updates and manage approved corrections.', href: '/admin/game-updates', countKey: 'pendingUpdates' },
+		{ key: 'game-editor',  icon: '🛠️', title: 'Game Editor',      desc: 'Edit game configs — categories, restrictions, rules, characters.', href: '/admin/game-editor' },
 		// All staff
 		{ key: 'staff-guides', icon: '📖', title: 'Staff Guides',     desc: 'Internal documentation for staff.',                       href: '/admin/staff-guides' },
 	];

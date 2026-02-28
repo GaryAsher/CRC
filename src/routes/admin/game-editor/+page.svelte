@@ -1,0 +1,153 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { session, isLoading } from '$stores/auth';
+	import { goto } from '$app/navigation';
+	import { checkAdminRole } from '$lib/admin';
+	import { supabase } from '$lib/supabase';
+
+	let checking = $state(true);
+	let authorized = $state(false);
+	let loading = $state(false);
+	let games = $state<any[]>([]);
+	let search = $state('');
+	let userRole = $state<any>(null);
+
+	const filtered = $derived.by(() => {
+		if (!search.trim()) return games;
+		const q = search.toLowerCase();
+		return games.filter(g =>
+			g.game_name?.toLowerCase().includes(q) ||
+			g.game_id?.toLowerCase().includes(q) ||
+			g.game_name_aliases?.some((a: string) => a.toLowerCase().includes(q))
+		);
+	});
+
+	const isSuperAdmin = $derived(userRole?.superAdmin === true);
+	const isAdmin = $derived(userRole?.admin === true);
+
+	async function loadGames() {
+		loading = true;
+		let query = supabase
+			.from('games')
+			.select('game_id, game_name, status, genres, platforms, cover, updated_at, frozen_at')
+			.order('game_name');
+
+		// Moderators: only show their assigned games
+		if (userRole?.moderator && !userRole?.admin) {
+			const ids = userRole.gameIds || [];
+			if (ids.length === 0) { games = []; loading = false; return; }
+			query = query.in('game_id', ids);
+		}
+
+		const { data, error } = await query;
+		if (!error && data) games = data;
+		loading = false;
+	}
+
+	onMount(() => {
+		const unsub = isLoading.subscribe(async (l) => {
+			if (!l) {
+				let sess: any; session.subscribe(s => sess = s)();
+				if (!sess) { goto('/sign-in?redirect=/admin/game-editor'); return; }
+				const role = await checkAdminRole();
+				userRole = role;
+				// Only admins, super admins, and moderators can access
+				authorized = !!(role?.admin || role?.moderator);
+				checking = false;
+				if (authorized) loadGames();
+			}
+		});
+		return unsub;
+	});
+</script>
+
+<svelte:head><title>🛠️ Game Editor | Admin | CRC</title></svelte:head>
+
+<div class="page-width">
+	<p class="back"><a href="/admin">← Dashboard</a></p>
+
+	{#if checking || $isLoading}
+		<div class="center"><div class="spinner"></div><p class="muted">Checking access...</p></div>
+	{:else if !authorized}
+		<div class="center"><h2>🔒 Access Denied</h2><p class="muted">Game Editor is available to Admins and Game Moderators.</p><a href="/admin" class="btn">Back to Dashboard</a></div>
+	{:else}
+		<h1>🛠️ Game Editor</h1>
+		<p class="muted mb-2">
+			{#if isAdmin}Edit game configurations — categories, restrictions, rules, and more.
+			{:else}Edit games you moderate — categories, restrictions, rules, and more.{/if}
+			Changes save directly to the database.
+		</p>
+
+		{#if userRole?.moderator && !isAdmin}
+			<div class="role-notice">You are a <strong>Game Moderator</strong>. You can edit the {userRole.gameIds?.length || 0} game{userRole.gameIds?.length !== 1 ? 's' : ''} assigned to you.</div>
+		{/if}
+
+		<div class="search-bar">
+			<input type="text" class="search-bar__input" placeholder="Search games..." bind:value={search} />
+			{#if search}<button class="search-bar__clear" onclick={() => search = ''}>✕</button>{/if}
+		</div>
+
+		{#if loading}
+			<div class="center-sm"><div class="spinner"></div></div>
+		{:else if filtered.length === 0}
+			<div class="empty">
+				<span class="empty__icon">🎮</span>
+				<h3>{search ? 'No matches' : 'No games found'}</h3>
+				<p class="muted">{search ? 'Try a different search term.' : (userRole?.moderator ? 'No games assigned to you yet.' : 'Games will appear here once added to Supabase.')}</p>
+			</div>
+		{:else}
+			<div class="games-grid">
+				{#each filtered as g}
+					<a href="/admin/game-editor/{g.game_id}" class="game-tile" class:game-tile--frozen={g.frozen_at}>
+						{#if g.cover}
+							<div class="game-tile__cover" style="background-image: url({g.cover})"></div>
+						{:else}
+							<div class="game-tile__cover game-tile__cover--empty">🎮</div>
+						{/if}
+						<div class="game-tile__info">
+							<span class="game-tile__name">{g.game_name || g.game_id}</span>
+							<span class="game-tile__meta">
+								<span class="status-dot status-dot--{g.status?.toLowerCase()?.replace(/\s+/g, '-')}"></span>
+								{g.status || 'Unknown'}
+								{#if g.frozen_at}<span class="frozen-badge">🔒 FROZEN</span>{/if}
+							</span>
+						</div>
+					</a>
+				{/each}
+			</div>
+		{/if}
+	{/if}
+</div>
+
+<style>
+	.back { margin: 1rem 0 0.5rem; } .back a { color: var(--muted); text-decoration: none; } .back a:hover { color: var(--fg); }
+	h1 { margin: 0 0 0.25rem; } .mb-2 { margin-bottom: 1rem; }
+	.center { text-align: center; padding: 4rem 0; } .center-sm { text-align: center; padding: 2rem; }
+	.spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; margin: 0 auto 1rem; animation: spin 0.8s linear infinite; }
+	@keyframes spin { to { transform: rotate(360deg); } }
+	.btn { display: inline-flex; align-items: center; padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: none; color: var(--fg); cursor: pointer; font-size: 0.9rem; text-decoration: none; }
+	.role-notice { padding: 0.6rem 1rem; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; font-size: 0.85rem; color: var(--fg); margin-bottom: 1rem; }
+	.search-bar { position: relative; margin-bottom: 1.5rem; }
+	.search-bar__input { width: 100%; padding: 0.6rem 0.9rem; padding-right: 2.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--fg); font-size: 0.95rem; font-family: inherit; box-sizing: border-box; }
+	.search-bar__input:focus { outline: none; border-color: var(--accent); }
+	.search-bar__input::placeholder { color: var(--muted); }
+	.search-bar__clear { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; }
+	.search-bar__clear:hover { color: var(--fg); }
+	.games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+	.game-tile { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; text-decoration: none; color: var(--fg); transition: border-color 0.15s, transform 0.15s; }
+	.game-tile:hover { border-color: var(--accent); transform: translateY(-2px); }
+	.game-tile--frozen { border-color: #ef4444; opacity: 0.75; }
+	.game-tile--frozen:hover { border-color: #ef4444; }
+	.game-tile__cover { height: 100px; background-size: cover; background-position: center; }
+	.game-tile__cover--empty { display: flex; align-items: center; justify-content: center; background: var(--bg); font-size: 2rem; }
+	.game-tile__info { padding: 0.75rem; }
+	.game-tile__name { display: block; font-weight: 700; font-size: 0.95rem; margin-bottom: 0.25rem; }
+	.game-tile__meta { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--muted); flex-wrap: wrap; }
+	.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+	.status-dot--active { background: #22c55e; }
+	.status-dot--inactive { background: #ef4444; }
+	.status-dot--coming-soon { background: #eab308; }
+	.frozen-badge { background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
+	.empty { text-align: center; padding: 3rem 1rem; } .empty__icon { font-size: 3rem; display: block; margin-bottom: 0.75rem; } .empty h3 { margin: 0 0 0.5rem; }
+	@media (max-width: 480px) { .games-grid { grid-template-columns: 1fr 1fr; } }
+</style>
