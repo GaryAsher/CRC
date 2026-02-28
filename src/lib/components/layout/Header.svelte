@@ -19,6 +19,7 @@
 		runner_id: string | null;
 		profileState: 'active' | 'pending' | 'none';
 		is_admin: boolean;
+		is_moderator: boolean;
 		is_verifier: boolean;
 	} | null>(null);
 	let profileLoaded = $state(false);
@@ -35,7 +36,7 @@
 			try {
 				const { data: profile } = await supabase
 					.from('profiles')
-					.select('runner_id, is_admin, is_super_admin, status')
+					.select('runner_id, is_admin, is_super_admin, role, status')
 					.eq('user_id', currentUser.id)
 					.maybeSingle();
 
@@ -51,6 +52,7 @@
 						runner_id: profile.runner_id,
 						profileState: 'active',
 						is_admin: profile.is_admin === true || profile.is_super_admin === true,
+						is_moderator: profile.role === 'moderator',
 						is_verifier: !!verifierRole
 					};
 				} else if (profile?.runner_id) {
@@ -58,6 +60,7 @@
 						runner_id: profile.runner_id,
 						profileState: 'pending',
 						is_admin: false,
+						is_moderator: false,
 						is_verifier: false
 					};
 				} else {
@@ -71,6 +74,7 @@
 						runner_id: null,
 						profileState: (pending?.has_profile) ? 'pending' : 'none',
 						is_admin: false,
+						is_moderator: false,
 						is_verifier: false
 					};
 				}
@@ -98,6 +102,7 @@
 	let roleLabel = $derived.by(() => {
 		if (!profileInfo || profileInfo.profileState === 'none') return 'No Profile';
 		if (profileInfo.is_admin) return 'Admin';
+		if (profileInfo.is_moderator) return 'Moderator';
 		if (profileInfo.is_verifier) return 'Verifier';
 		if (profileInfo.profileState === 'pending') return '⏳ Pending';
 		return 'Runner';
@@ -107,7 +112,7 @@
 	let showAdminLink = $derived(
 		$debugRole
 			? ['super_admin', 'admin', 'moderator', 'verifier'].includes($debugRole)
-			: !!(profileInfo?.is_admin || profileInfo?.is_verifier)
+			: !!(profileInfo?.is_admin || profileInfo?.is_moderator || profileInfo?.is_verifier)
 	);
 
 	let isSuperAdmin = $derived(
@@ -125,13 +130,13 @@
 	let sidebarIsModerator = $derived(
 		$debugRole
 			? ['super_admin', 'admin', 'moderator'].includes($debugRole)
-			: profileInfo?.is_admin === true
+			: !!(profileInfo?.is_admin || profileInfo?.is_moderator)
 	);
 
 	let sidebarIsVerifier = $derived(
 		$debugRole
 			? ['super_admin', 'admin', 'moderator', 'verifier'].includes($debugRole)
-			: !!(profileInfo?.is_verifier || profileInfo?.is_admin)
+			: !!(profileInfo?.is_verifier || profileInfo?.is_admin || profileInfo?.is_moderator)
 	);
 
 	let sidebarRoleBadge = $derived.by(() => {
@@ -141,7 +146,7 @@
 			};
 			return labels[$debugRole] ?? '';
 		}
-		return isSuperAdmin ? 'Super Admin' : profileInfo?.is_admin ? 'Admin' : 'Verifier';
+		return isSuperAdmin ? 'Super Admin' : profileInfo?.is_admin ? 'Admin' : profileInfo?.is_moderator ? 'Moderator' : 'Verifier';
 	});
 
 	// Debug: should we show the signed-in UI or the sign-in link?
@@ -421,6 +426,9 @@
 				<div class="admin-panel__section-title">Moderator</div>
 				<a href="/admin/users" class="admin-panel__item" class:is-active={isAdminActive('/admin/users')} onclick={closeAdminPanel}>
 					<span class="admin-panel__icon">👤</span><span class="admin-panel__text">Users & Roles</span>
+				</a>
+				<a href="/admin/game-editor" class="admin-panel__item" class:is-active={isAdminActive('/admin/game-editor')} onclick={closeAdminPanel}>
+					<span class="admin-panel__icon">🛠️</span><span class="admin-panel__text">Game Editor</span>
 				</a>
 				<a href="/admin/debug" class="admin-panel__item" class:is-active={isAdminActive('/admin/debug')} onclick={closeAdminPanel}>
 					<span class="admin-panel__icon">🔧</span><span class="admin-panel__text">Debug Tools</span>
