@@ -527,8 +527,8 @@
 		{@const creditedGames = data.allGames.filter(g =>
 			(g as any).credits?.some((c: any) => c.runner_id === runner.runner_id)
 		)}
-		{@const modGames = data.moderatorGames.map(id => data.allGames.find(g => g.game_id === id)).filter(Boolean)}
-		{@const verGames = data.verifierGames.map(id => data.allGames.find(g => g.game_id === id)).filter(Boolean)}
+		{@const modGames = data.moderatorGames.map(id => data.allGames.find(g => g.game_id === id)).filter((g): g is NonNullable<typeof g> => Boolean(g))}
+		{@const verGames = data.verifierGames.map(id => data.allGames.find(g => g.game_id === id)).filter((g): g is NonNullable<typeof g> => Boolean(g))}
 		{@const hasContributions = modGames.length > 0 || verGames.length > 0 || (runner.contributions?.length ?? 0) > 0 || creditedGames.length > 0}
 
 		{#if modGames.length > 0}
