@@ -4,38 +4,54 @@
 	import { goto } from '$app/navigation';
 	import { checkAdminRole } from '$lib/admin';
 	import { supabase } from '$lib/supabase';
+	import AzNav from '$lib/components/AzNav.svelte';
+	import { norm, expandRomanNumerals, matchesLetterFilter, getFirstLetter } from '$lib/utils/filters';
 
 	let checking = $state(true);
 	let authorized = $state(false);
 	let loading = $state(false);
 	let games = $state<any[]>([]);
 	let search = $state('');
+	let activeLetter = $state('');
+	let showLimit = $state(25);
 	let userRole = $state<any>(null);
 	let userId = $state('');
-	let freezingGameId = $state<string | null>(null);
+	let freezingAll = $state(false);
 
 	const filtered = $derived.by(() => {
-		if (!search.trim()) return games;
-		const q = search.toLowerCase();
-		return games.filter(g =>
-			g.game_name?.toLowerCase().includes(q) ||
-			g.game_id?.toLowerCase().includes(q) ||
-			g.game_name_aliases?.some((a: string) => a.toLowerCase().includes(q))
-		);
+		return games.filter(g => {
+			// A-Z filter
+			const firstLetter = getFirstLetter(g.game_name || '');
+			if (!matchesLetterFilter(firstLetter, activeLetter)) return false;
+
+			// Text search
+			if (search.trim()) {
+				const q = search.toLowerCase();
+				if (
+					!g.game_name?.toLowerCase().includes(q) &&
+					!g.game_id?.toLowerCase().includes(q) &&
+					!g.game_name_aliases?.some((a: string) => a.toLowerCase().includes(q))
+				) return false;
+			}
+			return true;
+		});
 	});
+
+	const visible = $derived(showLimit === 0 ? filtered : filtered.slice(0, showLimit));
 
 	const isSuperAdmin = $derived(userRole?.superAdmin === true);
 	const isAdmin = $derived(userRole?.admin === true);
 	const canFreeze = $derived(isAdmin);
+	const allFrozen = $derived(games.length > 0 && games.every(g => g.frozen_at));
+	const frozenCount = $derived(games.filter(g => g.frozen_at).length);
 
 	async function loadGames() {
 		loading = true;
 		let query = supabase
 			.from('games')
-			.select('game_id, game_name, status, genres, platforms, cover, updated_at, frozen_at, frozen_by')
+			.select('game_id, game_name, game_name_aliases, status, genres, platforms, cover, updated_at, frozen_at, frozen_by')
 			.order('game_name');
 
-		// Moderators: only show their assigned games
 		if (userRole?.moderator && !userRole?.admin) {
 			const ids = userRole.gameIds || [];
 			if (ids.length === 0) { games = []; loading = false; return; }
@@ -55,7 +71,6 @@
 				userId = sess?.user?.id || '';
 				const role = await checkAdminRole();
 				userRole = role;
-				// Only admins, super admins, and moderators can access
 				authorized = !!(role?.admin || role?.moderator);
 				checking = false;
 				if (authorized) loadGames();
@@ -64,37 +79,43 @@
 		return unsub;
 	});
 
-	async function toggleFreeze(gameId: string, currentlyFrozen: boolean) {
+	async function toggleFreezeAll() {
 		if (!canFreeze) return;
-		freezingGameId = gameId;
-		const nowFrozen = !currentlyFrozen;
-		const updates = nowFrozen
+		const shouldFreeze = !allFrozen;
+		if (!confirm(shouldFreeze
+			? `🔒 Freeze ALL ${games.length} games? This blocks all edits site-wide until unfrozen.`
+			: `🔓 Unfreeze ALL ${frozenCount} frozen games? Edits will be allowed again.`
+		)) return;
+
+		freezingAll = true;
+		const updates = shouldFreeze
 			? { frozen_at: new Date().toISOString(), frozen_by: userId }
 			: { frozen_at: null, frozen_by: null };
 
-		const { error } = await supabase.from('games').update(updates).eq('game_id', gameId);
+		const ids = shouldFreeze ? games.map(g => g.game_id) : games.filter(g => g.frozen_at).map(g => g.game_id);
+		const { error } = await supabase.from('games').update(updates).in('game_id', ids);
+
 		if (error) {
 			alert(`Freeze failed: ${error.message}`);
-			freezingGameId = null;
+			freezingAll = false;
 			return;
 		}
 
 		try {
 			await supabase.from('audit_log').insert({
 				performed_by: userId,
-				action: nowFrozen ? 'game_frozen' : 'game_unfrozen',
+				action: shouldFreeze ? 'all_games_frozen' : 'all_games_unfrozen',
 				target_type: 'game',
-				target_id: gameId,
+				target_id: 'all',
 			});
 		} catch { /* best effort */ }
 
-		// Update local state
-		const idx = games.findIndex(g => g.game_id === gameId);
-		if (idx >= 0) {
-			games[idx] = { ...games[idx], frozen_at: nowFrozen ? updates.frozen_at : null, frozen_by: nowFrozen ? userId : null };
-			games = [...games];
-		}
-		freezingGameId = null;
+		games = games.map(g =>
+			ids.includes(g.game_id)
+				? { ...g, frozen_at: shouldFreeze ? updates.frozen_at : null, frozen_by: shouldFreeze ? userId : null }
+				: g
+		);
+		freezingAll = false;
 	}
 </script>
 
@@ -119,9 +140,49 @@
 			<div class="role-notice">You are a <strong>Game Moderator</strong>. You can edit the {userRole.gameIds?.length || 0} game{userRole.gameIds?.length !== 1 ? 's' : ''} assigned to you.</div>
 		{/if}
 
+		{#if canFreeze}
+			<div class="freeze-all-bar">
+				<div class="freeze-all-info">
+					{#if frozenCount > 0}
+						<span class="freeze-all-count">🔒 {frozenCount} of {games.length} game{games.length !== 1 ? 's' : ''} frozen</span>
+					{:else}
+						<span class="muted">No games are frozen.</span>
+					{/if}
+				</div>
+				<button
+					class="btn freeze-all-btn"
+					class:freeze-all-btn--frozen={allFrozen}
+					disabled={freezingAll || games.length === 0}
+					onclick={toggleFreezeAll}
+				>
+					{#if freezingAll}
+						⏳ Processing...
+					{:else if allFrozen}
+						🔓 Unfreeze All Games
+					{:else}
+						🔒 Freeze All Games
+					{/if}
+				</button>
+			</div>
+		{/if}
+
+		<AzNav bind:activeLetter />
+
 		<div class="search-bar">
 			<input type="text" class="search-bar__input" placeholder="Search games..." bind:value={search} />
 			{#if search}<button class="search-bar__clear" onclick={() => search = ''}>✕</button>{/if}
+		</div>
+
+		<div class="results-controls">
+			<label class="muted" for="games-limit">Show</label>
+			<select id="games-limit" class="select" bind:value={showLimit}>
+				<option value={10}>10</option>
+				<option value={25}>25</option>
+				<option value={50}>50</option>
+				<option value={100}>100</option>
+				<option value={0}>All</option>
+			</select>
+			<span class="muted results-count">Showing {visible.length} of {filtered.length} games</span>
 		</div>
 
 		{#if loading}
@@ -129,12 +190,12 @@
 		{:else if filtered.length === 0}
 			<div class="empty">
 				<span class="empty__icon">🎮</span>
-				<h3>{search ? 'No matches' : 'No games found'}</h3>
-				<p class="muted">{search ? 'Try a different search term.' : (userRole?.moderator ? 'No games assigned to you yet.' : 'Games will appear here once added to Supabase.')}</p>
+				<h3>{search || activeLetter ? 'No matches' : 'No games found'}</h3>
+				<p class="muted">{search || activeLetter ? 'Try a different search term or letter.' : (userRole?.moderator ? 'No games assigned to you yet.' : 'Games will appear here once added to Supabase.')}</p>
 			</div>
 		{:else}
 			<div class="games-grid">
-				{#each filtered as g}
+				{#each visible as g}
 					<a href="/admin/game-editor/{g.game_id}" class="game-tile" class:game-tile--frozen={g.frozen_at}>
 						{#if g.cover}
 							<div class="game-tile__cover" style="background-image: url({g.cover})"></div>
@@ -148,22 +209,6 @@
 								{g.status || 'Unknown'}
 								{#if g.frozen_at}<span class="frozen-badge">🔒 FROZEN</span>{/if}
 							</span>
-							{#if canFreeze}
-								<button
-									class="freeze-btn"
-									class:freeze-btn--frozen={g.frozen_at}
-									disabled={freezingGameId === g.game_id}
-									onclick={(e) => { e.stopPropagation(); e.preventDefault(); toggleFreeze(g.game_id, !!g.frozen_at); }}
-								>
-									{#if freezingGameId === g.game_id}
-										⏳
-									{:else if g.frozen_at}
-										🔓 Unfreeze
-									{:else}
-										🔒 Freeze
-									{/if}
-								</button>
-							{/if}
 						</div>
 					</a>
 				{/each}
@@ -201,16 +246,22 @@
 	.status-dot--inactive { background: #ef4444; }
 	.status-dot--coming-soon { background: #eab308; }
 	.frozen-badge { background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
-	.freeze-btn {
-		display: inline-flex; align-items: center; gap: 0.3rem; margin-top: 0.5rem;
-		padding: 0.3rem 0.6rem; background: var(--bg); border: 1px solid var(--border);
-		border-radius: 6px; font-size: 0.75rem; font-family: inherit; color: var(--muted);
-		cursor: pointer; transition: border-color 0.15s, color 0.15s;
+	.freeze-all-bar {
+		display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+		padding: 0.75rem 1rem; background: var(--surface); border: 1px solid var(--border);
+		border-radius: 8px; margin-bottom: 1rem; flex-wrap: wrap;
 	}
-	.freeze-btn:hover { border-color: var(--accent); color: var(--fg); }
-	.freeze-btn--frozen { border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
-	.freeze-btn--frozen:hover { border-color: #22c55e; color: #22c55e; }
-	.freeze-btn:disabled { opacity: 0.5; cursor: wait; }
+	.freeze-all-count { font-size: 0.85rem; font-weight: 600; color: #ef4444; }
+	.freeze-all-btn { font-size: 0.85rem; padding: 0.4rem 0.8rem; }
+	.freeze-all-btn--frozen { border-color: #22c55e; color: #22c55e; }
+	.results-controls {
+		display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;
+	}
+	.results-count { margin-left: auto; font-size: 0.9rem; }
+	.select {
+		padding: 0.3rem 0.5rem; background: var(--surface); border: 1px solid var(--border);
+		border-radius: 6px; color: var(--fg); font-family: inherit; font-size: 0.85rem;
+	}
 	.empty { text-align: center; padding: 3rem 1rem; } .empty__icon { font-size: 3rem; display: block; margin-bottom: 0.75rem; } .empty h3 { margin: 0 0 0.5rem; }
 	@media (max-width: 480px) { .games-grid { grid-template-columns: 1fr 1fr; } }
 </style>

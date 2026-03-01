@@ -289,8 +289,8 @@
 				{#if game.character_column?.enabled}<th>{game.character_column.label}</th>{/if}
 				<th>Challenges</th>
 				{#if showRestrictions}<th>Restrictions</th>{/if}
-				<th><button class="th-sort" class:th-sort--active={sortKey === 'time'} onclick={() => toggleSort('time')}>Time{#if game.timing_method} ({game.timing_method}){/if} {#if sortKey === 'time'}{sortDir === 'asc' ? '▲' : '▼'}{/if}</button></th>
-				<th><button class="th-sort" class:th-sort--active={sortKey === 'date'} onclick={() => toggleSort('date')}>Date {#if sortKey === 'date'}{sortDir === 'desc' ? '▼' : '▲'}{/if}</button></th>
+				<th><button class="th-sort" class:th-sort--active={sortKey === 'time'} onclick={() => toggleSort('time')}>Time{#if game.timing_method} ({game.timing_method}){/if} {#if sortKey === 'time'}{sortDir === 'asc' ? '▲' : '▼'}{:else}<span class="th-sort__hint">⇅</span>{/if}</button></th>
+				<th><button class="th-sort" class:th-sort--active={sortKey === 'date'} onclick={() => toggleSort('date')}>Date {#if sortKey === 'date'}{sortDir === 'desc' ? '▼' : '▲'}{:else}<span class="th-sort__hint">⇅</span>{/if}</button></th>
 				<th>Video</th>
 				<th class="col-verified-head" title="Verified by a moderator">✓</th>
 				{#if hasAnyNotes}<th>Notes</th>{/if}
@@ -381,6 +381,7 @@
 	.th-sort { background: none; border: none; color: var(--text-muted); cursor: pointer; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0; font-family: inherit; }
 	.th-sort:hover { color: var(--fg); }
 	.th-sort--active { color: var(--accent); }
+	.th-sort__hint { opacity: 0.4; font-size: 0.7em; }
 
 	/* Verified column */
 	.col-verified-head { text-align: center; width: 2.5rem; }

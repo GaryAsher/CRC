@@ -13,6 +13,7 @@
 		{ id: 'history', label: 'History', href: `/games/${game.game_id}/history`, enabled: game.tabs.history },
 		{ id: 'resources', label: 'Resources', href: `/games/${game.game_id}/resources`, enabled: game.tabs.resources },
 		{ id: 'forum', label: 'Forum', href: `/games/${game.game_id}/forum`, enabled: game.tabs.forum },
+		{ id: 'suggest', label: 'Suggest an Update', href: `/games/${game.game_id}/suggest`, enabled: true, push: true },
 		{ id: 'submit', label: 'Submit Run', href: `/games/${game.game_id}/submit`, enabled: true },
 	].filter(t => t.enabled));
 
@@ -65,9 +66,12 @@
 				<div class="game-hero__overlay">
 					<div class="game-hero__content">
 						<h1>{game.game_name}</h1>
-						{#if game.genres?.length}
+						{#if game.genres?.length || game.platforms?.length}
 							<div class="game-genres">
-								{#each game.genres as genre}
+								{#each game.platforms ?? [] as platform}
+									<span class="tag tag--platform">{platform}</span>
+								{/each}
+								{#each game.genres ?? [] as genre}
 									<span class="tag tag--genre">{genre}</span>
 								{/each}
 							</div>
@@ -92,6 +96,7 @@
 					href={tab.href}
 					class="game-tab"
 					class:game-tab--active={isActiveTab(tab.href)}
+					class:game-tab--push={tab.push}
 					data-sveltekit-noscroll
 				>
 					{tab.label}

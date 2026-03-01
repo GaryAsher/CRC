@@ -635,9 +635,9 @@
 		{/if}
 
 		<!-- Tab Navigation -->
-		<nav class="tabs">
+		<nav class="game-tabs">
 			{#each tabs as t}
-				<button class="tab" class:tab--active={activeTab === t.id} onclick={() => { activeTab = t.id; editingSection = null; editingIndex = null; if (t.id === 'history' && snapshots.length === 0) loadSnapshots(); }}>
+				<button class="game-tab" class:game-tab--active={activeTab === t.id} onclick={() => { activeTab = t.id; editingSection = null; editingIndex = null; if (t.id === 'history' && snapshots.length === 0) loadSnapshots(); }}>
 					<span class="tab__icon">{t.icon}</span> {t.label}
 				</button>
 			{/each}
@@ -1425,10 +1425,7 @@
 	.toast--error { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
 
 	/* Tabs */
-	.tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
-	.tab { background: none; border: 1px solid transparent; border-radius: 8px 8px 0 0; padding: 0.5rem 0.9rem; font-size: 0.85rem; color: var(--muted); cursor: pointer; font-family: inherit; transition: all 0.15s; }
-	.tab:hover { color: var(--fg); background: rgba(255,255,255,0.03); }
-	.tab--active { color: var(--accent); border-color: var(--border); border-bottom-color: var(--bg); background: var(--surface); font-weight: 600; }
+	.tab__icon { margin-right: 0.15rem; }
 	.tab__icon { font-size: 0.9rem; }
 
 	/* Editor sections */
@@ -1574,7 +1571,7 @@
 	.muted { color: var(--muted); }
 
 	@media (max-width: 640px) {
-		.tabs { gap: 0.15rem; } .tab { padding: 0.4rem 0.5rem; font-size: 0.78rem; } .tab__icon { display: none; }
+		.game-tabs { gap: 0.15rem; } .game-tab { padding: 0.4rem 0.5rem; font-size: 0.78rem; } .tab__icon { display: none; }
 		.editor-section { padding: 1rem; }
 		.field-row--compact { grid-template-columns: 1fr; } .field-row--compact label { padding-top: 0; }
 		.item-card__slug { display: none; }

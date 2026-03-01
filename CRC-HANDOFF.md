@@ -1,6 +1,6 @@
 # CRC Development Handoff — Context for New AI Assistants
 
-**Last updated:** 2026-02-28
+**Last updated:** 2026-03-01
 **Purpose:** This document supplements `CLAUDE.md` (in the repo root) with lessons learned from active development sessions. Read `CLAUDE.md` first, then this document.
 
 ---
@@ -183,7 +183,7 @@ The project uses Svelte 5 runes. Common mistakes to avoid:
 ### Global SCSS (`src/styles/`)
 - CSS custom properties: `--accent`, `--bg`, `--fg`, `--border`, `--panel`, `--surface`, `--muted`
 - Radius tokens: `--radius-sm`, `--radius-md`, `--radius-lg`
-- Tab styles in `_tabs.scss` are global and apply to `.runner-tabs .tab`, `.game-tabs .game-tab`, and `.edit-tabs .edit-tab` — all use the same folder-style appearance
+- Tab styles in `_tabs.scss` are global and apply to `.runner-tabs .tab`, `.game-tabs .game-tab`, and `.edit-tabs .edit-tab` — all use a pill/rounded-rect appearance with surface background, border, and rounded top corners. Active tab blends into content below with `border-bottom-color: var(--bg)`.
 - Footer grid in `_footer.scss` uses 4-column layout (brand + Explore + Resources + Legal)
 
 ### Import Path Aliases
@@ -212,6 +212,8 @@ The project uses Svelte 5 runes. Common mistakes to avoid:
 | Profile create | `src/routes/profile/create/+page.svelte` (full form) |
 | Game editor | `src/routes/admin/game-editor/[game_id]/+page.svelte` |
 | Run submit | `src/routes/games/[game_id]/submit/+page.svelte` |
+| Suggest update | `src/routes/games/[game_id]/suggest/+page.svelte` |
+| Game editor list | `src/routes/admin/game-editor/+page.svelte` (freeze-all, AzNav, show limit) |
 | CSP headers | `_headers` (Cloudflare Pages custom headers) |
 | Worker | `worker/src/index.js` (Cloudflare Worker for admin actions) |
 
@@ -284,48 +286,35 @@ The old `fixed_character` boolean on mini-challenge children. The new system is 
 
 ## 11. Current State & Recent Work
 
-### Recently Completed (Feb 28, 2026)
+### Recently Completed (Mar 1, 2026)
+- [x] Global spacing tightened (`main` padding 2rem → 1rem)
+- [x] Tab redesign: pill/rounded-rect style with border, surface background, border-radius 8px 8px 0 0
+- [x] "Representing" → "Ally of" on runner page and profile edit preview
+- [x] Profile edit preview: pv-top now has card container (border, border-radius, surface bg)
+- [x] Game-editor list: per-game freeze replaced with global "Freeze All / Unfreeze All" bar
+- [x] Game-editor list: added AzNav letter filter + Show [x] dropdown
+- [x] Game-editor detail: local tab styles replaced with global `.game-tabs`/`.game-tab` classes
+- [x] Runs table: Time and Date columns show ⇅ hint when not active sort column
+- [x] Game layout: added "Suggest an Update" tab, pushed right with "Submit Run"
+- [x] Game overview: "Suggest an Update" section extracted to `/games/[game_id]/suggest/+page.svelte`
+- [x] Game hero: platforms now displayed as tags alongside genres
+- [x] Profile edit build fix: missing `</div>` for card tab-card in customize tab (caused Cloudflare deploy failure)
+- [x] Code consolidation: removed 15+ duplicate CSS patterns, unified button system into `_buttons.scss`
+- [x] Dead code removal: deleted unused `_submit-run.scss` (285 lines)
+- [x] Run submission architecture: JWT auth, Turnstile CAPTCHA, server-side validation
+- [x] Global vertical spacing system, run search, typeahead game picker
+- [x] Admin debug page: tabbed navigation (Role Simulation, Permissions, Current Session)
+
+### Previously Completed (Feb 28, 2026)
 - [x] Fixed 400 sign-up error: `.update()` → `.upsert()` in profile/create and profile/setup
 - [x] Fixed auth callback querying wrong table (`runner_profiles` → `profiles`)
-- [x] Fixed `/support#contact` missing anchor (build was failing)
-- [x] Fixed `additionalTabs` used-before-declaration in game editor
-- [x] Fixed `string | undefined` type error in game editor auth check
-- [x] Added `FixedLoadout` interface to TypeScript types
-- [x] Added fixed loadout to game editor (all 3 category types)
-- [x] Added fixed loadout to submit form (auto-fill + lock fields)
+- [x] Added `FixedLoadout` interface and integrated into game editor + submit form
 - [x] Dropped permissive `pending_runs_insert` RLS policy
-- [x] Verified claim system columns exist (`claimed_by`, `claimed_at`)
-- [x] Verified claim system RLS is covered by existing `pending_runs_update` policy
-
-### Previously Completed (Feb 23-24, 2026)
-- [x] Database reorganization (table renames, role tables, RLS cleanup)
-- [x] Frontend code migration to new table names (14 files)
-- [x] Worker updated for new table names
-- [x] RLS policy consolidation (no duplicates, no search_path warnings)
-- [x] Header redesign: centered search bar, theme toggle in user dropdown
-- [x] Minimal profile setup page (`/profile/setup`) with skip option
-- [x] Auth callback redirects to setup page with `?next=` return URL
-- [x] Run submit redirects to setup if no runner_id
-- [x] Search page reads `?q=` param from URL
-- [x] A-Z nav: clicking same letter no longer deselects
-- [x] Footer: 3-column grid layout (Explore, Resources, Legal)
-- [x] Unified folder-style tabs across runner profiles, game pages, and profile edit
-- [x] Video URL validation on profile edit highlights
-- [x] Video URL lookup (noembed) on profile edit highlights
-- [x] Personal goals split: completed → Achievements tab, in-progress → Overview tab
-- [x] Zoom-in hover effect on highlight cards and credit game cards
-- [x] Admin badge text color fix (white on accent)
-- [x] Nicovideo removed from allowed video URLs
-- [x] CSP updated to allow noembed.com
+- [x] Database reorganization, table renames, role tables, RLS cleanup
+- [x] Header redesign, minimal profile setup page, unified tabs, footer grid
 
 ### Known Pending Tasks
 All pending tasks are tracked in `REMINDERS.md`. Do not duplicate them here.
-
-Previously listed items resolved as of Feb 28, 2026:
-- [x] ~~Profile page needs the full create form~~ — `/profile/create` has full form (bio, socials, avatar)
-- [x] ~~Avatar upload (needs Supabase Storage bucket)~~ — bucket `avatars` exists, upload UI in `/profile/edit`
-- [x] ~~Submit form tier/category dropdowns broken~~ — `+page.server.ts` was stripping required fields
-- [x] ~~Video URL "Could not retrieve video info"~~ — noembed Twitch fallback added
 
 Still in progress (see `REMINDERS.md` for details):
 - Runners table migration (partially complete — `profiles` is primary, `runners` is fallback)
@@ -333,25 +322,80 @@ Still in progress (see `REMINDERS.md` for details):
 
 ---
 
-## 12. Communication Style
+## 12. Working With the User — Methodology & Communication
 
-The user prefers:
-- **Ask before guessing.** Always OK to ask for schema, error messages, or clarification.
-- **Complete deliverables.** Provide full replacement files, not partial snippets.
-- **Honest about mistakes.** Own errors, explain root cause, fix it.
-- **Concise explanations.** Don't over-explain simple changes. Do explain architectural decisions.
-- **Update this doc every ~5 prompts** to keep it current.
-- **Changelog-style summaries.** When presenting results, list each changed file with its path and a bulleted breakdown of what changed. Example:
-  - `src/routes/admin/game-editor/[game_id]/+page.svelte` — three fixes:
-    - Moved `additionalTabs` declaration above the `tabs` `$derived` that references it
-    - Added `gameId &&` guard to fix the `string | undefined` type error
-  - `src/lib/types/index.ts` — added `FixedLoadout` interface
-- **Mirror the repo's folder structure in file outputs.** If the changed file lives at `src/lib/data/countries.ts`, output it inside `src/lib/data/`. If it's a root file like `REMINDERS.md`, output it at the root. This lets the user drag files directly into the repo without renaming or reorganizing.
-- **Always include a destination table when presenting files.** Every response that delivers files must end with a table mapping output files to their repo paths. Example:
+This section is for AI assistants picking up this project. It documents what works well.
 
-  | Output file | Repo destination |
-  |-|-|
-  | `src/routes/submit/+page.server.ts` | `src/routes/submit/+page.server.ts` |
-  | `static/img/favicon.png` | `static/img/favicon.png` |
+### How to Approach Tasks
 
-  This removes all ambiguity about where files go and lets the user copy-paste without thinking.
+**1. Read before you write.** Before editing any file, read the actual current content. Don't assume you know what's there from a previous session. Files change between sessions.
+
+**2. Read all relevant files upfront.** When a task touches multiple files, read them all at the start — don't interleave reading and editing. This prevents partial understanding leading to inconsistencies. For a typical multi-file task, expect to read 5-10 files before writing anything.
+
+**3. Understand the blast radius.** Before making a change, trace where the affected code is used. A CSS class rename in `_tabs.scss` affects every file that uses those classes. Grep first, then plan.
+
+**4. Make targeted surgical edits.** The user prefers small, precise changes over sweeping refactors. If the task is "change Representing to Ally of," change exactly that text in the 2-3 files where it appears. Don't refactor the surrounding code.
+
+**5. Verify after editing.** After making string replacements, read back the edited area to confirm the change landed correctly and didn't break nesting. The Cloudflare build will reject malformed Svelte templates (mismatched `{#if}`/`{/if}`, unclosed `<div>`, etc.)
+
+### How to Deliver Files
+
+**Always mirror the repo structure.** Output files at their exact repo paths. The user drags files directly into the repo — if the path is wrong, the file ends up in the wrong place.
+
+**Always include a destination table.** Every response that delivers files must end with a table mapping output files to their repo paths:
+
+| Output file | Repo destination |
+|-|-|
+| `src/routes/+layout.svelte` | `src/routes/+layout.svelte` |
+| `src/styles/components/_tabs.scss` | `src/styles/components/_tabs.scss` |
+
+**Provide complete files, not patches.** The user replaces entire files. Don't give partial snippets that require manual merging.
+
+**NEW files need explicit callouts.** If you're creating a brand-new route (like `/games/[game_id]/suggest/+page.svelte`), make it very clear this is a new file that needs a new directory.
+
+### Communication Style
+
+**Be direct.** Don't narrate your thought process ("Let me think about this..." / "I'll now read the file..."). Just do the work and present results.
+
+**Be concise.** Simple changes need one sentence. Complex architectural decisions deserve explanation. Scale explanation to complexity.
+
+**Ask before guessing.** Database schemas, column names, API shapes — always ask. The user will happily run a SQL query. Guessing causes failed deploys.
+
+**Own mistakes.** If something breaks, say what went wrong, why, and how to fix it. Don't hedge or minimize.
+
+**Changelog-style summaries.** When presenting results, list each file with a short description of what changed. Group related changes. Example:
+
+> **Tab redesign** — `_tabs.scss`: Tabs now use rounded-rect style instead of flat underlines. Active tab blends into content below.
+>
+> **Runner page** — `[runner_id]/+page.svelte`: "Representing" → "Ally of"
+
+**Don't echo file contents.** The user can see the files. Don't quote back code you just wrote unless explaining a specific decision.
+
+**Don't over-format.** Prose over bullet points for short explanations. Use bullet points only for multi-item lists.
+
+### Common Gotchas
+
+1. **Svelte template nesting:** Every `{#if}` needs `{/if}`, every `<div>` needs `</div>`. When removing a section that contains wrapper elements, count the opening and closing tags. This has caused build failures.
+
+2. **Scoped vs global styles:** Styles in `<style>` blocks are scoped to the component. If you switch a component from local `.tabs`/`.tab` classes to global `.game-tabs`/`.game-tab`, you must remove the conflicting local styles or they'll override the globals.
+
+3. **String replacement precision:** The `str_replace` tool requires exact matches including whitespace. Use `cat -A` to check tabs vs spaces if a replacement fails. Alternatively, use `sed` for tricky replacements.
+
+4. **Cloudflare adapter:** No `node:fs` or `node:path`. No `process.env` (use `$env/static/public` or `$env/static/private`). Build failures from these are hard to debug because the error messages are vague.
+
+5. **The `game_name_aliases` field:** Game search should check aliases too. It's an array on the `games` table. The AzNav + search pattern used on `/games` is the reference implementation — reuse it when adding search elsewhere (like game-editor list).
+
+---
+
+## 13. Architecture Decisions Log
+
+Decisions made during development that future assistants should know about:
+
+| Decision | Why | Date |
+|-|-|-|
+| Cookies over localStorage for auth | Cloudflare Workers can't access localStorage; httpOnly cookies work server-side | Feb 2026 |
+| JSONB for socials/theme/loadout | Flexible schema, no migrations needed for adding fields | Feb 2026 |
+| Suggest Update as separate tab route | Keeps overview page focused; form logic is complex enough to warrant isolation | Mar 2026 |
+| Global freeze instead of per-game | Per-game freeze on list page was noisy; global freeze is the emergency use case | Mar 2026 |
+| Pill-style tabs over underline tabs | User wanted "distinguishable distance between tabs" — pill shape provides visual separation | Mar 2026 |
+| `$derived` over `$effect` for data | Derived values are declarative and don't cause extra re-renders; effects are for side-effects only | Feb 2026 |

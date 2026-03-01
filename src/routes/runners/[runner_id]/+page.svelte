@@ -121,7 +121,7 @@
 						{/if}
 						{#if repCountry && repCountry.code !== locCountry?.code}
 							<span class="runner-representing">
-								{#if runner.location}·{/if} Representing
+								{#if runner.location}·{/if} Ally of
 								<img class="flag-img" src="https://flagcdn.com/w40/{repCountry.code.toLowerCase()}.png" alt="{repCountry.name} flag" width="20" height="15" />
 								{repCountry.name}
 							</span>
