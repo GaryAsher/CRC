@@ -83,7 +83,7 @@
 	</div>
 {/if}
 
-<!-- Tab navigation -->
+<!-- Tab navigation + content (same parent needed for sticky tabs) -->
 <div class="page-width">
 	<div class="game-shell">
 		<nav class="game-tabs" aria-label="Game sections">
@@ -98,12 +98,6 @@
 				</a>
 			{/each}
 		</nav>
-	</div>
-</div>
-
-<!-- Tab content -->
-<div class="page-width">
-	<div class="game-shell">
 		{@render children()}
 	</div>
 </div>

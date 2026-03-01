@@ -26,24 +26,6 @@ Search page exists at `/search` — currently searches games + runners only.
 - [ ] Add run search (search across approved runs)
 - [ ] Add team search (once team profiles exist)
 
-### Submit forms
-- [ ] Add padding at bottom where submit run is
-- [ ] For https://www.challengerun.net/submit
-  - Change Select Game to use Typeahead
-  - Center the box for Select Game
-
-### Admin Panel
-- https://www.challengerun.net/admin
-  - [ ] Add Padding for bottom. 
-- https://www.challengerun.net/admin/debug
-  - [ ] Add tabs for Role Simulation, Permissions, Current Session
-    - [ ] Update Permissions.
-- https://www.challengerun.net/admin/game-editor
-  - [ ] Add Padding for bottom.
-  - [ ] Add search, like on https://www.challengerun.net/games, but dont include the Filter by Platform, Filter by Genre, Filter by challenge.
-  - [ ] Add freeze to main game-editor page as well.
-    - Freeze will still record data, but not append it to the site.
-
 ---
 
 ## QA Feedback (Aves — 2/27/2026)

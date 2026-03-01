@@ -10,6 +10,7 @@
 
 	let checking = $state(true);
 	let authorized = $state(false);
+	let activeTab = $state<'simulation' | 'permissions' | 'session'>('simulation');
 	
 	let actualRoleId = $state<DebugRoleId>('user');
 	let runnerId = $state('—');
@@ -64,8 +65,7 @@
 	let effectiveRoleId = $derived($debugRole ?? actualRoleId);
 	let debuggableRoles = $derived(getDebugableRoles(effectiveRoleId));
 
-	// Permissions matrix — sorted from user-level up to super admin.
-	// Columns: [Capability, Super Admin, Admin, Moderator, Verifier, User, Non-User]
+	// Permissions matrix — columns: [Capability, Super Admin, Admin, Moderator, Verifier, User, Non-User]
 	const permMatrix: [string, boolean, boolean, boolean, boolean, boolean, boolean][] = [
 		// ── User capabilities ──
 		['Submit runs',                   true,  true,  true,  true,  true,  false],
@@ -77,13 +77,16 @@
 		['View game updates',             true,  true,  true,  true,  false, false],
 		['Staff guides',                  true,  true,  true,  true,  false, false],
 		// ── Moderator capabilities ──
-		['View approved runs (assigned)', true,  true,  true,  false, false, false],
+		['Game editor (assigned games)',  true,  true,  true,  false, false, false],
 		['Users & roles',                 true,  true,  true,  false, false, false],
 		['Debug tools',                   true,  true,  true,  false, false, false],
 		// ── Admin capabilities ──
 		['Review pending profiles',       true,  true,  false, false, false, false],
 		['Review pending games',          true,  true,  false, false, false, false],
 		['Approve runs (all games)',      true,  true,  false, false, false, false],
+		['Game editor (all games)',       true,  true,  false, false, false, false],
+		['Review profile themes',         true,  true,  false, false, false, false],
+		['Freeze / unfreeze games',       true,  true,  false, false, false, false],
 		// ── Super Admin capabilities ──
 		['Financials',                    true,  false, false, false, false, false],
 		['Site health',                   true,  false, false, false, false, false],
@@ -129,6 +132,13 @@
 		<h1>🔧 Debug & Diagnostics</h1>
 		<p class="muted mb-3">Role simulation and system diagnostics.</p>
 
+		<nav class="debug-tabs">
+			<button class="debug-tab" class:debug-tab--active={activeTab === 'simulation'} onclick={() => activeTab = 'simulation'}>👁️ Role Simulation</button>
+			<button class="debug-tab" class:debug-tab--active={activeTab === 'permissions'} onclick={() => activeTab = 'permissions'}>🔐 Permissions</button>
+			<button class="debug-tab" class:debug-tab--active={activeTab === 'session'} onclick={() => activeTab = 'session'}>📋 Current Session</button>
+		</nav>
+
+		{#if activeTab === 'simulation'}
 			<div class="card">
 				<h2>👁️ Role Simulation</h2>
 				<p class="muted mb-2">Select a role below to activate debug mode. A navigation bar will appear at the top of <strong>every page</strong> on the site, letting you browse as that role. Submissions are disabled during debug mode.</p>
@@ -194,8 +204,10 @@
 					</div>
 				{/if}
 			</div>
+		{/if}
 
-			<div class="card mt-3">
+		{#if activeTab === 'permissions'}
+			<div class="card">
 				<h2>🔐 Permissions Matrix</h2>
 				<p class="muted mb-2">What each role can access:</p>
 				<div class="table-wrap">
@@ -209,8 +221,10 @@
 					</table>
 				</div>
 			</div>
+		{/if}
 
-			<div class="card mt-3">
+		{#if activeTab === 'session'}
+			<div class="card">
 				<h2>📋 Current Session</h2>
 				<div class="session-grid">
 					<div class="sr"><span class="sk">Actual Role</span><span class="sv">{actualRoleId}</span></div>
@@ -220,6 +234,7 @@
 					<div class="sr"><span class="sk">User ID</span><span class="sv" style="word-break:break-all">{userId}</span></div>
 				</div>
 			</div>
+		{/if}
 
 	{/if}
 </div>
@@ -232,6 +247,20 @@
 	.btn { display: inline-block; padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; color: var(--fg); background: transparent; cursor: pointer; font-size: 0.85rem; text-decoration: none; }
 	.btn--sm { font-size: 0.8rem; padding: 0.3rem 0.75rem; }
 	h1 { margin: 0 0 0.25rem; } .mb-2 { margin-bottom: 1rem; } .mb-3 { margin-bottom: 1.5rem; } .mt-2 { margin-top: 1rem; } .mt-3 { margin-top: 1.5rem; }
+
+	.debug-tabs {
+		display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;
+		overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
+	}
+	.debug-tabs::-webkit-scrollbar { display: none; }
+	.debug-tab {
+		appearance: none; cursor: pointer; font: inherit;
+		padding: 0.75rem 1.25rem; background: none; border: none;
+		border-bottom: 2px solid transparent; color: var(--text-muted);
+		white-space: nowrap; font-size: 0.9rem; transition: color 0.15s, border-color 0.15s;
+	}
+	.debug-tab:hover { color: var(--fg); }
+	.debug-tab--active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
 
 	.role-cards { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; }
 	.role-card { display: flex; align-items: center; gap: 0.75rem; padding: 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; text-align: left; color: var(--fg); width: 100%; transition: border-color 0.15s; }

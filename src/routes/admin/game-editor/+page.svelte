@@ -11,6 +11,8 @@
 	let games = $state<any[]>([]);
 	let search = $state('');
 	let userRole = $state<any>(null);
+	let userId = $state('');
+	let freezingGameId = $state<string | null>(null);
 
 	const filtered = $derived.by(() => {
 		if (!search.trim()) return games;
@@ -24,12 +26,13 @@
 
 	const isSuperAdmin = $derived(userRole?.superAdmin === true);
 	const isAdmin = $derived(userRole?.admin === true);
+	const canFreeze = $derived(isAdmin);
 
 	async function loadGames() {
 		loading = true;
 		let query = supabase
 			.from('games')
-			.select('game_id, game_name, status, genres, platforms, cover, updated_at, frozen_at')
+			.select('game_id, game_name, status, genres, platforms, cover, updated_at, frozen_at, frozen_by')
 			.order('game_name');
 
 		// Moderators: only show their assigned games
@@ -49,6 +52,7 @@
 			if (!l) {
 				let sess: any; session.subscribe(s => sess = s)();
 				if (!sess) { goto('/sign-in?redirect=/admin/game-editor'); return; }
+				userId = sess?.user?.id || '';
 				const role = await checkAdminRole();
 				userRole = role;
 				// Only admins, super admins, and moderators can access
@@ -59,6 +63,39 @@
 		});
 		return unsub;
 	});
+
+	async function toggleFreeze(gameId: string, currentlyFrozen: boolean) {
+		if (!canFreeze) return;
+		freezingGameId = gameId;
+		const nowFrozen = !currentlyFrozen;
+		const updates = nowFrozen
+			? { frozen_at: new Date().toISOString(), frozen_by: userId }
+			: { frozen_at: null, frozen_by: null };
+
+		const { error } = await supabase.from('games').update(updates).eq('game_id', gameId);
+		if (error) {
+			alert(`Freeze failed: ${error.message}`);
+			freezingGameId = null;
+			return;
+		}
+
+		try {
+			await supabase.from('audit_log').insert({
+				performed_by: userId,
+				action: nowFrozen ? 'game_frozen' : 'game_unfrozen',
+				target_type: 'game',
+				target_id: gameId,
+			});
+		} catch { /* best effort */ }
+
+		// Update local state
+		const idx = games.findIndex(g => g.game_id === gameId);
+		if (idx >= 0) {
+			games[idx] = { ...games[idx], frozen_at: nowFrozen ? updates.frozen_at : null, frozen_by: nowFrozen ? userId : null };
+			games = [...games];
+		}
+		freezingGameId = null;
+	}
 </script>
 
 <svelte:head><title>🛠️ Game Editor | Admin | CRC</title></svelte:head>
@@ -111,6 +148,22 @@
 								{g.status || 'Unknown'}
 								{#if g.frozen_at}<span class="frozen-badge">🔒 FROZEN</span>{/if}
 							</span>
+							{#if canFreeze}
+								<button
+									class="freeze-btn"
+									class:freeze-btn--frozen={g.frozen_at}
+									disabled={freezingGameId === g.game_id}
+									onclick={(e) => { e.stopPropagation(); e.preventDefault(); toggleFreeze(g.game_id, !!g.frozen_at); }}
+								>
+									{#if freezingGameId === g.game_id}
+										⏳
+									{:else if g.frozen_at}
+										🔓 Unfreeze
+									{:else}
+										🔒 Freeze
+									{/if}
+								</button>
+							{/if}
 						</div>
 					</a>
 				{/each}
@@ -148,6 +201,16 @@
 	.status-dot--inactive { background: #ef4444; }
 	.status-dot--coming-soon { background: #eab308; }
 	.frozen-badge { background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; }
+	.freeze-btn {
+		display: inline-flex; align-items: center; gap: 0.3rem; margin-top: 0.5rem;
+		padding: 0.3rem 0.6rem; background: var(--bg); border: 1px solid var(--border);
+		border-radius: 6px; font-size: 0.75rem; font-family: inherit; color: var(--muted);
+		cursor: pointer; transition: border-color 0.15s, color 0.15s;
+	}
+	.freeze-btn:hover { border-color: var(--accent); color: var(--fg); }
+	.freeze-btn--frozen { border-color: rgba(239, 68, 68, 0.3); color: #ef4444; }
+	.freeze-btn--frozen:hover { border-color: #22c55e; color: #22c55e; }
+	.freeze-btn:disabled { opacity: 0.5; cursor: wait; }
 	.empty { text-align: center; padding: 3rem 1rem; } .empty__icon { font-size: 3rem; display: block; margin-bottom: 0.75rem; } .empty h3 { margin: 0 0 0.5rem; }
 	@media (max-width: 480px) { .games-grid { grid-template-columns: 1fr 1fr; } }
 </style>

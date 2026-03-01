@@ -656,54 +656,76 @@
 						{#if previewOpen}
 						<div class="preview-shell" style="--preview-opacity:{bannerOpacity}">
 							{#if effectiveBannerCss && bannerMode !== 'background'}
-								<div class="preview-top-banner">
-									<div class="preview-top-banner__img" style="background:{effectiveBannerCss}; background-size:{effectiveBgSize}; background-position:{effectiveBgPos}; opacity:{bannerOpacity};"></div>
-									<div class="preview-top-banner__fade"></div>
+								<div class="pv-banner">
+									<div class="pv-banner__img" style="background:{effectiveBannerCss}; background-size:{effectiveBgSize}; background-position:{effectiveBgPos}; opacity:{bannerOpacity};"></div>
+									<div class="pv-banner__fade"></div>
 								</div>
 							{:else if bannerMode !== 'background'}
-								<div class="preview-top-banner preview-top-banner--empty">
-									<div class="preview-top-banner__gradient"></div>
+								<div class="pv-banner pv-banner--empty">
+									<div class="pv-banner__gradient"></div>
 								</div>
 							{/if}
-							<div class="preview-body">
-								<div class="preview-avatar-wrap">
+
+							<!-- Mirrors .runner-top structure from runner page -->
+							<section class="pv-top" class:pv-top--bg-mode={effectiveBannerCss && bannerMode === 'background'} style="--container-opacity: {containerOpacity};">
+								<div class="pv-left">
 									{#if avatarUrl}
-										<img class="preview-avatar" src={avatarUrl} alt="" />
+										<img class="pv-avatar" src={avatarUrl} alt="" />
 									{:else}
-										<div class="preview-avatar preview-avatar--placeholder">👤</div>
+										<div class="pv-avatar pv-avatar--placeholder">👤</div>
 									{/if}
-								</div>
-								<div class="preview-info">
-									<h1 class="preview-name">{displayName || 'Display Name'}{#if pronouns}<span class="preview-pronouns"> ({pronouns})</span>{/if}</h1>
-									{#if location || (previewRepCountry && previewRepCountry.code !== previewLocCountry?.code)}
-										<p class="preview-location muted">
-											{#if location}
-												{#if previewLocCountry}
-													<img class="flag-img" src="https://flagcdn.com/w40/{previewLocCountry.code.toLowerCase()}.png" alt="{previewLocCountry.name} flag" width="20" height="15" />
-												{:else}
-													📍
+									<div class="pv-name">
+										<h1>
+											{displayName || 'Display Name'}
+											{#if pronouns}<span class="pv-pronouns">({pronouns})</span>{/if}
+										</h1>
+										{#if location || (previewRepCountry && previewRepCountry.code !== previewLocCountry?.code)}
+											<p class="muted pv-location">
+												{#if location}
+													{#if previewLocCountry}
+														<img class="flag-img" src="https://flagcdn.com/w40/{previewLocCountry.code.toLowerCase()}.png" alt="{previewLocCountry.name} flag" width="20" height="15" />
+													{:else}
+														📍
+													{/if}
+													{previewLocCountry?.name || location}
 												{/if}
-												{previewLocCountry?.name || location}
-											{/if}
-											{#if previewRepCountry && previewRepCountry.code !== previewLocCountry?.code}
-												<span class="preview-representing">
-													{#if location}·{/if} Representing
-													<img class="flag-img" src="https://flagcdn.com/w40/{previewRepCountry.code.toLowerCase()}.png" alt="{previewRepCountry.name} flag" width="20" height="15" />
-													{previewRepCountry.name}
-												</span>
-											{/if}
-										</p>
-									{/if}
-									{#if statusMessage}
-										<p class="preview-status muted">{statusMessage}</p>
-									{/if}
-									<div class="preview-meta-line">
-										{#if memberSince}
-											<span class="preview-joined">🗓️ Member since {formatDate(memberSince)}</span>
+												{#if previewRepCountry && previewRepCountry.code !== previewLocCountry?.code}
+													<span class="pv-representing">
+														{#if location}·{/if} Representing
+														<img class="flag-img" src="https://flagcdn.com/w40/{previewRepCountry.code.toLowerCase()}.png" alt="{previewRepCountry.name} flag" width="20" height="15" />
+														{previewRepCountry.name}
+													</span>
+												{/if}
+											</p>
 										{/if}
+										{#if statusMessage}
+											<p class="muted pv-status">{statusMessage}</p>
+										{/if}
+										<div class="pv-meta-line">
+											{#if memberSince}
+												<span class="pv-joined">🗓️ Member since {formatDate(memberSince)}</span>
+											{/if}
+										</div>
 									</div>
 								</div>
-							</div>
+
+								<!-- Social Links — mirrors .runner-socials -->
+								{#if socialTwitch || socialYoutube || socialDiscord || socialTwitter || socialBluesky || socialInstagram || socialSpeedruncom || socialSteam || existingApprovedOther.length > 0}
+									<div class="pv-socials">
+										{#if socialTwitch}<span class="pv-link"><span class="pv-link__icon">📺</span> Twitch</span>{/if}
+										{#if socialYoutube}<span class="pv-link"><span class="pv-link__icon">▶️</span> YouTube</span>{/if}
+										{#if socialDiscord}<span class="pv-link"><span class="pv-link__icon">💬</span> Discord: {socialDiscord}</span>{/if}
+										{#if socialTwitter}<span class="pv-link"><span class="pv-link__icon">🐦</span> X</span>{/if}
+										{#if socialBluesky}<span class="pv-link"><span class="pv-link__icon">🦋</span> Bluesky</span>{/if}
+										{#if socialInstagram}<span class="pv-link"><span class="pv-link__icon">📷</span> Instagram</span>{/if}
+										{#if socialSpeedruncom}<span class="pv-link"><span class="pv-link__icon">⏱️</span> Speedrun.com</span>{/if}
+										{#if socialSteam}<span class="pv-link"><span class="pv-link__icon">🎮</span> Steam</span>{/if}
+										{#each existingApprovedOther as link}
+											{#if link}<span class="pv-link"><span class="pv-link__icon">🔗</span> {(() => { try { return new URL(link).hostname.replace('www.', ''); } catch { return 'Link'; } })()}</span>{/if}
+										{/each}
+									</div>
+								{/if}
+							</section>
 						</div>
 						{/if}
 					</div>
@@ -966,13 +988,6 @@
 								{/if}
 							</div>
 						</div>
-
-						<!-- Theme link -->
-						<div class="fg">
-							<label class="fl">Colors & Theme</label>
-							<p class="fh">Customize your accent color, background, and font in the <a href="/profile/theme">Theme Editor</a>.</p>
-						</div>
-					</div>
 				{/if}
 
 				<!-- ═══ SOCIALS ═══ -->
@@ -1353,32 +1368,40 @@
 	.preview-toggle:hover { color: var(--fg); border-color: var(--accent); }
 	.preview-shell { position: relative; background: var(--bg); }
 	.preview-bg-banner { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: 0; }
-	.preview-top-banner { position: relative; height: 110px; overflow: hidden; }
-	.preview-top-banner--empty { background: var(--surface); }
-	.preview-top-banner__img { position: absolute; inset: 0; background-size: cover; background-position: center; }
-	.preview-top-banner__gradient { position: absolute; inset: 0; background: linear-gradient(135deg, var(--accent), #1a1a2e); opacity: 0.6; }
-	.preview-top-banner__fade { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 40%, var(--bg) 100%); }
-	.preview-body {
-		display: flex; align-items: center; gap: 1rem;
-		padding: 0.75rem 1rem 1rem; position: relative; z-index: 1;
+
+	/* Banner — matches .runner-banner on runner page */
+	.pv-banner { position: relative; height: 180px; border-radius: 12px 12px 0 0; overflow: hidden; margin-bottom: 0; }
+	.pv-banner--empty { background: var(--surface); }
+	.pv-banner__img { position: absolute; inset: 0; background-size: cover; background-position: center; }
+	.pv-banner__gradient { position: absolute; inset: 0; background: linear-gradient(135deg, var(--accent), #1a1a2e); opacity: 0.6; }
+	.pv-banner__fade { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 30%, var(--bg) 100%); }
+
+	/* Profile header — matches .runner-top on runner page */
+	.pv-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; padding: 0 1rem 1rem; position: relative; z-index: 1; }
+	.pv-top--bg-mode { position: relative; border-radius: 12px; overflow: hidden; padding: 1.25rem; border: 1px solid var(--border); }
+	.pv-top--bg-mode .pv-link { background: rgba(0, 0, 0, var(--container-opacity, 0.4)); backdrop-filter: blur(8px); border-color: rgba(255, 255, 255, 0.1); }
+	.pv-left { display: flex; align-items: center; gap: 1.25rem; }
+	.pv-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); flex-shrink: 0; }
+	.pv-avatar--placeholder {
+		display: flex; align-items: center; justify-content: center; background: var(--surface);
+		font-size: 2rem; color: var(--muted);
 	}
-	.preview-avatar {
-		width: 64px; height: 64px; border-radius: 50%;
-		border: 3px solid var(--accent); background: var(--surface);
-		object-fit: cover; flex-shrink: 0;
+	.pv-name h1 { margin: 0; }
+	.pv-pronouns { font-size: 0.8em; font-weight: 400; color: var(--text-muted); }
+	.pv-location, .pv-status { margin: 0.15rem 0 0; font-size: 0.85rem; }
+	.pv-representing { opacity: 0.75; font-size: 0.8rem; }
+	.flag-img { display: inline-block; vertical-align: middle; border-radius: 2px; margin-right: 0.2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+	.pv-meta-line { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.35rem; }
+	.pv-joined { font-size: 0.8rem; color: var(--text-muted); }
+
+	/* Social links — matches .runner-socials on runner page */
+	.pv-socials { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-top: 0.5rem; }
+	.pv-link {
+		display: flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.65rem; background: var(--surface);
+		border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem;
+		color: var(--fg); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 	}
-	.preview-avatar--placeholder {
-		display: flex; align-items: center; justify-content: center;
-		font-size: 1.75rem; color: var(--muted);
-	}
-	.preview-info { display: flex; flex-direction: column; gap: 0; min-width: 0; }
-	.preview-name { font-size: 1.1rem; font-weight: 700; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-	.preview-pronouns { font-size: 0.8em; font-weight: 400; color: var(--muted); }
-	.preview-location, .preview-status { margin: 0.15rem 0 0; font-size: 0.85rem; }
-	.preview-location .flag-img { display: inline-block; vertical-align: middle; border-radius: 2px; margin-right: 0.15rem; box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
-	.preview-representing { white-space: nowrap; }
-	.preview-meta-line { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.35rem; }
-	.preview-joined { font-size: 0.8rem; color: var(--muted); }
+	.pv-link__icon { flex-shrink: 0; font-size: 0.85rem; }
 
 	/* Banner presets accordion */
 	.preset-accordion { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
@@ -1513,6 +1536,7 @@
 	.form-actions {
 		display: flex; gap: 0.75rem; margin-top: 2rem;
 		padding-top: 1.5rem; border-top: 1px solid var(--border);
+		justify-content: flex-end;
 	}
 
 	/* Toggle switch */

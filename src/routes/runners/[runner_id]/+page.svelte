@@ -185,11 +185,16 @@
 				<div class="highlights-grid">
 					{#each (runner.featured_runs as any[]) as fr}
 						{#if fr.type === 'playlist'}
-							<div class="highlight-card">
+							<div class="highlight-card card-lift">
 								{#if fr.cover_url}
 									<div class="highlight-card__bg" style="background-image: url('{fr.cover_url}')"></div>
 								{:else}
-									<div class="highlight-card__playlist-bg"></div>
+									{@const playlistThumb = getVideoThumbnail(fr.playlist_url)}
+									{#if playlistThumb}
+										<div class="highlight-card__bg" style="background-image: url('{playlistThumb}')"></div>
+									{:else}
+										<div class="highlight-card__playlist-bg"></div>
+									{/if}
 								{/if}
 								<div class="highlight-card__overlay">
 									<div class="highlight-card__game">🎬 Playlist</div>
@@ -203,7 +208,7 @@
 						{:else}
 							{@const frGame = data.allGames.find(g => g.game_id === fr.game_id)}
 							{@const thumb = fr.video_url ? getVideoThumbnail(fr.video_url) : null}
-							<div class="highlight-card">
+							<div class="highlight-card card-lift">
 								{#if thumb}
 									<div class="highlight-card__bg" style="background-image: url('{thumb}')"></div>
 								{:else if frGame?.cover}
@@ -265,7 +270,7 @@
 				<div class="credits-grid">
 					{#each overviewCreditedGames as cg}
 						{@const credit = (cg as any).credits?.find((c: any) => c.runner_id === runner.runner_id)}
-						<a href="/games/{cg.game_id}" class="credit-game-card">
+						<a href="/games/{cg.game_id}" class="credit-game-card card-lift">
 							{#if cg.cover}
 								<div class="credit-game-card__bg" style="background-image: url('{cg.cover}')"></div>
 							{/if}
@@ -556,7 +561,6 @@
 
 <style>
 	/* Layout */
-	.runner-page { padding-bottom: 3rem; }
 	.page-back { margin: 1rem 0 0.5rem; }
 	.page-back a { color: var(--text-muted); text-decoration: none; }
 	.page-back a:hover { color: var(--fg); }
