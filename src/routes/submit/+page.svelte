@@ -91,12 +91,13 @@
 				</ul>
 			{/if}
 		</div>
+		</div>
 		<p class="picker-hint">Or go to a game's page and click "Submit Run" from there.</p>
 	</div>
 </div>
 
 <style>
-	.submit-picker { max-width: 480px; margin: 0 auto; padding: 0 1rem; text-align: center; }
+	.submit-picker { max-width: 640px; margin: 0 auto; padding: 0 1rem; text-align: center; }
 	h2 { margin: 0 0 0.25rem; }
 	.muted { color: var(--text-muted); margin: 0 0 1.5rem; }
 

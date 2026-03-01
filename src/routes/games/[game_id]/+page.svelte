@@ -1,660 +1,619 @@
 <script lang="ts">
-	import { renderMarkdown } from '$lib/utils/markdown';
-	import { formatDate } from '$lib/utils';
-	import { session } from '$stores/auth';
+	import { onMount } from 'svelte';
+	import { session, user } from '$stores/auth';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { supabase } from '$lib/supabase';
+	import { isValidVideoUrl } from '$lib/utils';
 	import { checkBannedTerms } from '$lib/utils/banned-terms';
-	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+	import { showToast } from '$stores/toast';
+	import { PUBLIC_WORKER_URL, PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
 
 	let { data } = $props();
 	const game = $derived(data.game);
-	const achievements = $derived(data.achievements);
-	const runnerMap = $derived(data.runnerMap);
-	const runCountByCategory = $derived(data.runCountByCategory);
-	const totalRunCount = $derived(data.totalRunCount);
+	const platforms = $derived(data.platforms || []);
 
-	// General rules: game-specific or default fallback
-	const generalRules = $derived(
-		game.general_rules || data.defaultGeneralRules || null
-	);
-	const isDefaultRules = $derived(!game.general_rules && !!data.defaultGeneralRules);
+	// ── Form State ──
+	let categoryTier = $state('');
+	let categorySlug = $state('');
+	let selectedChallenges = $state<string[]>([]);
+	let character = $state('');
+	let glitchId = $state('');
+	let selectedRestrictions = $state<string[]>([]);
+	let videoUrl = $state('');
+	let platform = $state('');
+	let dateCompleted = $state('');
+	let runTimeRta = $state('');
+	let runTimePrimary = $state('');
+	let submitterNotes = $state('');
 
-	// Description: detect placeholder/empty
-	const hasDescription = $derived(
-		game.content &&
-		game.content.trim() !== '' &&
-		!game.content.includes('Game submitted via form') &&
-		!game.content.includes('Awaiting review')
-	);
+	// ── Video Metadata State ──
+	let videoTitle = $state('');
+	let videoFetching = $state(false);
+	let videoFetchError = $state('');
 
-	// Achievement completions grouped by slug
-	const achievementCompletions = $derived(() => {
-		const map: Record<string, { completed: typeof achievements; inProgress: typeof achievements }> = {};
-		for (const def of game.community_achievements || []) {
-			const completed = achievements.filter(
-				(a) => a.achievement_slug === def.slug && a.date_completed
-			);
-			const inProgress = achievements.filter(
-				(a) => a.achievement_slug === def.slug && !a.date_completed
-			);
-			map[def.slug] = { completed, inProgress };
+	// ── UI State ──
+	let submitting = $state(false);
+	let errorMsg = $state('');
+	let successMsg = $state('');
+
+	// ── Turnstile CAPTCHA ──
+	let turnstileToken = $state('');
+	let turnstileReady = $state(false);
+	let turnstileWidgetId = $state<string | null>(null);
+
+	onMount(() => {
+		if (!document.querySelector('script[src*="turnstile"]')) {
+			const script = document.createElement('script');
+			script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&render=explicit';
+			script.async = true;
+			document.head.appendChild(script);
 		}
-		return map;
+		(window as any).onTurnstileLoad = () => {
+			turnstileReady = true;
+			renderTurnstile();
+		};
+		if ((window as any).turnstile) {
+			turnstileReady = true;
+			renderTurnstile();
+		}
 	});
 
-	// Suggest Update form state
-	let suggestSection = $state('');
-	let suggestType = $state('');
-	let suggestDetails = $state('');
-	let suggestSubmitting = $state(false);
-	let suggestError = $state('');
-	let suggestSuccess = $state(false);
-
-	// Image upload state
-	let suggestImages = $state<File[]>([]);
-	let imagePreviewUrls = $state<string[]>([]);
-	const MAX_IMAGES = 5;
-	const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
-	const ALLOWED_TYPES = ['image/png', 'image/jpg', 'image/jpeg'];
-
-	// Banned terms validation
-	const suggestBannedWarning = $derived(checkBannedTerms(suggestDetails));
-
-	function handleImageSelect(e: Event) {
-		const input = e.target as HTMLInputElement;
-		if (!input.files) return;
-
-		const newFiles = Array.from(input.files);
-		let errorMsg = '';
-
-		for (const file of newFiles) {
-			if (suggestImages.length >= MAX_IMAGES) {
-				errorMsg = `Maximum ${MAX_IMAGES} images allowed.`;
-				break;
-			}
-			if (!ALLOWED_TYPES.includes(file.type)) {
-				errorMsg = `${file.name}: Only PNG and JPG files are allowed.`;
-				continue;
-			}
-			if (file.size > MAX_FILE_SIZE) {
-				errorMsg = `${file.name}: File exceeds 2MB limit.`;
-				continue;
-			}
-			suggestImages = [...suggestImages, file];
-			imagePreviewUrls = [...imagePreviewUrls, URL.createObjectURL(file)];
-		}
-
-		if (errorMsg) suggestError = errorMsg;
-		input.value = ''; // Reset input so same file can be re-selected
-	}
-
-	function removeImage(index: number) {
-		URL.revokeObjectURL(imagePreviewUrls[index]);
-		suggestImages = suggestImages.filter((_, i) => i !== index);
-		imagePreviewUrls = imagePreviewUrls.filter((_, i) => i !== index);
-	}
-
-	async function submitSuggestion(e: Event) {
-		e.preventDefault();
-		if (suggestBannedWarning) {
-			suggestError = suggestBannedWarning;
+	function renderTurnstile() {
+		const container = document.getElementById('turnstile-container-run');
+		if (!container || !(window as any).turnstile) return;
+		if (turnstileWidgetId !== null) {
+			(window as any).turnstile.reset(turnstileWidgetId);
 			return;
 		}
-		suggestSubmitting = true;
-		suggestError = '';
+		turnstileWidgetId = (window as any).turnstile.render('#turnstile-container-run', {
+			sitekey: PUBLIC_TURNSTILE_SITE_KEY,
+			callback: (token: string) => { turnstileToken = token; },
+			'expired-callback': () => { turnstileToken = ''; },
+			theme: 'auto'
+		});
+	}
 
-		try {
-			const { data: userData } = await supabase.auth.getUser();
-			if (!userData?.user) throw new Error('Not signed in');
+	// ── Game timing config ──
+	const gameTimingMethod = $derived(game.timing_method || '');
+	const hasGameTiming = $derived(!!gameTimingMethod && gameTimingMethod.toLowerCase() !== 'rta');
+	const gameTimingLabel = $derived(gameTimingMethod || 'Primary Time');
+	// RTA is always available unless game explicitly removes it
+	// If game timing IS rta, we only show one field
+	const showRtaSeparately = $derived(hasGameTiming);
 
-			// Upload images to Supabase Storage
-			const uploadedUrls: string[] = [];
-			if (suggestImages.length > 0) {
-				const token = (await supabase.auth.getSession()).data.session?.access_token;
-				if (!token) throw new Error('Not authenticated');
-
-				for (const file of suggestImages) {
-					const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
-					const path = `${userData.user.id}/${Date.now()}_${crypto.randomUUID().slice(0, 8)}.${ext}`;
-
-					const uploadRes = await fetch(
-						`${PUBLIC_SUPABASE_URL}/storage/v1/object/user_game_update_images/${path}`,
-						{
-							method: 'POST',
-							headers: {
-								'Authorization': `Bearer ${token}`,
-								'apikey': PUBLIC_SUPABASE_ANON_KEY,
-								'Content-Type': file.type,
-							},
-							body: file,
-						}
-					);
-
-					if (!uploadRes.ok) {
-						const err = await uploadRes.json().catch(() => ({}));
-						throw new Error(err.message || `Image upload failed (${uploadRes.status})`);
-					}
-
-					uploadedUrls.push(`${PUBLIC_SUPABASE_URL}/storage/v1/object/public/user_game_update_images/${path}`);
+	// ── Derived category options ──
+	const tierOptions = $derived(() => {
+		const tiers: { value: string; label: string; categories: { slug: string; label: string; fixed_loadout?: any }[] }[] = [];
+		if (game.full_runs?.length) tiers.push({ value: 'full_runs', label: 'Full Runs', categories: game.full_runs.map((c: any) => ({ slug: c.slug, label: c.label, fixed_loadout: c.fixed_loadout })) });
+		if (game.mini_challenges?.length) {
+			const cats: { slug: string; label: string; fixed_loadout?: any }[] = [];
+			for (const group of game.mini_challenges) {
+				if (group.children?.length) {
+					for (const child of group.children) cats.push({ slug: child.slug, label: `${group.label} › ${child.label}`, fixed_loadout: child.fixed_loadout });
+				} else {
+					cats.push({ slug: group.slug, label: group.label, fixed_loadout: group.fixed_loadout });
 				}
 			}
+			tiers.push({ value: 'mini_challenges', label: 'Mini-Challenges', categories: cats });
+		}
+		if (game.player_made?.length) tiers.push({ value: 'player_made', label: 'Player-Made', categories: game.player_made.map((c: any) => ({ slug: c.slug, label: c.label, fixed_loadout: c.fixed_loadout })) });
+		return tiers;
+	});
 
-			const insertData: Record<string, any> = {
-				game_id: game.game_id,
-				game_name: game.game_name,
-				user_id: userData.user.id,
-				section: suggestSection,
-				update_type: suggestType,
-				details: suggestDetails.trim(),
-				status: 'pending',
-				page_url: `/games/${game.game_id}`
-			};
-			if (uploadedUrls.length > 0) insertData.image_urls = uploadedUrls;
+	const currentTier = $derived(tierOptions().find(t => t.value === categoryTier));
+	const categoryOptions = $derived(currentTier?.categories || []);
 
-			const { error } = await supabase.from('game_update_requests').insert(insertData);
+	// ── Fixed Loadout ──
+	const selectedCategory = $derived(categoryOptions.find(c => c.slug === categorySlug));
+	const fixedLoadout = $derived(selectedCategory?.fixed_loadout?.enabled ? selectedCategory.fixed_loadout : null);
 
-			if (error) throw error;
-			suggestSuccess = true;
-		} catch (err: any) {
-			suggestError = err.message || 'Failed to submit. Please try again.';
+	// Pre-fill locked fields when a fixed-loadout category is selected
+	$effect(() => {
+		const fl = fixedLoadout;
+		if (fl) {
+			if (fl.character) character = fl.character;
+			if (fl.challenge) selectedChallenges = [fl.challenge];
+			if (fl.restriction) selectedRestrictions = [fl.restriction];
+		}
+	});
+
+	// Clear fixed values when switching to a non-fixed category
+	let prevCategorySlug = $state('');
+	$effect(() => {
+		if (categorySlug !== prevCategorySlug) {
+			const prevCat = categoryOptions.find(c => c.slug === prevCategorySlug);
+			const prevFl = prevCat?.fixed_loadout?.enabled ? prevCat.fixed_loadout : null;
+			if (prevFl && !fixedLoadout) {
+				// Was fixed, now isn't — clear the locked values
+				if (prevFl.character) character = '';
+				if (prevFl.challenge) selectedChallenges = selectedChallenges.filter(c => c !== prevFl.challenge);
+				if (prevFl.restriction) selectedRestrictions = selectedRestrictions.filter(r => r !== prevFl.restriction);
+			}
+			prevCategorySlug = categorySlug;
+		}
+	});
+
+	// ── Validation ──
+	const videoValid = $derived(!videoUrl || isValidVideoUrl(videoUrl));
+	const notesWarning = $derived(checkBannedTerms(submitterNotes));
+	const canSubmit = $derived(
+		!!$session &&
+		!!categoryTier &&
+		!!categorySlug &&
+		!!videoUrl &&
+		videoValid &&
+		!!turnstileToken &&
+		!notesWarning &&
+		!submitting
+	);
+
+	// ── Video Title Fetch ──
+	let fetchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+	function onVideoUrlChange() {
+		videoTitle = '';
+		videoFetchError = '';
+		if (fetchDebounce) clearTimeout(fetchDebounce);
+		if (!videoUrl || !isValidVideoUrl(videoUrl)) return;
+		videoFetching = true;
+		fetchDebounce = setTimeout(() => fetchVideoMeta(videoUrl), 600);
+	}
+
+	async function fetchVideoMeta(url: string) {
+		try {
+			const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
+			if (!res.ok) throw new Error('Fetch failed');
+			const json = await res.json();
+			if (json.error) {
+				const host = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+				if (host === 'twitch.tv' || host.endsWith('.twitch.tv')) {
+					videoTitle = '';
+					videoFetchError = '';
+				} else {
+					videoFetchError = 'Could not retrieve video info.';
+				}
+			} else {
+				videoTitle = json.title || '';
+				// Try to extract upload date from YouTube video
+				if (!dateCompleted && json.upload_date) {
+					// noembed sometimes returns upload_date as YYYY-MM-DD
+					dateCompleted = json.upload_date;
+				}
+			}
+		} catch {
+			try {
+				const host = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+				if (host === 'twitch.tv' || host.endsWith('.twitch.tv')) {
+					videoTitle = '';
+					videoFetchError = '';
+				} else {
+					videoFetchError = 'Could not retrieve video info.';
+				}
+			} catch {
+				videoFetchError = 'Could not retrieve video info.';
+			}
 		} finally {
-			suggestSubmitting = false;
+			videoFetching = false;
 		}
 	}
 
-	function resetSuggestionForm() {
-		suggestSection = '';
-		suggestType = '';
-		suggestDetails = '';
-		suggestSuccess = false;
-		suggestError = '';
-		imagePreviewUrls.forEach(url => URL.revokeObjectURL(url));
-		suggestImages = [];
-		imagePreviewUrls = [];
+	// Auto-fetch when video URL changes
+	$effect(() => {
+		videoUrl;
+		onVideoUrlChange();
+	});
+
+	// ── Helpers ──
+	function toggleChallenge(slug: string) {
+		if (selectedChallenges.includes(slug)) {
+			selectedChallenges = selectedChallenges.filter(c => c !== slug);
+		} else {
+			selectedChallenges = [...selectedChallenges, slug];
+		}
+	}
+
+	function toggleRestriction(slug: string) {
+		if (selectedRestrictions.includes(slug)) {
+			selectedRestrictions = selectedRestrictions.filter(r => r !== slug);
+		} else {
+			selectedRestrictions = [...selectedRestrictions, slug];
+		}
+	}
+
+	async function handleSubmit(e: Event) {
+		e.preventDefault();
+		submitting = true;
+		errorMsg = '';
+		successMsg = '';
+
+		try {
+			// Get auth token for Worker verification
+			const { data: { session: sess } } = await supabase.auth.getSession();
+			if (!sess?.access_token) {
+				throw new Error('You must be signed in to submit a run.');
+			}
+
+			const payload: Record<string, any> = {
+				token: sess.access_token,
+				turnstile_token: turnstileToken,
+				schema_version: 7,
+				game_id: game.game_id,
+				category_tier: categoryTier,
+				category: categorySlug,
+				standard_challenges: selectedChallenges.length > 0 ? selectedChallenges : [],
+				character: character || undefined,
+				glitch_id: glitchId || undefined,
+				restrictions: selectedRestrictions.length > 0 ? selectedRestrictions : [],
+				platform: platform || undefined,
+				video_url: videoUrl,
+				submitter_notes: submitterNotes.trim() || undefined,
+			};
+
+			// Date (optional)
+			if (dateCompleted) payload.run_date = dateCompleted;
+
+			// Timing: RTA is always captured
+			if (runTimeRta) payload.time_rta = runTimeRta;
+
+			// Game-specific timing (IGT, etc.)
+			if (showRtaSeparately && runTimePrimary) {
+				payload.time_primary = runTimePrimary;
+			} else if (!showRtaSeparately && runTimeRta) {
+				// If game timing IS rta (or unset), time_primary = rta
+				payload.time_primary = runTimeRta;
+			}
+
+			const res = await fetch(`${PUBLIC_WORKER_URL}/submit`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			const data = await res.json();
+
+			if (!res.ok || !data.ok) {
+				throw new Error(data.error || 'Submission failed. Please try again.');
+			}
+
+			successMsg = 'Run submitted successfully! A verifier will review it shortly.';
+			showToast('success', 'Run submitted! A verifier will review it shortly.');
+			categoryTier = ''; categorySlug = ''; selectedChallenges = []; character = '';
+			glitchId = ''; selectedRestrictions = []; videoUrl = ''; platform = ''; dateCompleted = '';
+			runTimeRta = ''; runTimePrimary = ''; submitterNotes = ''; videoTitle = '';
+		} catch (err: any) {
+			errorMsg = err.message || 'Submission failed. Please try again.';
+			showToast('error', err.message || 'Submission failed.');
+		} finally {
+			submitting = false;
+			// Reset Turnstile for next submission
+			if (turnstileWidgetId !== null && (window as any).turnstile) {
+				(window as any).turnstile.reset(turnstileWidgetId);
+				turnstileToken = '';
+			}
+		}
 	}
 </script>
 
-<!-- 1. Modded/Base Game Links -->
-{#if game.is_modded && data.baseGame}
-	<div class="game-link-banner game-link-banner--base">
-		<span class="game-link-banner__icon">🎮</span>
-		<span class="game-link-banner__text">This is a <strong>modded version</strong>. Looking for the vanilla game?</span>
-		<a href="/games/{data.baseGame.game_id}" class="btn btn--small">View {data.baseGame.game_name}</a>
-	</div>
-{/if}
+<svelte:head>
+	<title>Submit Run - {game.game_name} | CRC</title>
+</svelte:head>
 
-{#if data.moddedVersions.length > 0}
-	<div class="game-link-banner game-link-banner--modded">
-		<span class="game-link-banner__icon">🔧</span>
-		<span class="game-link-banner__text"><strong>Modded versions available!</strong> Run with custom content.</span>
-		<div class="game-link-banner__links">
-			{#each data.moddedVersions as mod}
-				<a href="/games/{mod.game_id}" class="btn btn--small btn--outline">{mod.game_name}</a>
-			{/each}
+<h2>Submit a {game.game_name} Run</h2>
+<p class="muted mb-3">
+	Fill in your run details below. All options are specific to {game.game_name}.
+	<span class="required-hint"><span class="req">*</span> indicates required fields</span>
+</p>
+
+{#if !$session}
+	<div class="card">
+		<div class="empty-state">
+			<span class="empty-state__icon">🔐</span>
+			<h3>Sign In Required</h3>
+			<p class="muted">You need to be signed in to submit a run.</p>
+			<a href="/sign-in?redirect=/games/{game.game_id}/submit" class="btn btn--accent mt-2">Sign In</a>
 		</div>
 	</div>
-{/if}
-
-<!-- 2. Game Description -->
-<section>
-	{#if hasDescription}
-		<div class="card">
-			{@html renderMarkdown(game.content ?? '')}
+{:else if successMsg}
+	<div class="card">
+		<div class="success-state">
+			<span class="success-state__icon">✅</span>
+			<h3>Submitted!</h3>
+			<p class="muted">{successMsg}</p>
+			<div class="success-actions">
+				<button class="btn btn--accent" onclick={() => successMsg = ''}>Submit Another</button>
+				<a href="/games/{game.game_id}/runs" class="btn">View Runs</a>
+			</div>
 		</div>
-	{:else}
-		<div class="card">
-			<p class="muted"><em>📝 Game description needed. Want to help? <a href="/games/{game.game_id}/resources">Visit the Resources tab</a> to learn how to contribute.</em></p>
-		</div>
-	{/if}
-</section>
-
-<!-- Quick Stats Bar -->
-<section class="quick-stats">
-	<div class="stat-pill">
-		<span class="stat-pill__value">{totalRunCount}</span>
-		<span class="stat-pill__label">Run{totalRunCount !== 1 ? 's' : ''}</span>
-	</div>
-	<div class="stat-pill">
-		<span class="stat-pill__value">{data.categories.length}</span>
-		<span class="stat-pill__label">Categor{data.categories.length !== 1 ? 'ies' : 'y'}</span>
-	</div>
-	{#if game.community_achievements?.length}
-		<div class="stat-pill">
-			<span class="stat-pill__value">{game.community_achievements.length}</span>
-			<span class="stat-pill__label">Achievement{game.community_achievements.length !== 1 ? 's' : ''}</span>
-		</div>
-	{/if}
-	<a href="/games/{game.game_id}/submit" class="btn btn--accent">Submit a Run</a>
-</section>
-
-<!-- 3. General Rules (Accordion) -->
-<div class="card card--compact">
-	<details class="rules-accordion" open>
-		<summary class="rules-accordion__header">
-			<h2 class="rules-accordion__title">📋 General Rules</h2>
-			<span class="accordion-icon">▼</span>
-		</summary>
-		<div class="rules-accordion__content">
-			{#if generalRules}
-				<p class="muted mb-2">{isDefaultRules ? 'Core rules that apply to all runs:' : `Core rules that apply to all ${game.game_name} runs:`}</p>
-				<div class="md">
-					{@html renderMarkdown(generalRules)}
-				</div>
-			{:else}
-				<ul>
-					<li><strong>Timing Method:</strong> {game.timing_method || 'RTA (Real Time Attack)'}</li>
-					<li><strong>Video Required:</strong> All submissions must include video proof</li>
-					<li><strong>No Cheats/Mods:</strong> External tools or gameplay-altering mods are not allowed</li>
-				</ul>
-			{/if}
-			<p class="muted mt-2" style="font-size: 0.85rem;">
-				<em>For detailed category rules, challenges, restrictions, and glitch policies, see the <a href="/games/{game.game_id}/rules">Rules tab</a>.</em>
-			</p>
-		</div>
-	</details>
-</div>
-
-<!-- 4. Community Achievements -->
-{#if game.community_achievements?.length}
-	{@const completionMap = achievementCompletions()}
-	<div class="card card--compact mt-section">
-		<h2 class="mb-2">🏆 Community Achievements</h2>
-		<p class="muted mb-3">Community-defined challenges tracked for this game.</p>
-
-		<div class="achievements-list">
-			{#each game.community_achievements as ach}
-				{@const comp = completionMap[ach.slug] || { completed: [], inProgress: [] }}
-				{@const completedCount = comp.completed.length}
-				{@const inProgressCount = comp.inProgress.length}
-
-				<details class="achievement-item">
-					<summary class="achievement-header">
-						<div class="achievement-header__left">
-							<span class="achievement-icon">{ach.icon || '🏆'}</span>
-							<div class="achievement-info">
-								<h3>{ach.title}</h3>
-								<p class="muted">{ach.description}</p>
-							</div>
-						</div>
-						<div class="achievement-header__right">
-							{#if ach.difficulty}
-								<span class="difficulty difficulty--{ach.difficulty}">{ach.difficulty}</span>
-							{/if}
-							<span class="achievement-stat">
-								<span class="achievement-stat__completed">{completedCount} completed</span>
-								{#if inProgressCount > 0}
-									<span class="achievement-stat__progress">{inProgressCount} in progress</span>
-								{/if}
-							</span>
-							<span class="accordion-icon">▼</span>
-						</div>
-					</summary>
-
-					<div class="achievement-content">
-						{#if ach.requirements?.length}
-							<div class="achievement-requirements">
-								<h4>Requirements</h4>
-								<ul>
-									{#each ach.requirements as req}
-										<li>{req}</li>
-									{/each}
-								</ul>
-							</div>
-						{/if}
-
-						{#if completedCount > 0 || inProgressCount > 0}
-							<div class="achievement-runners">
-								<h4>Runner Progress</h4>
-								{#each comp.completed.sort((a, b) => String(a.date_completed).localeCompare(String(b.date_completed))) as c}
-									{@const runner = runnerMap[c.runner_id]}
-									<div class="runner-row runner-row--completed">
-										<a href="/runners/{c.runner_id}" class="runner-row__info">
-											{#if runner?.avatar}
-												<div class="runner-row__avatar" style="background-image: url('{runner.avatar}')"></div>
-											{:else}
-												<div class="runner-row__avatar runner-row__avatar--default">👤</div>
-											{/if}
-											<span>{runner?.runner_name || c.runner_id}</span>
-										</a>
-										<div class="runner-row__progress">
-											<div class="progress-bar progress-bar--full"><div class="progress-bar__fill" style="width: 100%"></div></div>
-											<span class="progress-bar__text">{ach.total_required || '?'} / {ach.total_required || '?'}</span>
-										</div>
-										<div class="runner-row__status">
-											<span class="status-badge status-badge--completed">✓ Completed</span>
-											<span class="runner-row__date">{formatDate(c.date_completed)}</span>
-										</div>
-										{#if c.proof_url}
-											<a href={c.proof_url} target="_blank" rel="noopener" class="btn btn--small">▶ Proof</a>
-										{/if}
-									</div>
-								{/each}
-
-								{#each comp.inProgress as c}
-									{@const runner = runnerMap[c.runner_id]}
-									{@const current = (c as any).current_progress || 0}
-									{@const total = ach.total_required || 1}
-									{@const percent = Math.round((current / total) * 100)}
-									<div class="runner-row runner-row--progress">
-										<a href="/runners/{c.runner_id}" class="runner-row__info">
-											{#if runner?.avatar}
-												<div class="runner-row__avatar" style="background-image: url('{runner.avatar}')"></div>
-											{:else}
-												<div class="runner-row__avatar runner-row__avatar--default">👤</div>
-											{/if}
-											<span>{runner?.runner_name || c.runner_id}</span>
-										</a>
-										<div class="runner-row__progress">
-											<div class="progress-bar"><div class="progress-bar__fill" style="width: {percent}%"></div></div>
-											<span class="progress-bar__text">{current} / {total}</span>
-										</div>
-										<div class="runner-row__status">
-											<span class="status-badge status-badge--progress">In Progress</span>
-										</div>
-									</div>
-								{/each}
-							</div>
-						{:else}
-							<p class="muted" style="padding: 0.5rem 0;">No runners tracking this achievement yet. Be the first!</p>
-						{/if}
-					</div>
-				</details>
-			{/each}
-		</div>
-	</div>
-{/if}
-
-<!-- 5. Credits -->
-{#if (game as any).credits?.length}
-	<div class="card card--compact mt-section">
-		<h2 class="mb-2">Credits</h2>
-		<p class="muted mb-2">Contributors who helped establish this game's challenge run definitions:</p>
-		<ul class="credits-list">
-			{#each (game as any).credits as credit}
-				<li>
-					{#if credit.runner_id}
-						<a href="/runners/{credit.runner_id}">{credit.name}</a>
-					{:else if credit.url}
-						<a href={credit.url} target="_blank" rel="noopener">{credit.name}</a>
-					{:else}
-						{credit.name}
-					{/if}
-					{#if credit.role}
-						<span class="muted"> — {credit.role}</span>
-					{/if}
-				</li>
-			{/each}
-		</ul>
 	</div>
 {:else}
-	<div class="card card--compact mt-section">
-		<h2 class="mb-2">Credits</h2>
-		<p class="muted">No credits listed yet.</p>
-	</div>
-{/if}
-
-<!-- 6. Suggest an Update -->
-<div class="card card--compact mt-section">
-	<h2 class="mb-2">📝 Suggest an Update</h2>
-	<p class="muted mb-3">Notice something incorrect or missing on this page? Let us know and we'll get it fixed.</p>
-
-	{#if !$session}
-		<p class="muted"><a href="/sign-in?redirect=/games/{game.game_id}">Sign in</a> to suggest an update to this page.</p>
-	{:else if suggestSuccess}
-		<div class="suggest-success">
-			<span>✅</span>
-			<div>
-				<strong>Thanks for your suggestion!</strong>
-				<p class="muted">A moderator will review it shortly.</p>
+	<form class="submit-form" onsubmit={handleSubmit}>
+		<!-- Category Selection -->
+		<div class="submit-section">
+			<p class="submit-section__title">Category <span class="req">*</span></p>
+			<p class="submit-section__sub">Select the run tier and category.</p>
+			<div class="field-row">
+				<div class="field">
+					<label for="tier" class="field-label">Tier <span class="req">*</span></label>
+					<select id="tier" bind:value={categoryTier} required>
+						<option value="">Select tier...</option>
+						{#each tierOptions() as tier}
+							<option value={tier.value}>{tier.label}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="field">
+					<label for="category" class="field-label">Category <span class="req">*</span></label>
+					<select id="category" bind:value={categorySlug} required disabled={!categoryTier}>
+						<option value="">Select category...</option>
+						{#each categoryOptions as cat}
+							<option value={cat.slug}>{cat.label}</option>
+						{/each}
+					</select>
+				</div>
 			</div>
 		</div>
-		<button type="button" class="btn btn--small mt-2" onclick={resetSuggestionForm}>Submit Another</button>
-	{:else}
-		<form class="suggest-form" onsubmit={submitSuggestion}>
-			<div class="suggest-form__field">
-				<label class="form-label" for="suggest-section">What area needs updating?</label>
-				<select id="suggest-section" class="form-input" required bind:value={suggestSection}>
-					<option value="">Select a section...</option>
-					<option value="game-description">Game Description</option>
-					<option value="full-runs">Full Runs / Categories</option>
-					<option value="mini-challenges">Mini Challenges</option>
-					<option value="rules">Rules or Definitions</option>
-					<option value="achievements">Achievements</option>
-					<option value="credits">Credits</option>
-					<option value="other">Other</option>
-				</select>
-			</div>
 
-			<div class="suggest-form__field">
-				<label class="form-label" for="suggest-type">What kind of change?</label>
-				<select id="suggest-type" class="form-input" required bind:value={suggestType}>
-					<option value="">Select type...</option>
-					<option value="incorrect">Something is incorrect</option>
-					<option value="missing">Something is missing</option>
-					<option value="outdated">Information is outdated</option>
-					<option value="typo">Typo or formatting issue</option>
-					<option value="suggestion">General suggestion</option>
-				</select>
+		<!-- Challenges -->
+		{#if game.challenges_data?.length}
+			<div class="submit-section">
+				<p class="submit-section__title">Challenges{#if fixedLoadout?.challenge} <span class="fixed-badge">🔒 Fixed</span>{/if}</p>
+				<p class="submit-section__sub">Select all challenges completed in this run.</p>
+				<div class="chip-grid">
+					{#each game.challenges_data as ch}
+						{@const isLocked = fixedLoadout?.challenge === ch.slug}
+						<button type="button" class="chip" class:chip--active={selectedChallenges.includes(ch.slug)} class:chip--locked={isLocked} onclick={() => { if (!isLocked) toggleChallenge(ch.slug); }} disabled={isLocked}>{ch.label}{#if isLocked} 🔒{/if}</button>
+					{/each}
+				</div>
+				{#if fixedLoadout?.challenge}
+					<span class="field-hint mt-1">This challenge is required for the selected category.</span>
+				{/if}
 			</div>
+		{/if}
 
-			<div class="suggest-form__field">
-				<label class="form-label" for="suggest-details">Describe the issue *</label>
-				<textarea
-					id="suggest-details"
-					class="form-input"
-					rows="4"
-					maxlength="1000"
-					required
-					bind:value={suggestDetails}
-					placeholder="Be as specific as possible. For example: 'The Hitless category incorrectly states you cannot take environmental damage, but the community consensus is...'"
-				></textarea>
-				<p class="form-help">{suggestDetails.length}/1000</p>
-			</div>
-
-			<!-- Image Upload -->
-			<div class="suggest-form__field">
-				<label class="form-label">Attach screenshots <span class="form-help-inline">(optional, max {MAX_IMAGES}, PNG/JPG, 2MB each)</span></label>
-				{#if imagePreviewUrls.length > 0}
-					<div class="suggest-previews">
-						{#each imagePreviewUrls as url, i}
-							<div class="suggest-preview">
-								<img src={url} alt="Preview {i + 1}" />
-								<button type="button" class="suggest-preview__remove" onclick={() => removeImage(i)} title="Remove">✕</button>
-							</div>
+		<!-- Character -->
+		{#if game.character_column?.enabled && game.characters_data?.length}
+			<div class="submit-section">
+				<p class="submit-section__title">{game.character_column.label}{#if fixedLoadout?.character} <span class="fixed-badge">🔒 Fixed</span>{/if}</p>
+				<div class="field">
+					<select bind:value={character} disabled={!!fixedLoadout?.character}>
+						<option value="">Select {game.character_column.label.toLowerCase()}...</option>
+						{#each game.characters_data as ch}
+							<option value={ch.slug}>{ch.label}</option>
 						{/each}
-					</div>
-				{/if}
-				{#if suggestImages.length < MAX_IMAGES}
-					<label class="suggest-upload-btn">
-						📎 {suggestImages.length > 0 ? 'Add more' : 'Choose images'}
-						<input
-							type="file"
-							accept=".png,.jpg,.jpeg"
-							multiple
-							onchange={handleImageSelect}
-							style="display:none"
-						/>
-					</label>
+					</select>
+					{#if fixedLoadout?.character}
+						<span class="field-hint">Locked by category — this {game.character_column.label.toLowerCase()} is required for this challenge.</span>
+					{/if}
+				</div>
+			</div>
+		{/if}
+
+		<!-- Glitch Category -->
+		{#if game.glitches_data?.length}
+			<div class="submit-section">
+				<p class="submit-section__title">Glitch Category</p>
+				<div class="field">
+					<select bind:value={glitchId}>
+						<option value="">Select glitch policy...</option>
+						{#each game.glitches_data as g}
+							<option value={g.slug}>{g.label}</option>
+						{/each}
+					</select>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Restrictions -->
+		{#if game.restrictions_data?.length}
+			<div class="submit-section">
+				<p class="submit-section__title">Restrictions{#if fixedLoadout?.restriction} <span class="fixed-badge">🔒 Fixed</span>{/if}</p>
+				<p class="submit-section__sub">Select any optional restrictions applied to this run.</p>
+				<div class="chip-grid">
+					{#each game.restrictions_data as r}
+						{@const isLocked = fixedLoadout?.restriction === r.slug}
+						<button type="button" class="chip" class:chip--active={selectedRestrictions.includes(r.slug)} class:chip--locked={isLocked} onclick={() => { if (!isLocked) toggleRestriction(r.slug); }} disabled={isLocked}>{r.label}{#if isLocked} 🔒{/if}</button>
+					{/each}
+				</div>
+				{#if fixedLoadout?.restriction}
+					<span class="field-hint mt-1">This restriction is required for the selected category.</span>
 				{/if}
 			</div>
+		{/if}
 
-			{#if suggestBannedWarning}
-				<div class="suggest-message suggest-message--error">{suggestBannedWarning}</div>
+		<!-- Video Proof -->
+		<div class="submit-section">
+			<p class="submit-section__title">Video Proof <span class="req">*</span></p>
+			<div class="field">
+				<label for="video" class="field-label">Video URL <span class="req">*</span></label>
+				<input id="video" type="url" bind:value={videoUrl} required placeholder="https://youtube.com/watch?v=..." class:field--error={videoUrl && !videoValid} />
+				{#if videoUrl && !videoValid}
+					<span class="field-error">Must be a YouTube, Twitch, or supported video URL</span>
+				{/if}
+			</div>
+			{#if videoFetching}
+				<div class="video-meta"><span class="spinner spinner--small"></span> <span class="muted">Fetching video info...</span></div>
 			{/if}
-
-			{#if suggestError}
-				<div class="suggest-message suggest-message--error">{suggestError}</div>
+			{#if videoTitle}
+				<div class="video-meta video-meta--success">
+					<span class="video-meta__icon">🎬</span>
+					<span class="video-meta__title">{videoTitle}</span>
+				</div>
 			{/if}
+			{#if videoFetchError}
+				<div class="video-meta video-meta--warn"><span class="muted">{videoFetchError}</span></div>
+			{/if}
+		</div>
 
-			<button type="submit" class="btn btn--primary" disabled={suggestSubmitting || !!suggestBannedWarning}>
-				{#if suggestSubmitting}
+		<!-- Platform -->
+		<div class="submit-section">
+			<p class="submit-section__title">Platform</p>
+			<p class="submit-section__sub">What platform did you play on? Optional but helpful for verification.</p>
+			<div class="field" style="max-width: 300px;">
+				<select bind:value={platform}>
+					<option value="">Select platform...</option>
+					{#each platforms as p}
+						<option value={p.id}>{p.label}</option>
+					{/each}
+				</select>
+			</div>
+		</div>
+
+		<!-- Run Timing -->
+		<div class="submit-section">
+			<p class="submit-section__title">Run Timing</p>
+			<p class="submit-section__sub">
+				{#if showRtaSeparately}
+					Enter your RTA (real-time) and {gameTimingLabel} times. Both are optional but help with verification.
+				{:else}
+					Enter your run time. Format: HH:MM:SS or MM:SS. Optional but recommended.
+				{/if}
+			</p>
+			<div class="field-row">
+				{#if showRtaSeparately}
+					<div class="field">
+						<label for="time-primary" class="field-label">{gameTimingLabel} Time</label>
+						<input id="time-primary" type="text" bind:value={runTimePrimary} placeholder="HH:MM:SS or MM:SS" />
+						<span class="field-hint">{game.game_name}'s tracked timing</span>
+					</div>
+				{:else}
+					<div class="field"></div>
+				{/if}
+				<div class="field">
+					<label for="time-rta" class="field-label">RTA Time</label>
+					<input id="time-rta" type="text" bind:value={runTimeRta} placeholder="HH:MM:SS or MM:SS" />
+					<span class="field-hint">Real-time (wall clock)</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Date Completed -->
+		<div class="submit-section">
+			<p class="submit-section__title">Date Completed</p>
+			<p class="submit-section__sub">When was this run completed? Optional — will use submission date if left blank.</p>
+			<div class="field" style="max-width: 240px;">
+				<input id="date" type="date" bind:value={dateCompleted} max={new Date().toISOString().split('T')[0]} />
+			</div>
+		</div>
+
+		<!-- Runner Notes -->
+		<div class="submit-section">
+			<p class="submit-section__title">Runner Notes</p>
+			<p class="submit-section__sub">Optional notes about your run (strategy, memorable moments, attempts count, etc.). Max 500 characters.</p>
+			<div class="field">
+				<textarea
+					bind:value={submitterNotes}
+					placeholder="e.g. 'First clear after 47 attempts! Almost died to the final boss.'"
+					maxlength="500"
+					rows="3"
+					class:field--error={!!notesWarning}
+				></textarea>
+				<div class="field-row-between">
+					{#if notesWarning}
+						<span class="field-error">{notesWarning}</span>
+					{:else}
+						<span></span>
+					{/if}
+					<span class="field-hint">{submitterNotes.length}/500</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Error Message -->
+		{#if errorMsg}
+			<div class="submit-error">{errorMsg}</div>
+		{/if}
+
+		<!-- Turnstile CAPTCHA -->
+		<div class="submit-section turnstile-section">
+			<div id="turnstile-container-run"></div>
+			{#if !turnstileReady}
+				<p class="muted" style="font-size: 0.8rem;">Loading verification...</p>
+			{/if}
+		</div>
+
+		<!-- Submit -->
+		<div class="submit-actions">
+			<button type="submit" class="btn" class:btn--accent={canSubmit} class:btn--muted={!canSubmit} disabled={!canSubmit}>
+				{#if submitting}
 					<span class="spinner spinner--small"></span> Submitting...
 				{:else}
-					Submit Suggestion
+					Submit Run
 				{/if}
 			</button>
-		</form>
-	{/if}
-</div>
+		</div>
+	</form>
+{/if}
 
 <style>
-	/* Layout */
-	section { margin-bottom: 1.5rem; }
-	h2 { margin-bottom: 0.75rem; }
-	.mb-2 { margin-bottom: 0.75rem; }
-	.mb-3 { margin-bottom: 1rem; }
+	h2 { margin: 0 0 0.25rem; text-align: center; }
+	.mb-3 { margin-bottom: 1rem; text-align: center; }
+	.mt-1 { margin-top: 0.5rem; }
 	.mt-2 { margin-top: 0.75rem; }
 	.mt-section { margin-top: 1.5rem; }
+	.required-hint { font-size: 0.8rem; }
+	.req { color: #ef4444; font-weight: 600; }
 
-	/* Game Link Banners */
-	.game-link-banner {
-		display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem;
-		border-radius: 8px; margin-bottom: 1.5rem; flex-wrap: wrap;
-		background: var(--panel); border: 1px solid var(--border);
-	}
-	.game-link-banner__icon { font-size: 1.25rem; }
-	.game-link-banner__links { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+	.empty-state, .success-state { text-align: center; padding: 2rem 1rem; margin: 0 auto; }
+	.empty-state__icon, .success-state__icon { display: block; font-size: 3rem; margin-bottom: 0.75rem; opacity: 0.5; }
+	.empty-state h3, .success-state h3 { margin: 0 0 0.5rem; }
+	.empty-state p, .success-state p { margin: 0; max-width: 400px; margin-inline: auto; }
+	.success-actions { display: flex; gap: 0.75rem; justify-content: center; margin-top: 1rem; }
 
-	/* Quick Stats */
-	.quick-stats {
-		display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
-		margin-bottom: 1.5rem; padding: 0.75rem 0;
-	}
-	.stat-pill {
-		display: flex; align-items: baseline; gap: 0.35rem;
-		padding: 0.4rem 0.75rem; background: var(--surface); border: 1px solid var(--border);
-		border-radius: 20px; font-size: 0.85rem;
-	}
-	.stat-pill__value { font-weight: 700; color: var(--accent); }
-	.stat-pill__label { color: var(--text-muted); }
-	.btn--accent {
-		margin-left: auto;
-	}
+	.submit-form { display: flex; flex-direction: column; gap: 1.5rem; padding-bottom: 2rem; }
+	.submit-section { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+	.submit-section__title { margin: 0 0 0.25rem; font-weight: 600; font-size: 0.95rem; }
+	.submit-section__sub { margin: 0 0 0.75rem; font-size: 0.8rem; color: var(--text-muted); }
 
-	/* Rules Accordion */
-	.rules-accordion { border: none; }
-	.rules-accordion__header {
-		display: flex; justify-content: space-between; align-items: center;
-		cursor: pointer; list-style: none; padding: 0.25rem 0;
-	}
-	.rules-accordion__header::-webkit-details-marker { display: none; }
-	.rules-accordion__title { margin: 0; font-size: 1.15rem; }
-	.accordion-icon { transition: transform 0.2s; font-size: 0.75rem; color: var(--text-muted); }
-	details[open] > .rules-accordion__header .accordion-icon,
-	details[open] > .achievement-header .accordion-icon { transform: rotate(180deg); }
-	.rules-accordion__content { padding-top: 0.75rem; }
-	.rules-accordion__content ul { padding-left: 1.5rem; margin: 0; }
-	.rules-accordion__content li { margin-bottom: 0.5rem; line-height: 1.5; }
-	.rules-accordion__content a { color: var(--accent); text-decoration: none; }
-	.rules-accordion__content a:hover { text-decoration: underline; }
+	.field { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.5rem; }
+	.field-label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+	.field-hint { font-size: 0.75rem; color: var(--text-muted); }
+	.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+	.field-row-between { display: flex; justify-content: space-between; align-items: center; }
 
-	/* Achievements */
-	.achievements-list { display: flex; flex-direction: column; gap: 0.5rem; }
-	.achievement-item { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-	.achievement-header {
-		display: flex; justify-content: space-between; align-items: center;
-		padding: 0.75rem 1rem; cursor: pointer; list-style: none; gap: 1rem;
+	input, select, textarea {
+		width: 100%; padding: 0.5rem 0.75rem; background: var(--bg); border: 1px solid var(--border);
+		border-radius: 6px; color: var(--fg); font-size: 0.9rem; font-family: inherit; resize: vertical;
 	}
-	.achievement-header::-webkit-details-marker { display: none; }
-	.achievement-header__left { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
-	.achievement-header__right { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
-	.achievement-icon { font-size: 1.5rem; }
-	.achievement-info h3 { margin: 0; font-size: 0.95rem; }
-	.achievement-info p { margin: 0.15rem 0 0; font-size: 0.8rem; }
-	.achievement-stat { display: flex; flex-direction: column; align-items: flex-end; font-size: 0.8rem; }
-	.achievement-stat__completed { color: var(--accent); font-weight: 600; }
-	.achievement-stat__progress { color: var(--text-muted); }
-	.achievement-content { padding: 0 1rem 1rem; border-top: 1px solid var(--border); }
-	.achievement-requirements { margin-top: 0.75rem; }
-	.achievement-requirements h4 { margin: 0 0 0.5rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
-	.achievement-requirements ul { padding-left: 1.5rem; margin: 0; font-size: 0.9rem; }
-	.achievement-requirements li { margin-bottom: 0.35rem; }
-	.achievement-runners { margin-top: 1rem; }
-	.achievement-runners h4 { margin: 0 0 0.5rem; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
+	input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 59, 195, 110), 0.15); }
+	input:hover:not(:disabled):not(:focus), select:hover:not(:disabled):not(:focus), textarea:hover:not(:disabled):not(:focus) { border-color: color-mix(in srgb, var(--border) 50%, var(--accent)); }
+	input::placeholder, textarea::placeholder { color: var(--border); }
+	select:disabled { opacity: 0.5; }
+	.field--error { border-color: #ef4444 !important; }
+	.field-error { color: #ef4444; font-size: 0.75rem; }
 
-	/* Runner rows in achievements */
-	.runner-row {
-		display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0;
-		border-bottom: 1px solid var(--border); flex-wrap: wrap;
-	}
-	.runner-row:last-child { border-bottom: none; }
-	.runner-row__info { display: flex; align-items: center; gap: 0.5rem; text-decoration: none; color: var(--fg); min-width: 120px; }
-	.runner-row__info:hover { color: var(--accent); }
-	.runner-row__avatar {
-		width: 28px; height: 28px; border-radius: 50%; background-size: cover; background-position: center;
-		flex-shrink: 0;
-	}
-	.runner-row__avatar--default {
-		display: flex; align-items: center; justify-content: center;
-		background: var(--surface); border: 1px solid var(--border); font-size: 0.75rem;
-	}
-	.runner-row__progress { flex: 1; min-width: 100px; display: flex; align-items: center; gap: 0.5rem; }
-	.progress-bar {
-		flex: 1; height: 6px; background: var(--surface); border-radius: 3px; overflow: hidden;
-		border: 1px solid var(--border);
-	}
-	.progress-bar__fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s; }
-	.progress-bar--full .progress-bar__fill { background: #10b981; }
-	.progress-bar__text { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; }
-	.runner-row__status { display: flex; flex-direction: column; align-items: flex-end; }
-	.runner-row__date { font-size: 0.75rem; color: var(--text-muted); }
-	.status-badge {
-		padding: 0.1rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;
-	}
-	.status-badge--completed { background: rgba(16, 185, 129, 0.15); color: #10b981; }
-	.status-badge--progress { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
+	/* Video meta */
+	.video-meta { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.85rem; }
+	.video-meta--success { padding: 0.5rem 0.75rem; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; }
+	.video-meta--warn { padding: 0.4rem 0.75rem; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.15); border-radius: 6px; }
+	.video-meta__icon { font-size: 1rem; }
+	.video-meta__title { color: var(--fg); font-weight: 500; }
 
-	/* Difficulty badges */
-	.difficulty {
-		padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-transform: capitalize;
+	/* Chip Grid */
+	.chip-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+	.chip {
+		padding: 0.4rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-family: inherit;
+		background: var(--surface); border: 1px solid var(--border); color: var(--fg);
+		cursor: pointer; transition: all 0.15s;
 	}
-	.difficulty--easy { background: rgba(16, 185, 129, 0.15); color: #10b981; }
-	.difficulty--medium { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
-	.difficulty--hard { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
-	.difficulty--legendary { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+	.chip:hover { border-color: var(--accent); }
+	.chip--active { background: var(--accent); color: #fff; border-color: var(--accent); }
+	.chip--locked { opacity: 0.85; cursor: not-allowed; }
+	.chip--locked.chip--active { background: var(--accent); border-color: var(--accent); }
 
-	/* Credits */
-	.credits-list { padding-left: 1.5rem; margin: 0; }
-	.credits-list li { margin-bottom: 0.5rem; line-height: 1.5; }
-	.credits-list a { color: var(--accent); text-decoration: none; }
-	.credits-list a:hover { text-decoration: underline; }
+	/* Fixed loadout badge */
+	.fixed-badge { display: inline-flex; align-items: center; gap: 0.2rem; font-size: 0.72rem; font-weight: 600; color: var(--accent); background: rgba(99, 102, 241, 0.08); padding: 0.1rem 0.4rem; border-radius: 4px; vertical-align: middle; }
 
-	/* Suggest Update Form */
-	.suggest-form { display: flex; flex-direction: column; gap: 0.75rem; }
-	.suggest-form__field { display: flex; flex-direction: column; gap: 0.25rem; }
-	.form-label { font-size: 0.85rem; font-weight: 600; }
-	.form-input {
-		font-size: 0.9rem; padding: 0.5rem 0.75rem; background: var(--bg);
-		border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-family: inherit;
-	}
-	.form-input:focus { outline: none; border-color: var(--accent); }
-	textarea.form-input { resize: vertical; min-height: 80px; }
-	.form-help { font-size: 0.75rem; color: var(--text-muted); margin: 0.15rem 0 0; }
-	.suggest-message { padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.85rem; }
-	.suggest-message--error { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); }
-	.suggest-success {
-		display: flex; align-items: flex-start; gap: 0.75rem; padding: 1rem;
-		background: rgba(46, 204, 113, 0.1); border: 1px solid rgba(46, 204, 113, 0.25); border-radius: 6px;
-	}
-	.suggest-success span:first-child { font-size: 1.5rem; }
-	.suggest-success p { margin: 0.25rem 0 0; font-size: 0.85rem; }
-	.suggest-previews { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-	.suggest-preview { position: relative; width: 80px; height: 80px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
-	.suggest-preview img { width: 100%; height: 100%; object-fit: cover; }
-	.suggest-preview__remove { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; border: none; background: rgba(0,0,0,0.7); color: #fff; font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
-	.suggest-preview__remove:hover { background: #ef4444; }
-	.suggest-upload-btn { display: inline-block; padding: 0.4rem 0.75rem; border: 1px dashed var(--border); border-radius: 6px; font-size: 0.85rem; color: var(--text-muted); cursor: pointer; transition: border-color 0.15s, color 0.15s; }
-	.suggest-upload-btn:hover { border-color: var(--accent); color: var(--fg); }
-	.form-help-inline { font-size: 0.8rem; color: var(--text-muted); font-weight: normal; }
-	.spinner--small { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; display: inline-block; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 0.25rem; }
+	.submit-actions { display: flex; gap: 0.75rem; align-items: center; justify-content: flex-end; }
+	.turnstile-section { background: none; border: none; padding: 0; display: flex; align-items: center; gap: 0.75rem; }
+
+	.submit-error { padding: 0.6rem 0.75rem; border-radius: 6px; font-size: 0.85rem; background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+
+	.spinner--small { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; display: inline-block; animation: spin 0.6s linear infinite; }
 	@keyframes spin { to { transform: rotate(360deg); } }
 
-	/* Responsive */
 	@media (max-width: 640px) {
-		.achievement-header { flex-direction: column; align-items: flex-start; }
-		.achievement-header__right { width: 100%; justify-content: flex-start; }
-		.runner-row { font-size: 0.85rem; }
-		.quick-stats { justify-content: flex-start; }
-		.btn--accent { margin-left: 0; }
+		.field-row { grid-template-columns: 1fr; }
+		.submit-actions { flex-direction: column; }
+		.btn--accent, .btn { width: 100%; justify-content: center; text-align: center; }
 	}
 </style>

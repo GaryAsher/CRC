@@ -980,12 +980,12 @@
 									</div>
 								</div>
 								<div class="banner-opt-row">
-									<span class="banner-opt-label">Opacity <strong>{Math.round(bannerOpacity * 100)}%</strong></span>
+									<span class="banner-opt-label">Banner Opacity <strong>{Math.round(bannerOpacity * 100)}%</strong></span>
 									<input type="range" min="0.1" max="1" step="0.05" bind:value={bannerOpacity} class="banner-opacity-slider" />
 								</div>
 								{#if bannerMode === 'background'}
 									<div class="banner-opt-row">
-										<span class="banner-opt-label">Container <strong>{Math.round(containerOpacity * 100)}%</strong></span>
+										<span class="banner-opt-label">Container Opacity <strong>{Math.round(containerOpacity * 100)}%</strong></span>
 										<input type="range" min="0" max="1" step="0.05" bind:value={containerOpacity} class="banner-opacity-slider" />
 									</div>
 								{/if}
@@ -1384,7 +1384,7 @@
 	.pv-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; padding: 0.5rem 0; position: relative; z-index: 1; }
 	.pv-top--bg-mode { position: relative; border-radius: 12px; overflow: hidden; padding: 1.25rem; border: 1px solid var(--border); }
 	.pv-top__bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: center; }
-	.pv-top--bg-mode .pv-left { position: relative; z-index: 1; }
+	.pv-top--bg-mode .pv-left { position: relative; z-index: 1; background: rgba(0, 0, 0, var(--container-opacity, 0.4)); backdrop-filter: blur(8px); border-color: rgba(255, 255, 255, 0.1); }
 	.pv-top--bg-mode .pv-socials { position: relative; z-index: 1; }
 	.pv-top--bg-mode .pv-link { background: rgba(0, 0, 0, var(--container-opacity, 0.4)); backdrop-filter: blur(8px); border-color: rgba(255, 255, 255, 0.1); }
 	.pv-left { display: flex; align-items: center; gap: 1.25rem; flex: 1; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); padding: 0.9rem; }

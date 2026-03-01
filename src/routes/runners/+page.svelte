@@ -1,6 +1,7 @@
 <script lang="ts">
 	import AzNav from '$lib/components/AzNav.svelte';
 	import { norm, matchesLetterFilter, getFirstLetter } from '$lib/utils/filters';
+	import { getCountry } from '$lib/data/countries';
 
 	let { data } = $props();
 	let search = $state('');
@@ -68,6 +69,8 @@
 
 	<div class="runners-grid">
 		{#each visible as runner (runner.runner_id)}
+			{@const locCountry = runner.location ? getCountry(runner.location) : null}
+			{@const repCountry = runner.socials?.representing ? getCountry(runner.socials.representing) : null}
 			<a href="/runners/{runner.runner_id}" class="runner-card card card-lift">
 				<img
 					class="runner-card__avatar"
@@ -77,7 +80,21 @@
 				<div class="runner-card__info">
 					<strong class="runner-card__name">{runner.display_name || runner.runner_name}</strong>
 					{#if runner.pronouns}
-						<span class="runner-card__pronouns muted">{runner.pronouns}</span>
+						<span class="runner-card__pronouns muted">({runner.pronouns.length > 20 ? runner.pronouns.slice(0, 20) + '…' : runner.pronouns})</span>
+					{/if}
+					{#if locCountry || repCountry}
+						<span class="runner-card__location muted">
+							{#if locCountry}
+								<img class="runner-card__flag" src="https://flagcdn.com/w40/{locCountry.code.toLowerCase()}.png" alt="{locCountry.name} flag" width="16" height="12" />
+								{locCountry.name}
+							{/if}
+							{#if repCountry && repCountry.code !== locCountry?.code}
+								<span class="runner-card__ally">· Ally of
+									<img class="runner-card__flag" src="https://flagcdn.com/w40/{repCountry.code.toLowerCase()}.png" alt="{repCountry.name} flag" width="16" height="12" />
+									{repCountry.name}
+								</span>
+							{/if}
+						</span>
 					{/if}
 					<span class="runner-card__meta muted">{runner.runCount} runs</span>
 				</div>
@@ -95,7 +112,7 @@
 <style>
 	.runners-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 		gap: 0.75rem;
 		margin-top: 1rem;
 	}
@@ -112,15 +129,41 @@
 		height: 48px;
 		border-radius: 50%;
 		object-fit: cover;
+		flex-shrink: 0;
 	}
 	.runner-card__info {
 		display: flex;
 		flex-direction: column;
+		min-width: 0;
 	}
 	.runner-card__name {
 		font-size: 1rem;
 	}
-	.runner-card__pronouns,
+	.runner-card__pronouns {
+		font-size: 0.8rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.runner-card__location {
+		font-size: 0.8rem;
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		flex-wrap: wrap;
+	}
+	.runner-card__ally {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		opacity: 0.75;
+	}
+	.runner-card__flag {
+		display: inline-block;
+		vertical-align: middle;
+		border-radius: 2px;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+	}
 	.runner-card__meta {
 		font-size: 0.8rem;
 	}

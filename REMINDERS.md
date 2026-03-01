@@ -26,6 +26,44 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ---
 
 ## Short-Term Priorities
+
+### 1. Small fixes
+- Admin Dashboard:
+  - [ ] Swap positioning of: 
+    - Profiles with Games 
+    - Runs with Game Updates
+    - (left-column = game-related ; right-column = user related)
+    - Update headers to reflect this
+    - rename to something else since Admin is a role
+- Games Page:
+  - Overview tab:
+    - [ ] remove Suggest Updates from Overview tab
+    - [ ] Platforms are using slugs instead of Display Name
+    - [ ] Genres are using slugs instead of Display Name
+  - Runs tab:
+    - [ ] Better organize categories
+    - [ ] Allow descriptions for mini-challenges
+  - Rules tab:
+    - [ ] Better styling for "Exceptions"
+    - [ ] Add option to export the results
+    - [ ] Accordion drop-down for all rules below
+  - Submit Run:
+    - [ ] Containers max width is much smaller than max width of other sections. consider increasing it for consistency
+- Runners Page:
+  - [ ] Update variables that show for runners on https://www.challengerun.net/runners page.
+- Submit PAge (https://www.challengerun.net/submit)
+  - [ ] Extremely Small initial box. Increase max width just for consistency with other pages.
+  - [ ] Text in drop-down overlaps with "Or go to a game's page and click "Submit Run" from there."text.
+- Profile Edit Page:
+  - Customize:
+    - [ ] Opacity should say either Banner Opactiy or have Opacity as a sort-of header above the two.
+    - [ ] Container needs to say either Container Opacity or have Opacity as a sort-of header above the two.
+    - [ ] Container opacity needs to also change the opacity of class pv-left.
+      - This is the box immediately outside of the user info.
+- Profile/Settings
+  - [ ] User needs to have the option to show linked accounts
+  - [ ] Add option to remove one of the linked accounts
+
 ### 2. Content & Polish
 - [ ] Fill glossary definitions (hit, damage, death, hitless vs damageless, etc.)
 - [ ] Fill support page (FAQ, staff section, privacy request form)

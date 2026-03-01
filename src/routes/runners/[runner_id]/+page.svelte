@@ -574,7 +574,7 @@
 	/* Card background mode — banner behind info box */
 	.runner-top--bg-mode { position: relative; border-radius: 12px; overflow: hidden; padding: 1.25rem; border: 1px solid var(--border); }
 	.runner-top__bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: center; }
-	.runner-top--bg-mode .runner-left { position: relative; z-index: 1; }
+	.runner-top--bg-mode .runner-left { position: relative; z-index: 1; background: rgba(0, 0, 0, var(--container-opacity, 0.4)); backdrop-filter: blur(8px); border-color: rgba(255, 255, 255, 0.1); }
 	.runner-top--bg-mode .runner-socials { position: relative; z-index: 1; }
 	.runner-top--bg-mode .runner-link { background: rgba(0, 0, 0, var(--container-opacity, 0.4)); backdrop-filter: blur(8px); border-color: rgba(255, 255, 255, 0.1); }
 	.runner-top--bg-mode .runner-team-badge { background: rgba(0, 0, 0, var(--container-opacity, 0.4)); backdrop-filter: blur(8px); border-color: rgba(255, 255, 255, 0.1); }
