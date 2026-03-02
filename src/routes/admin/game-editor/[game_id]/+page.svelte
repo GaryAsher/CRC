@@ -260,7 +260,7 @@
 				action: nowFrozen ? 'game_frozen' : 'game_unfrozen',
 				record_id: gameId,
 				user_id: userId,
-				old_data: { frozen_at: game.frozen_at },
+				old_data: { frozen_at: game!.frozen_at },
 				new_data: updates
 			});
 		} catch { /* best-effort */ }
@@ -805,13 +805,13 @@
 										{#if item.fixed_loadout?.enabled}
 											<div class="fixed-loadout-fields">
 												{#if characterColumn.enabled && charactersData.length}
-													<div class="field-row--compact"><label>{characterColumn.label || 'Character'}</label><select value={item.fixed_loadout.character || ''} onchange={(e) => { item.fixed_loadout.character = e.currentTarget.value || undefined; fullRuns = [...fullRuns]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each charactersData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
+													<div class="field-row--compact"><label>{characterColumn.label || 'Character'}</label><select value={item.fixed_loadout!.character || ''} onchange={(e) => { item.fixed_loadout!.character = e.currentTarget.value || undefined; fullRuns = [...fullRuns]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each charactersData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
 												{/if}
 												{#if challengesData.length}
-													<div class="field-row--compact"><label>Challenge</label><select value={item.fixed_loadout.challenge || ''} onchange={(e) => { item.fixed_loadout.challenge = e.currentTarget.value || undefined; fullRuns = [...fullRuns]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each challengesData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
+													<div class="field-row--compact"><label>Challenge</label><select value={item.fixed_loadout!.challenge || ''} onchange={(e) => { item.fixed_loadout!.challenge = e.currentTarget.value || undefined; fullRuns = [...fullRuns]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each challengesData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
 												{/if}
 												{#if restrictionsData.length}
-													<div class="field-row--compact"><label>Restriction</label><select value={item.fixed_loadout.restriction || ''} onchange={(e) => { item.fixed_loadout.restriction = e.currentTarget.value || undefined; fullRuns = [...fullRuns]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each restrictionsData as r}<option value={r.slug}>{r.label}</option>{/each}</select></div>
+													<div class="field-row--compact"><label>Restriction</label><select value={item.fixed_loadout!.restriction || ''} onchange={(e) => { item.fixed_loadout!.restriction = e.currentTarget.value || undefined; fullRuns = [...fullRuns]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each restrictionsData as r}<option value={r.slug}>{r.label}</option>{/each}</select></div>
 												{/if}
 												{#if !characterColumn.enabled && !challengesData.length && !restrictionsData.length}
 													<p class="field-hint">Define characters, challenges, or restrictions in their respective tabs first.</p>
@@ -878,13 +878,13 @@
 													{#if child.fixed_loadout?.enabled}
 														<div class="fixed-loadout-fields">
 															{#if characterColumn.enabled && charactersData.length}
-																<div class="field-row--compact"><label>{characterColumn.label || 'Character'}</label><select value={child.fixed_loadout.character || ''} onchange={(e) => { child.fixed_loadout.character = e.currentTarget.value || undefined; miniChallenges = [...miniChallenges]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each charactersData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
+																<div class="field-row--compact"><label>{characterColumn.label || 'Character'}</label><select value={child.fixed_loadout!.character || ''} onchange={(e) => { child.fixed_loadout!.character = e.currentTarget.value || undefined; miniChallenges = [...miniChallenges]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each charactersData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
 															{/if}
 															{#if challengesData.length}
-																<div class="field-row--compact"><label>Challenge</label><select value={child.fixed_loadout.challenge || ''} onchange={(e) => { child.fixed_loadout.challenge = e.currentTarget.value || undefined; miniChallenges = [...miniChallenges]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each challengesData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
+																<div class="field-row--compact"><label>Challenge</label><select value={child.fixed_loadout!.challenge || ''} onchange={(e) => { child.fixed_loadout!.challenge = e.currentTarget.value || undefined; miniChallenges = [...miniChallenges]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each challengesData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
 															{/if}
 															{#if restrictionsData.length}
-																<div class="field-row--compact"><label>Restriction</label><select value={child.fixed_loadout.restriction || ''} onchange={(e) => { child.fixed_loadout.restriction = e.currentTarget.value || undefined; miniChallenges = [...miniChallenges]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each restrictionsData as r}<option value={r.slug}>{r.label}</option>{/each}</select></div>
+																<div class="field-row--compact"><label>Restriction</label><select value={child.fixed_loadout!.restriction || ''} onchange={(e) => { child.fixed_loadout!.restriction = e.currentTarget.value || undefined; miniChallenges = [...miniChallenges]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each restrictionsData as r}<option value={r.slug}>{r.label}</option>{/each}</select></div>
 															{/if}
 															{#if !characterColumn.enabled && !challengesData.length && !restrictionsData.length}
 																<p class="field-hint">Define characters, challenges, or restrictions in their respective tabs first.</p>
@@ -938,13 +938,13 @@
 										{#if item.fixed_loadout?.enabled}
 											<div class="fixed-loadout-fields">
 												{#if characterColumn.enabled && charactersData.length}
-													<div class="field-row--compact"><label>{characterColumn.label || 'Character'}</label><select value={item.fixed_loadout.character || ''} onchange={(e) => { item.fixed_loadout.character = e.currentTarget.value || undefined; playerMade = [...playerMade]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each charactersData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
+													<div class="field-row--compact"><label>{characterColumn.label || 'Character'}</label><select value={item.fixed_loadout!.character || ''} onchange={(e) => { item.fixed_loadout!.character = e.currentTarget.value || undefined; playerMade = [...playerMade]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each charactersData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
 												{/if}
 												{#if challengesData.length}
-													<div class="field-row--compact"><label>Challenge</label><select value={item.fixed_loadout.challenge || ''} onchange={(e) => { item.fixed_loadout.challenge = e.currentTarget.value || undefined; playerMade = [...playerMade]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each challengesData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
+													<div class="field-row--compact"><label>Challenge</label><select value={item.fixed_loadout!.challenge || ''} onchange={(e) => { item.fixed_loadout!.challenge = e.currentTarget.value || undefined; playerMade = [...playerMade]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each challengesData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
 												{/if}
 												{#if restrictionsData.length}
-													<div class="field-row--compact"><label>Restriction</label><select value={item.fixed_loadout.restriction || ''} onchange={(e) => { item.fixed_loadout.restriction = e.currentTarget.value || undefined; playerMade = [...playerMade]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each restrictionsData as r}<option value={r.slug}>{r.label}</option>{/each}</select></div>
+													<div class="field-row--compact"><label>Restriction</label><select value={item.fixed_loadout!.restriction || ''} onchange={(e) => { item.fixed_loadout!.restriction = e.currentTarget.value || undefined; playerMade = [...playerMade]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each restrictionsData as r}<option value={r.slug}>{r.label}</option>{/each}</select></div>
 												{/if}
 												{#if !characterColumn.enabled && !challengesData.length && !restrictionsData.length}
 													<p class="field-hint">Define characters, challenges, or restrictions in their respective tabs first.</p>
@@ -978,7 +978,7 @@
 				{#if canEdit}
 					<div class="section-actions">
 						<button class="btn btn--save" onclick={saveRules} disabled={saving}>{saving ? 'Saving...' : '💾 Save Rules'}</button>
-						<button class="btn btn--reset" onclick={() => { generalRules = game.general_rules || ''; }}>↩ Reset</button>
+						<button class="btn btn--reset" onclick={() => { generalRules = game!.general_rules || ''; }}>↩ Reset</button>
 					</div>
 				{/if}
 			</section>
@@ -1124,7 +1124,7 @@
 				<p class="subsection-desc">Optional restrictions. A restriction can have children (e.g. "One God Only" → "Hestia Only"). Both parent and children are selectable by runners. Descriptions support Markdown.</p>
 				<div class="item-list">
 					{#each restrictionsData as item, i}
-						<div class="item-card" class:item-card--group={item.children?.length > 0} class:item-card--open={isEditing('rs', i)}>
+						<div class="item-card" class:item-card--group={(item.children?.length ?? 0) > 0} class:item-card--open={isEditing('rs', i)}>
 							<div class="item-card__header">
 								<button class="item-card__toggle" onclick={() => toggleEdit('rs', i)}>
 									<span class="item-card__slug">{item.slug || '(new)'}</span>
@@ -1162,7 +1162,7 @@
 														<input type="text" class="child-row__input slug-auto" value={child.slug} disabled />
 													{/if}
 													<input type="text" class="child-row__input child-row__input--wide" bind:value={child.label} oninput={() => { if (!isLockedSlug(child.slug)) child.slug = slugify(child.label); }} disabled={!canEdit} />
-													{#if canEdit}<button class="item-btn item-btn--danger" onclick={() => { item.children = item.children.filter((_: any, j: number) => j !== ci); restrictionsData = [...restrictionsData]; }}>✕</button>{/if}
+													{#if canEdit}<button class="item-btn item-btn--danger" onclick={() => { item.children = item.children!.filter((_: any, j: number) => j !== ci); restrictionsData = [...restrictionsData]; }}>✕</button>{/if}
 												</div>
 												<div class="child-card__desc">
 													<textarea rows="2" bind:value={child.description} placeholder="Description (Markdown supported)..." disabled={!canEdit}></textarea>
@@ -1249,7 +1249,7 @@
 				{#if canEdit}
 					<div class="section-actions">
 						<button class="btn btn--save" onclick={saveAdditionalTabs} disabled={saving}>{saving ? 'Saving...' : '💾 Save'}</button>
-						<button class="btn btn--reset" onclick={() => { additionalTabs = deepClone(game.additional_tabs || { tab1: { enabled: false, title: 'Additional 1', content: '' }, tab2: { enabled: false, title: 'Additional 2', content: '' } }); }}>↩ Reset</button>
+						<button class="btn btn--reset" onclick={() => { additionalTabs = deepClone(game!.additional_tabs || { tab1: { enabled: false, title: 'Additional 1', content: '' }, tab2: { enabled: false, title: 'Additional 2', content: '' } }); }}>↩ Reset</button>
 					</div>
 				{/if}
 			</section>
@@ -1266,7 +1266,7 @@
 				{#if canEdit}
 					<div class="section-actions">
 						<button class="btn btn--save" onclick={saveAdditionalTabs} disabled={saving}>{saving ? 'Saving...' : '💾 Save'}</button>
-						<button class="btn btn--reset" onclick={() => { additionalTabs = deepClone(game.additional_tabs || { tab1: { enabled: false, title: 'Additional 1', content: '' }, tab2: { enabled: false, title: 'Additional 2', content: '' } }); }}>↩ Reset</button>
+						<button class="btn btn--reset" onclick={() => { additionalTabs = deepClone(game!.additional_tabs || { tab1: { enabled: false, title: 'Additional 1', content: '' }, tab2: { enabled: false, title: 'Additional 2', content: '' } }); }}>↩ Reset</button>
 					</div>
 				{/if}
 			</section>
@@ -1310,7 +1310,7 @@
 				{#if canEdit}
 					<div class="section-actions">
 						<button class="btn btn--save" onclick={saveAdditionalTabs} disabled={saving}>{saving ? 'Saving...' : '💾 Save Tab Settings'}</button>
-						<button class="btn btn--reset" onclick={() => { additionalTabs = deepClone(game.additional_tabs || { tab1: { enabled: false, title: 'Additional 1', content: '' }, tab2: { enabled: false, title: 'Additional 2', content: '' } }); }}>↩ Reset</button>
+						<button class="btn btn--reset" onclick={() => { additionalTabs = deepClone(game!.additional_tabs || { tab1: { enabled: false, title: 'Additional 1', content: '' }, tab2: { enabled: false, title: 'Additional 2', content: '' } }); }}>↩ Reset</button>
 					</div>
 				{/if}
 			</section>

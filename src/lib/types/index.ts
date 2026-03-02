@@ -25,6 +25,7 @@ export interface ChallengeType {
 	slug: string;
 	label: string;
 	description: string;
+	game_specific?: boolean;
 }
 
 export interface Restriction {
@@ -38,6 +39,7 @@ export interface GlitchCategory {
 	slug: string;
 	label: string;
 	description: string;
+	game_specific?: boolean;
 }
 
 export interface FixedLoadout {
@@ -88,6 +90,7 @@ export interface CharacterColumn {
 export interface CharacterOption {
 	slug: string;
 	label: string;
+	children?: CharacterOption[];
 }
 
 export interface CommunityAchievementDef {
