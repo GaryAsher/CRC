@@ -553,13 +553,13 @@
 	.required-hint { font-size: 0.8rem; }
 	.req { color: #ef4444; font-weight: 600; }
 
-	.empty-state, .success-state { text-align: center; padding: 2rem 1rem; max-width: 720px; margin: 0 auto; }
+	.empty-state, .success-state { text-align: center; padding: 2rem 1rem; margin: 0 auto; }
 	.empty-state__icon, .success-state__icon { display: block; font-size: 3rem; margin-bottom: 0.75rem; opacity: 0.5; }
 	.empty-state h3, .success-state h3 { margin: 0 0 0.5rem; }
 	.empty-state p, .success-state p { margin: 0; max-width: 400px; margin-inline: auto; }
 	.success-actions { display: flex; gap: 0.75rem; justify-content: center; margin-top: 1rem; }
 
-	.submit-form { display: flex; flex-direction: column; gap: 1.5rem; max-width: 720px; margin: 0 auto; padding-bottom: 2rem; }
+	.submit-form { display: flex; flex-direction: column; gap: 1.5rem; padding-bottom: 2rem; }
 	.submit-section { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
 	.submit-section__title { margin: 0 0 0.25rem; font-weight: 600; font-size: 0.95rem; }
 	.submit-section__sub { margin: 0 0 0.75rem; font-size: 0.8rem; color: var(--text-muted); }

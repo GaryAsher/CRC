@@ -109,7 +109,7 @@
 	}
 
 	let { data } = $props();
-	const gamesList = data.games; // [{ id, name }]
+	let gamesList = $derived(data.games); // [{ id, name }]
 
 	// ── State ───────────────────────────────────────────────────
 	let activeTab = $state<Tab>('basic');

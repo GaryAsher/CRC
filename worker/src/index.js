@@ -598,9 +598,9 @@ async function handleApproveRun(body, env, request) {
     return jsonResponse({ error: 'Invalid run_id format' }, 400, env, request);
   }
 
-  // Fetch the pending run
+  // Fetch the pending run by public_id (UUID) — never expose sequential IDs
   const runResult = await supabaseQuery(env,
-    `pending_runs?id=eq.${encodeURIComponent(runId)}&select=*`, { method: 'GET' });
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=*`, { method: 'GET' });
   if (!runResult.ok || !runResult.data?.length) {
     return jsonResponse({ error: 'Run not found' }, 404, env, request);
   }
@@ -656,7 +656,7 @@ async function handleApproveRun(body, env, request) {
 
   // Update pending_runs status
   await supabaseQuery(env,
-    `pending_runs?id=eq.${encodeURIComponent(runId)}`, {
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}`, {
       method: 'PATCH',
       body: {
         status: 'verified',

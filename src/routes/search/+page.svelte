@@ -3,7 +3,10 @@
 	import { goto } from '$app/navigation';
 
 	let { data } = $props();
-	const { games, runners, runs, teams } = data;
+	let games = $derived(data.games);
+	let runners = $derived(data.runners);
+	let runs = $derived(data.runs);
+	let teams = $derived(data.teams);
 
 	// Read initial query from URL
 	let query = $state($page.url.searchParams.get('q') || '');

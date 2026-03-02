@@ -71,10 +71,10 @@
 		{ key: 'games',        icon: '🎮', title: 'Games',            desc: 'Review pending games and manage approved submissions.',    href: '/admin/games',       countKey: 'pendingGames' },
 		{ key: 'profiles',     icon: '👥', title: 'Profiles',         desc: 'Review pending profiles and manage approved submissions.',  href: '/admin/profiles',    countKey: 'pendingProfiles' },
 		// Moderator (left = game editor, right = users)
-		{ key: 'game-editor',  icon: '🛠️', title: 'Game Editor',      desc: 'Edit game configs — categories, restrictions, rules, characters.', href: '/admin/game-editor' },
 		{ key: 'users',        icon: '👥', title: 'Users & Roles',    desc: 'Manage users and assign staff roles.',                    href: '/admin/users' },
+		{ key: 'game-editor',  icon: '🛠️', title: 'Game Editor',      desc: 'Edit game configs — categories, restrictions, rules, characters.', href: '/admin/game-editor' },
 		// Verifier (left = game updates, right = runs)
-		{ key: 'game-updates', icon: '📝', title: 'Game Updates',     desc: 'Review pending updates and manage approved corrections.', href: '/admin/game-updates', countKey: 'pendingUpdates' },
+		{ key: 'game-updates', icon: '📝', title: 'Pending Game Updates',     desc: 'Review pending updates and manage approved corrections.', href: '/admin/game-updates', countKey: 'pendingUpdates' },
 		{ key: 'runs',         icon: '🏃', title: 'Runs',             desc: 'Review pending runs and manage approved runs.',            href: '/admin/runs',        countKey: 'pendingRuns' },
 		// All staff
 		{ key: 'staff-guides', icon: '📖', title: 'Staff Guides',     desc: 'Internal documentation for staff.',                       href: '/admin/staff-guides' },
@@ -92,7 +92,7 @@
 	);
 </script>
 
-<svelte:head><title>Staff Panel | Challenge Run Community</title></svelte:head>
+<svelte:head><title>Admin Panel | Challenge Run Community</title></svelte:head>
 
 <div class="page-width">
 	{#if checking || $isLoading}
@@ -111,7 +111,7 @@
 			<!-- Header -->
 			<div class="dash-header">
 				<div class="dash-header__info">
-					<h1>Staff Panel</h1>
+					<h1>Admin Panel</h1>
 					<p class="muted">
 						{#if effectiveRole === 'super_admin'}⭐ Super Admin
 						{:else if effectiveRole === 'admin'}🛡️ Admin
@@ -138,15 +138,17 @@
 						<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingGames ?? 0}</span>
 						<span class="dash-stat__label">Pending Games</span>
 					</div>
+				{/if}
+				<div class="dash-stat" class:dash-stat--alert={(counts.pendingUpdates ?? 0) > 0}>
+					<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingUpdates ?? 0}</span>
+					<span class="dash-stat__label">Pending Game Updates</span>
+				</div>
+				{#if isAdminPlus}
 					<div class="dash-stat" class:dash-stat--alert={counts.pendingProfiles > 0}>
 						<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingProfiles ?? 0}</span>
 						<span class="dash-stat__label">Pending Profiles</span>
 					</div>
 				{/if}
-				<div class="dash-stat" class:dash-stat--alert={(counts.pendingUpdates ?? 0) > 0}>
-					<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingUpdates ?? 0}</span>
-					<span class="dash-stat__label">Pending Updates</span>
-				</div>
 				<div class="dash-stat" class:dash-stat--alert={counts.pendingRuns > 0}>
 					<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingRuns ?? 0}</span>
 					<span class="dash-stat__label">Pending Runs</span>

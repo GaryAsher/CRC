@@ -54,6 +54,7 @@
 	<title>Submit a Run | CRC</title>
 </svelte:head>
 
+<div class="page-width">
 <div class="submit-picker">
 	<h2>Submit a Run</h2>
 	<p class="muted">Select a game to begin your submission.</p>
@@ -94,9 +95,10 @@
 		</div>
 		<p class="picker-hint">Or go to a game's page and click "Submit Run" from there.</p>
 	</div>
+</div>
 
 <style>
-	.submit-picker { max-width: 640px; margin: 0 auto; padding: 0 1rem; text-align: center; }
+	.submit-picker { text-align: center; }
 	h2 { margin: 0 0 0.25rem; }
 	.muted { color: var(--text-muted); margin: 0 0 1.5rem; }
 

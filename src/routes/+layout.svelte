@@ -16,7 +16,9 @@
 
 	// Hydrate the client auth store from the server-side session
 	// (which comes from httpOnly cookies via hooks.server.ts)
-	hydrateSession(data.session);
+	$effect(() => {
+		hydrateSession(data.session);
+	});
 
 	/** Try to load custom theme from Supabase and apply it (overwrites localStorage) */
 	async function syncThemeFromSupabase() {

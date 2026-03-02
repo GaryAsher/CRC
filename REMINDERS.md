@@ -28,6 +28,8 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ## Short-Term Priorities
 
 ### 1. Small fixes
+- Profile/Settings
+  - [ ] User needs to have the option to add other OAuth methods. Right now it is just Twitch
 - Admin Dashboard:
   - [ ] Swap positioning of: 
     - Swap Pending Profiles header with Pending Updates header
@@ -39,17 +41,20 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - Games Page:
   - Overview tab:
     - [ ] Put Platforms on the left. Put Genres on the Right
-      - For Generes, limit to 10 max. Make this for the variable itself.
+      - For Genres, limit to 10 max. Make this for the variable itself.
+
+
   - Runs tab:
     - [ ] Make a tab system for Full Runs and Mini Challenges
-  - Rules tab:
-    - [ ] Better styling for "Exceptions"
-      - Still need your input on: What "Exceptions" refers to on the Rules tab — is that a section within rule markdown content, or a new data field you want to add?
   - Submit Run:
     - [ ] The entire form is thinner than in other places. I want this to have the same width as rules, runs, history, resources, forum. etc.
       - Make this change to the global Submit Page as well.
-- Profile/Settings
-  - [ ] User needs to have the option to add other OAuth methods. Right now it is just Twitch
+
+
+ - Rules tab:
+    - [ ] Better styling for "Exceptions"
+      - Still need your input on: What "Exceptions" refers to on the Rules tab — is that a section within rule markdown content, or a new data field you want to add?
+
 
 ### 2. Content & Polish
 - [ ] Fill glossary definitions (hit, damage, death, hitless vs damageless, etc.)

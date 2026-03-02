@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { user, session } from '$stores/auth';
 	import { supabase } from '$lib/supabase';
+	import { PUBLIC_SITE_URL } from '$env/static/public';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
@@ -26,6 +27,13 @@
 	let linkedMessage = $state('');
 	let removingId = $state<string | null>(null);
 	let justLinked = $state('');
+	let linkingProvider = $state<string | null>(null);
+
+	// Providers the user can link (exclude ones already connected)
+	const ALL_PROVIDERS = ['discord', 'twitch'] as const;
+	let availableProviders = $derived(
+		ALL_PROVIDERS.filter(p => !linkedAccounts.some(a => a.provider.toLowerCase() === p))
+	);
 
 	onMount(async () => {
 		if (browser) {
@@ -72,6 +80,25 @@
 	function providerIcon(provider: string): string {
 		const icons: Record<string, string> = { discord: '💬', twitch: '📺', google: '🔍', github: '🐙' };
 		return icons[provider.toLowerCase()] || '🔗';
+	}
+
+	async function linkAccount(provider: 'discord' | 'twitch') {
+		linkingProvider = provider;
+		linkedMessage = '';
+		try {
+			// Set redirect back to settings after OAuth
+			document.cookie = `crc_auth_redirect=${encodeURIComponent('/profile/settings')}; path=/; max-age=300; SameSite=Lax; Secure`;
+			if (browser) sessionStorage.setItem('crc_just_linked', provider);
+
+			const { error } = await supabase.auth.linkIdentity({
+				provider,
+				options: { redirectTo: `${PUBLIC_SITE_URL}/auth/callback` }
+			});
+			if (error) throw error;
+		} catch (err: any) {
+			linkedMessage = err?.message || `Failed to link ${provider}. Please try again.`;
+			linkingProvider = null;
+		}
 	}
 
 	function providerLabel(provider: string): string {
@@ -158,6 +185,22 @@
 								</button>
 							</div>
 						{/each}
+					</div>
+				{/if}
+				{#if !linkedLoading && availableProviders.length > 0}
+					<div class="link-new">
+						<p class="muted" style="font-size: 0.85rem; margin-bottom: 0.5rem;">Link another account:</p>
+						<div class="link-new__buttons">
+							{#each availableProviders as provider}
+								<button
+									class="btn btn--outline btn--sm"
+									disabled={linkingProvider === provider}
+									onclick={() => linkAccount(provider)}
+								>
+									{linkingProvider === provider ? 'Redirecting...' : `${providerIcon(provider)} Link ${providerLabel(provider)}`}
+								</button>
+							{/each}
+						</div>
 					</div>
 				{/if}
 			</section>
@@ -292,6 +335,8 @@
 		white-space: nowrap;
 	}
 	.linked-info .muted { font-size: 0.8rem; }
+	.link-new { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px dashed var(--border); }
+	.link-new__buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 	.btn--sm {
 		padding: 0.3rem 0.75rem;
 		font-size: 0.8rem;

@@ -57,7 +57,6 @@ export interface FullRunCategory {
 export interface MiniChallengeChild {
 	slug: string;
 	label: string;
-	description?: string;
 	fixed_character?: boolean;
 	fixed_loadout?: FixedLoadout;
 }
@@ -249,9 +248,13 @@ export interface Runner {
 // ─── Runs ───────────────────────────────────────────────────────────────────
 
 export interface Run {
-	// Primary key — sequential bigint. Prefer submission_id for public-facing references
-	// to avoid exposing sequential IDs (enumeration risk).
+	// Primary key — sequential bigint. Internal use only.
+	// NEVER expose in URLs, API responses, or client-facing references.
 	id: number;
+
+	// Public-facing identifier — UUID. Use this in URLs, API params, and anywhere
+	// a run needs to be referenced outside the database.
+	public_id: string;
 
 	// Identity
 	game_id: string;

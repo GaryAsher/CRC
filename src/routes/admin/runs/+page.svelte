@@ -44,7 +44,7 @@
 	let editFields = $state<Record<string, any>>({});
 	let originalFields = $state<Record<string, any>>({});
 	let editNotes = $state('');
-	const modalRun = $derived(runs.find(r => r.id === modalRunId));
+	const modalRun = $derived(runs.find(r => r.public_id === modalRunId));
 
 	// ── Typeahead state for edit modal ──
 	let editCharSearch = $state(''); let editCharOpen = $state(false);
@@ -352,7 +352,7 @@
 		actionMessage = null;
 		const result = await adminAction('/admin/approve-run', { run_id: id });
 		if (result.ok) {
-			runs = runs.map(r => r.id === id ? { ...r, status: 'verified' } : r);
+			runs = runs.map(r => r.public_id === id ? { ...r, status: 'verified' } : r);
 			actionMessage = { type: 'success', text: 'Run approved!' };
 		} else {
 			actionMessage = { type: 'error', text: result.message };
@@ -362,7 +362,7 @@
 	}
 
 	function openRejectModal(run: any) {
-		modalRunId = run.id;
+		modalRunId = run.public_id;
 		modalInfo = `${fmt(run.game_id)} by ${run.runner_id}`;
 		rejectReason = '';
 		rejectNotes = '';
@@ -376,7 +376,7 @@
 			run_id: modalRunId, reason: rejectReason, notes: rejectNotes.trim() || undefined
 		});
 		if (result.ok) {
-			runs = runs.map(r => r.id === modalRunId ? { ...r, status: 'rejected', rejection_reason: rejectReason, verifier_notes: rejectNotes } : r);
+			runs = runs.map(r => r.public_id === modalRunId ? { ...r, status: 'rejected', rejection_reason: rejectReason, verifier_notes: rejectNotes } : r);
 			actionMessage = { type: 'success', text: 'Run rejected.' };
 		} else {
 			actionMessage = { type: 'error', text: result.message };
@@ -388,7 +388,7 @@
 	}
 
 	function openEditModal(run: any) {
-		modalRunId = run.id;
+		modalRunId = run.public_id;
 		modalInfo = `${fmt(run.game_id)} by ${run.runner_id}`;
 		editNotes = '';
 		editDiffStep = false;
@@ -439,7 +439,7 @@
 		// If there are edits, update the pending run
 		if (Object.keys(updates).length > 0) {
 			updates.verifier_notes = editNotes.trim() || `Fields edited: ${editedFields.map(f => f.label).join(', ')}`;
-			const { error } = await supabase.from('pending_runs').update(updates).eq('id', modalRunId);
+			const { error } = await supabase.from('pending_runs').update(updates).eq('public_id', modalRunId);
 			if (error) {
 				actionMessage = { type: 'error', text: `Edit failed: ${error.message}` };
 				processingId = null;
@@ -460,7 +460,7 @@
 			} catch { /* audit log write is best-effort */ }
 
 			// Update local state
-			runs = runs.map(r => r.id === modalRunId ? { ...r, ...updates } : r);
+			runs = runs.map(r => r.public_id === modalRunId ? { ...r, ...updates } : r);
 			actionMessage = { type: 'success', text: `Run updated (${editedFields.length} field${editedFields.length !== 1 ? 's' : ''} changed).` };
 		} else if (editNotes.trim()) {
 			// Notes only, no field changes — behave like old "Request Changes"
@@ -468,7 +468,7 @@
 				run_id: modalRunId, notes: editNotes.trim()
 			});
 			if (result.ok) {
-				runs = runs.map(r => r.id === modalRunId ? { ...r, status: 'needs_changes', verifier_notes: editNotes } : r);
+				runs = runs.map(r => r.public_id === modalRunId ? { ...r, status: 'needs_changes', verifier_notes: editNotes } : r);
 				actionMessage = { type: 'success', text: 'Changes requested.' };
 			} else {
 				actionMessage = { type: 'error', text: result.message };
@@ -495,9 +495,9 @@
 			const { error } = await supabase.from('pending_runs').update({
 				claimed_by: u.id,
 				claimed_at: new Date().toISOString()
-			}).eq('id', id);
+			}).eq('public_id', id);
 			if (error) throw error;
-			runs = runs.map(r => r.id === id ? { ...r, claimed_by: u.id, claimed_by_name: claimName, claimed_at: new Date().toISOString() } : r);
+			runs = runs.map(r => r.public_id === id ? { ...r, claimed_by: u.id, claimed_by_name: claimName, claimed_at: new Date().toISOString() } : r);
 			actionMessage = { type: 'success', text: 'Run claimed for review.' };
 		} catch (e: any) {
 			actionMessage = { type: 'error', text: `Claim failed: ${e.message}` };
@@ -614,14 +614,14 @@
 			</div>
 		{:else}
 			<div class="runs-list">
-				{#each filteredRuns as run (run.id)}
+				{#each filteredRuns as run (run.public_id)}
 					{@const isPending = run.status === 'pending'}
 					{@const isNeedsChanges = run.status === 'needs_changes'}
 					{@const canAct = (isPending || isNeedsChanges) && canActOnRun(run)}
 					{@const viewOnly = (isPending || isNeedsChanges) && !canActOnRun(run)}
-					{@const isExpanded = expandedId === run.id}
+					{@const isExpanded = expandedId === run.public_id}
 					<div class="run-card" class:expanded={isExpanded}>
-						<button class="run-card__header" onclick={() => expandedId = isExpanded ? null : run.id}>
+						<button class="run-card__header" onclick={() => expandedId = isExpanded ? null : run.public_id}>
 							<div>
 								<div class="run-card__title-row">
 									<span class="run-card__game">{fmt(run.game_id)}</span>
@@ -642,7 +642,7 @@
 									{#if run.claimed_by}
 										<span class="claim-badge claim-badge--claimed">🔒 Claimed by {run.claimed_by_name || run.claimed_by}{#if run.claimed_at} · {fmtAgo(run.claimed_at)}{/if}</span>
 									{:else if canAct && isPending}
-										<button class="btn btn--claim" onclick={() => claimRun(run.id)} disabled={processingId === run.id}>🔐 Claim for Review</button>
+										<button class="btn btn--claim" onclick={() => claimRun(run.public_id)} disabled={processingId === run.public_id}>🔐 Claim for Review</button>
 									{:else}
 										<span class="claim-badge claim-badge--unclaimed">Unclaimed</span>
 									{/if}
@@ -699,13 +699,13 @@
 
 								{#if canAct}
 									<div class="run-actions">
-										<button class="btn btn--approve" onclick={() => approveRun(run.id)} disabled={processingId === run.id}>
-											{processingId === run.id ? '...' : '✅ Approve'}
+										<button class="btn btn--approve" onclick={() => approveRun(run.public_id)} disabled={processingId === run.public_id}>
+											{processingId === run.public_id ? '...' : '✅ Approve'}
 										</button>
-										<button class="btn btn--changes" onclick={() => openEditModal(run)} disabled={processingId === run.id}>
+										<button class="btn btn--changes" onclick={() => openEditModal(run)} disabled={processingId === run.public_id}>
 											✏️ Edit / Request Changes
 										</button>
-										<button class="btn btn--reject" onclick={() => openRejectModal(run)} disabled={processingId === run.id}>
+										<button class="btn btn--reject" onclick={() => openRejectModal(run)} disabled={processingId === run.public_id}>
 											❌ Reject
 										</button>
 									</div>

@@ -1,15 +1,48 @@
 <script lang="ts">
 	let { data } = $props();
 	const game = $derived(data.game);
+
+	// Build tab list from available categories
+	const tabs = $derived(() => {
+		const t: { id: string; label: string; icon: string }[] = [];
+		if (game.full_runs?.length) t.push({ id: 'full', label: 'Full Runs', icon: '🏁' });
+		if (game.mini_challenges?.length) t.push({ id: 'mini', label: 'Mini-Challenges', icon: '⚡' });
+		if (game.player_made?.length) t.push({ id: 'player', label: 'Player-Made', icon: '🎨' });
+		return t;
+	});
+
+	let activeTab = $state('full');
+
+	// Default to first available tab
+	$effect(() => {
+		const available = tabs();
+		if (available.length && !available.find(t => t.id === activeTab)) {
+			activeTab = available[0].id;
+		}
+	});
 </script>
 
 <svelte:head>
 	<title>Runs - {game.game_name} | CRC</title>
 </svelte:head>
 
-{#if game.full_runs?.length}
+{#if tabs().length > 1}
+	<nav class="runner-tabs" aria-label="Run categories">
+		{#each tabs() as tab}
+			<button
+				class="tab"
+				class:active={activeTab === tab.id}
+				onclick={() => activeTab = tab.id}
+			>
+				{tab.icon} {tab.label}
+			</button>
+		{/each}
+	</nav>
+{/if}
+
+{#if activeTab === 'full' && game.full_runs?.length}
 	<section>
-		<h2>🏁 Full Runs</h2>
+		{#if tabs().length <= 1}<h2>🏁 Full Runs</h2>{/if}
 		<p class="muted section-desc">Complete game challenge runs from start to finish.</p>
 		<div class="category-grid">
 			{#each game.full_runs as cat}
@@ -22,9 +55,9 @@
 	</section>
 {/if}
 
-{#if game.mini_challenges?.length}
+{#if activeTab === 'mini' && game.mini_challenges?.length}
 	<section>
-		<h2>⚡ Mini-Challenges</h2>
+		{#if tabs().length <= 1}<h2>⚡ Mini-Challenges</h2>{/if}
 		<p class="muted section-desc">Focused challenges for specific sections or objectives.</p>
 		{#each game.mini_challenges as group}
 			<div class="mini-group">
@@ -45,9 +78,9 @@
 	</section>
 {/if}
 
-{#if game.player_made?.length}
+{#if activeTab === 'player' && game.player_made?.length}
 	<section>
-		<h2>🎨 Player-Made Challenges</h2>
+		{#if tabs().length <= 1}<h2>🎨 Player-Made Challenges</h2>{/if}
 		<p class="muted section-desc">Community-created challenges and custom rulesets.</p>
 		<div class="category-grid">
 			{#each game.player_made as cat}
