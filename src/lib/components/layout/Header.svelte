@@ -393,7 +393,7 @@
 				<span class="admin-panel__role-badge">
 					{sidebarRoleBadge}
 				</span>
-				Staff Panel
+				Admin Panel
 			</span>
 			<button type="button" class="admin-panel__close" onclick={closeAdminPanel}>&times;</button>
 		</div>

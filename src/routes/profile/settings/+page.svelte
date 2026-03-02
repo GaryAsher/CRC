@@ -40,15 +40,23 @@
 			justLinked = sessionStorage.getItem('crc_just_linked') || '';
 			if (justLinked) sessionStorage.removeItem('crc_just_linked');
 		}
-		await loadLinkedAccounts();
+		// Wait for auth session before querying
+		const { data: { session: sess } } = await supabase.auth.getSession();
+		if (sess?.user) {
+			await loadLinkedAccounts(sess.user.id);
+		} else {
+			linkedLoading = false;
+		}
 	});
 
-	async function loadLinkedAccounts() {
+	async function loadLinkedAccounts(userId?: string) {
 		linkedLoading = true;
+		const uid = userId || $user?.id;
+		if (!uid) { linkedLoading = false; return; }
 		const { data, error } = await supabase
 			.from('linked_accounts')
 			.select('id, provider, provider_username, provider_avatar_url, provider_email, linked_at')
-			.eq('user_id', $user!.id)
+			.eq('user_id', uid)
 			.order('linked_at', { ascending: true });
 
 		if (!error && data) linkedAccounts = data;

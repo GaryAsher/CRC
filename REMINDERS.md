@@ -37,20 +37,15 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ### 1. Small fixes
 - Profile/Settings
   - [ ] User needs to have the option to add other OAuth methods. Right now it is just Twitch
-- Admin Dashboard:
-  - [ ] Swap positioning of: 
-    - Change Pending Updates header to "Pending Game Updates"
-      - This was done, but the card below needs to be reverted to just say "Game Updates"
 - Staff Panel:
   - Change Name to to Admin Panel for now. It will need a new change later.
 - Games Page:
   - Overview tab:
     - [ ] Put Platforms on the left. Put Genres on the Right
-      - For Genres, limit to 10 max. Make this for the variable itself.
-
-
+- Games Page:
   - Runs tab:
     - [ ] Make a tab system for Full Runs and Mini Challenges
+- Games Page:
   - Submit Run:
     - [ ] The entire form is thinner than in other places. I want this to have the same width as rules, runs, history, resources, forum. etc.
       - This change was correctly applied to https://www.challengerun.net/submit , but not to game/submit pages

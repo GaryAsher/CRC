@@ -112,7 +112,7 @@
 			</div>
 		{/if}
 		{#if genres.length}
-			<div class="pg-col">
+			<div class="pg-col pg-col--right">
 				<h3 class="pg-col__heading">Genres</h3>
 				<div class="pg-col__tags">
 					{#each genres as genre}
@@ -317,8 +317,12 @@
 		color: var(--fg);
 	}
 	.pg-col__tags .tag--platform { border-color: var(--accent); color: var(--accent); }
+	.pg-col--right { text-align: right; }
+	.pg-col--right .pg-col__tags { justify-content: flex-end; }
 	@media (max-width: 500px) {
 		.platform-genre-row { grid-template-columns: 1fr; gap: 1rem; }
+		.pg-col--right { text-align: left; }
+		.pg-col--right .pg-col__tags { justify-content: flex-start; }
 	}
 
 	/* Layout */
