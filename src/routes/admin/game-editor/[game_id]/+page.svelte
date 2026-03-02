@@ -814,9 +814,9 @@
 									<div class="field-row--compact"><label>Label</label><input type="text" bind:value={group.label} oninput={() => { if (!isLockedSlug(group.slug)) group.slug = slugify(group.label); }} disabled={!canEdit} /></div>
 									<div class="field-row--compact"><label>Description</label><textarea rows="2" bind:value={group.description} disabled={!canEdit}></textarea></div>
 									<span class="field-hint">Markdown supported</span>
-									<div class="children-section">
-										<h4 class="children-title">Children</h4>
 									<div class="field-row--compact"><label>Exceptions</label><textarea rows="2" bind:value={group.exceptions} placeholder="Exceptions to the rules above (optional, Markdown supported)" disabled={!canEdit}></textarea></div>
+									<details class="children-section">
+										<summary class="children-title">Children <span class="muted">({(group.children || []).length})</span> <span class="children-chevron">▶</span></summary>
 										{#each group.children || [] as child, ci}
 											<div class="child-card">
 												<div class="child-card__header">
@@ -858,7 +858,7 @@
 											</div>
 										{/each}
 										{#if canEdit}<button class="btn btn--add btn--add-sm" onclick={() => { if (!group.children) group.children = []; group.children = [...group.children, { slug: '', label: '', description: '', fixed_loadout: { enabled: false } }]; miniChallenges = [...miniChallenges]; }}>+ Add Child</button>{/if}
-									</div>
+									</details>
 								</div>
 							{/if}
 						</div>
@@ -1117,8 +1117,8 @@
 									<div class="field-row--compact"><label>Description</label><textarea rows="3" bind:value={item.description} disabled={!canEdit}></textarea></div>
 									<span class="field-hint">Markdown supported</span>
 									<div class="field-row--compact"><label>Exceptions</label><textarea rows="2" bind:value={item.exceptions} placeholder="Exceptions to the rules above (optional, Markdown supported)" disabled={!canEdit}></textarea></div>
-									<div class="children-section">
-										<h4 class="children-title">Children <span class="muted">(specific variants)</span></h4>
+									<details class="children-section">
+										<summary class="children-title">Children <span class="muted">(specific variants · {(item.children || []).length})</span> <span class="children-chevron">▶</span></summary>
 										{#each item.children || [] as child, ci}
 											<div class="child-card">
 												<div class="child-card__header">
@@ -1140,7 +1140,7 @@
 											</div>
 										{/each}
 										{#if canEdit}<button class="btn btn--add btn--add-sm" onclick={() => { if (!item.children) item.children = []; item.children = [...item.children, { slug: '', label: '', description: '' }]; restrictionsData = [...restrictionsData]; }}>+ Add Child Restriction</button>{/if}
-									</div>
+									</details>
 								</div>
 							{/if}
 						</div>
@@ -1526,8 +1526,11 @@
 	.fixed-loadout-fields select { padding: 0.35rem 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--fg); font-size: 0.82rem; font-family: inherit; }
 	.fixed-loadout-fields select:focus { outline: none; border-color: var(--accent); }
 	.fixed-loadout-fields select:disabled { opacity: 0.5; }
-	.children-title { font-size: 0.85rem; font-weight: 700; margin: 0 0 0.5rem; }
+	.children-title { font-size: 0.85rem; font-weight: 700; margin: 0 0 0.5rem; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 0.35rem; user-select: none; }
+	.children-title::-webkit-details-marker { display: none; }
 	.children-title .muted { font-weight: 400; font-size: 0.78rem; }
+	.children-chevron { font-size: 0.65rem; transition: transform 0.15s ease; color: var(--text-muted); }
+	.children-section[open] > .children-title .children-chevron { transform: rotate(90deg); }
 	.child-row { display: flex; gap: 0.35rem; align-items: center; margin-bottom: 0.35rem; }
 	.child-row__input { padding: 0.35rem 0.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--fg); font-size: 0.82rem; font-family: inherit; width: 110px; }
 	.child-row__input--wide { flex: 1; }

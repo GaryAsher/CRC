@@ -36,14 +36,9 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ### 1. Small fixes
 - Games Page:
   - Submit Run:
-    - [ ] Put "Submit Run" button and Cloudflare verification in 2-column style
-    - [ ] Submit Run button needs to be larger (do we already have a large button in global CSS?)
     - [ ] Consolidate some sections and move them in a way that makes sense
 
-- Rules tab:
-  - [ ] Better styling for "Exceptions"
-
-- Submit Page (https://www.challengerun.net/submit)
+- Submit Page (https://www.challengerun.net/submit):
   - Can we transform this to populate the respective game? or is that too much work?
 
 
