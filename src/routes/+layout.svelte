@@ -4,7 +4,6 @@
 	import { supabase } from '$lib/supabase';
 	import { hydrateSession, listenForAuthChanges, session } from '$stores/auth';
 	import { loadCustomThemeFromStorage, applyCustomTheme } from '$stores/theme';
-	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 	import Header from '$components/layout/Header.svelte';
 	import Footer from '$components/layout/Footer.svelte';
 	import BackToTop from '$components/BackToTop.svelte';
@@ -26,21 +25,15 @@
 			const { data: { session: sess } } = await supabase.auth.getSession();
 			if (!sess) return;
 
-			const res = await fetch(
-				`${PUBLIC_SUPABASE_URL}/rest/v1/profiles?user_id=eq.${sess.user.id}&select=theme_settings`,
-				{
-					headers: {
-						'apikey': PUBLIC_SUPABASE_ANON_KEY,
-						'Authorization': `Bearer ${sess.access_token}`
-					}
-				}
-			);
-			if (!res.ok) return;
-			const rows = await res.json();
-			if (rows.length > 0 && rows[0].theme_settings) {
-				const t = rows[0].theme_settings;
+			const { data: profile } = await supabase
+				.from('profiles')
+				.select('theme_settings')
+				.eq('user_id', sess.user.id)
+				.maybeSingle();
+
+			if (profile?.theme_settings) {
+				const t = profile.theme_settings;
 				applyCustomTheme(t);
-				// Update localStorage so next refresh is instant
 				localStorage.setItem('crc-custom-theme', JSON.stringify(t));
 			}
 		} catch {

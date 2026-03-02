@@ -5,15 +5,17 @@
 	import { goto } from '$app/navigation';
 	import { checkAdminRole } from '$lib/admin';
 	import { supabase } from '$lib/supabase';
+	import type { Game, FullRunCategory, MiniChallengeGroup, PlayerMadeChallenge, ChallengeType, GlitchCategory, Restriction, CharacterColumn, CharacterOption } from '$types';
 
 	let checking = $state(true);
 	let authorized = $state(false);
 	let loading = $state(true);
 	let saving = $state(false);
+	let lastSaveAt = $state(0); // Rate limit: minimum 3s between saves
 	let toast = $state<{ type: 'success' | 'error'; text: string } | null>(null);
-	let game = $state<any>(null);
+	let game = $state<Game | null>(null);
 	let activeTab = $state('general');
-	let userRole = $state<any>(null);
+	let userRole = $state<{ admin: boolean; superAdmin: boolean; moderator: boolean; verifier: boolean; runnerId: string | null; gameIds: string[] } | null>(null);
 	let userId = $state<string | null>(null);
 
 	const gameId = $derived($page.params.game_id);
@@ -29,6 +31,7 @@
 	const isAdmin = $derived(userRole?.admin === true);
 	const isModerator = $derived(userRole?.moderator === true && !userRole?.admin);
 	const canEdit = $derived(!game?.frozen_at || isAdmin); // Admins can edit frozen games to unfreeze
+	const canEditMeta = $derived(canEdit && isAdmin); // Game name, status, aliases — admin only
 	const canDelete = $derived(isSuperAdmin);
 	const canFreeze = $derived(isAdmin); // Admins and super admins
 	const isFrozen = $derived(!!game?.frozen_at);
@@ -70,15 +73,15 @@
 	let cropOriginalFile = $state<File | null>(null);
 	const CROP_W = 460;
 	const CROP_H = 215;
-	let fullRuns = $state<any[]>([]);
-	let miniChallenges = $state<any[]>([]);
-	let playerMade = $state<any[]>([]);
+	let fullRuns = $state<FullRunCategory[]>([]);
+	let miniChallenges = $state<MiniChallengeGroup[]>([]);
+	let playerMade = $state<PlayerMadeChallenge[]>([]);
 	let generalRules = $state('');
-	let challengesData = $state<any[]>([]);
-	let glitchesData = $state<any[]>([]);
-	let restrictionsData = $state<any[]>([]);
-	let characterColumn = $state<any>({ enabled: false, label: 'Character' });
-	let charactersData = $state<any[]>([]);
+	let challengesData = $state<ChallengeType[]>([]);
+	let glitchesData = $state<GlitchCategory[]>([]);
+	let restrictionsData = $state<Restriction[]>([]);
+	let characterColumn = $state<CharacterColumn>({ enabled: false, label: 'Character' });
+	let charactersData = $state<CharacterOption[]>([]);
 
 	// History / Snapshots
 	let snapshots = $state<any[]>([]);
@@ -93,7 +96,6 @@
 		{ slug: 'hitless', label: 'Hitless', description: '' },
 		{ slug: 'damageless', label: 'Damageless', description: '' },
 		{ slug: 'deathless', label: 'Deathless', description: '' },
-		{ slug: 'no-hit-no-damage', label: 'No-Hit / No-Damage', description: '' },
 		{ slug: 'flawless', label: 'Flawless', description: '' },
 		{ slug: 'blindfolded', label: 'Blindfolded', description: '' },
 		{ slug: '1cc', label: '1CC', description: '' },
@@ -120,7 +122,7 @@
 		return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 	}
 
-	function hydrate(g: any) {
+	function hydrate(g: Game) {
 		gameName = g.game_name || '';
 		aliases = [...(g.game_name_aliases || [])];
 		gameStatus = g.status || 'Active';
@@ -223,8 +225,8 @@
 			});
 		} catch { /* best-effort */ }
 
-		game = { ...game, ...restored };
-		hydrate(game);
+		game = { ...game, ...restored } as Game;
+		hydrate(game!);
 		rollbackConfirm = null;
 		showToast('success', 'Game rolled back successfully. A backup of the pre-rollback state was saved.');
 		await loadSnapshots();
@@ -263,7 +265,7 @@
 			});
 		} catch { /* best-effort */ }
 
-		game = { ...game, ...updates };
+		game = { ...game, ...updates } as Game;
 		showToast('success', nowFrozen ? '🔒 Game frozen. All edits blocked until unfrozen.' : '🔓 Game unfrozen. Edits are now allowed.');
 		saving = false;
 	}
@@ -301,12 +303,28 @@
 
 	// ── Save Helpers ────────────────────────────────────────────────────────
 
+	// Fields only admins should be able to change
+	const ADMIN_ONLY_FIELDS = ['game_name', 'game_name_aliases', 'status'];
+
 	async function saveSection(sectionName: string, updates: Record<string, any>) {
 		if (!canEdit) { showToast('error', '🔒 Game is frozen. Only admins can unfreeze.'); return false; }
+
+		// Rate limit: minimum 3 seconds between saves
+		const now = Date.now();
+		if (now - lastSaveAt < 3000) { showToast('error', 'Please wait a moment before saving again.'); return false; }
+
+		// Strip admin-only fields for non-admins (defense in depth — UI also disables these)
+		if (!isAdmin) {
+			for (const key of ADMIN_ONLY_FIELDS) delete updates[key];
+			if (Object.keys(updates).length === 0) { showToast('error', 'No editable fields in this section.'); return false; }
+		}
+
 		saving = true;
+		lastSaveAt = now;
 		try {
 			const oldData: Record<string, any> = {};
-			for (const key of Object.keys(updates)) oldData[key] = game[key];
+			const gameRecord = game as Record<string, any>;
+			for (const key of Object.keys(updates)) oldData[key] = gameRecord[key];
 
 			// Create snapshot before saving
 			await createSnapshot(`Before ${sectionName} edit`);
@@ -333,7 +351,7 @@
 				});
 			} catch { /* best-effort */ }
 
-			game = { ...game, ...updates };
+			game = { ...game, ...updates } as Game;
 			showToast('success', `${sectionName.charAt(0).toUpperCase() + sectionName.slice(1)} saved!`);
 			saving = false;
 			return true;
@@ -538,8 +556,8 @@
 		loading = true;
 		const { data, error } = await supabase.from('games').select('*').eq('game_id', gameId).single();
 		if (error || !data) { showToast('error', 'Game not found'); loading = false; return; }
-		game = data;
-		hydrate(data);
+		game = data as Game;
+		hydrate(data as Game);
 		loading = false;
 	}
 
@@ -650,11 +668,11 @@
 			<section class="editor-section" class:editor-section--frozen={isFrozen && !isAdmin}>
 				<div class="field-row">
 					<label class="field-label">Game Name</label>
-					<input type="text" class="field-input" bind:value={gameName} disabled={!canEdit} />
+					<input type="text" class="field-input" bind:value={gameName} disabled={!canEditMeta} />
 				</div>
 				<div class="field-row">
 					<label class="field-label">Status</label>
-					<select class="field-input" bind:value={gameStatus} disabled={!canEdit}>
+					<select class="field-input" bind:value={gameStatus} disabled={!canEditMeta}>
 						<option value="Active">Active</option>
 						<option value="Inactive">Inactive</option>
 						<option value="Coming Soon">Coming Soon</option>
@@ -741,7 +759,7 @@
 				{#if canEdit}
 					<div class="section-actions">
 						<button class="btn btn--save" onclick={saveGeneral} disabled={saving}>{saving ? 'Saving...' : '💾 Save General'}</button>
-						<button class="btn btn--reset" onclick={() => hydrate(game)}>↩ Reset</button>
+						<button class="btn btn--reset" onclick={() => game && hydrate(game)}>↩ Reset</button>
 					</div>
 				{/if}
 			</section>
@@ -944,7 +962,7 @@
 				{#if canEdit}
 					<div class="section-actions">
 						<button class="btn btn--save" onclick={saveCategories} disabled={saving}>{saving ? 'Saving...' : '💾 Save Categories'}</button>
-						<button class="btn btn--reset" onclick={() => hydrate(game)}>↩ Reset</button>
+						<button class="btn btn--reset" onclick={() => game && hydrate(game)}>↩ Reset</button>
 					</div>
 				{/if}
 			</section>
@@ -1092,7 +1110,7 @@
 				{#if canEdit}
 					<div class="section-actions">
 						<button class="btn btn--save" onclick={saveChallengesGlitches} disabled={saving}>{saving ? 'Saving...' : '💾 Save Challenges & Glitches'}</button>
-						<button class="btn btn--reset" onclick={() => hydrate(game)}>↩ Reset</button>
+						<button class="btn btn--reset" onclick={() => game && hydrate(game)}>↩ Reset</button>
 					</div>
 				{/if}
 			</section>
@@ -1163,7 +1181,7 @@
 				{#if canEdit}
 					<div class="section-actions">
 						<button class="btn btn--save" onclick={saveRestrictions} disabled={saving}>{saving ? 'Saving...' : '💾 Save Restrictions'}</button>
-						<button class="btn btn--reset" onclick={() => hydrate(game)}>↩ Reset</button>
+						<button class="btn btn--reset" onclick={() => game && hydrate(game)}>↩ Reset</button>
 					</div>
 				{/if}
 			</section>
@@ -1214,7 +1232,7 @@
 				{#if canEdit}
 					<div class="section-actions">
 						<button class="btn btn--save" onclick={saveCharacters} disabled={saving}>{saving ? 'Saving...' : '💾 Save Characters'}</button>
-						<button class="btn btn--reset" onclick={() => hydrate(game)}>↩ Reset</button>
+						<button class="btn btn--reset" onclick={() => game && hydrate(game)}>↩ Reset</button>
 					</div>
 				{/if}
 			</section>

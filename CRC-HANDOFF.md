@@ -1,6 +1,6 @@
 # CRC Development Handoff — Context for New AI Assistants
 
-**Last updated:** 2026-03-01
+**Last updated:** 2026-03-02
 **Purpose:** This document supplements `CLAUDE.md` (in the repo root) with lessons learned from active development sessions. Read `CLAUDE.md` first, then this document.
 
 ---
@@ -286,7 +286,20 @@ The old `fixed_character` boolean on mini-challenge children. The new system is 
 
 ## 11. Current State & Recent Work
 
-### Recently Completed (Mar 1, 2026)
+### Recently Completed (Mar 2, 2026)
+- [x] Build fix: added `description?: string` to `MiniChallengeChild` type (was causing svelte-check errors)
+- [x] Rules tab: blockquote/exception callout styling (amber border, background, bold highlights)
+- [x] Header: moderator detection now queries `role_game_moderators` table (not just `profiles.role`)
+- [x] Game editor: `canEditMeta` restricts name/status to admins; moderators can edit content
+- [x] Game editor: 3-second save rate limiting + admin-only field stripping in `saveSection()`
+- [x] Profiles RLS: hardened UPDATE policy to block `is_admin`, `is_super_admin`, `role`, `status` changes
+- [x] `admin.ts`: refactored from raw fetch to Supabase client (3 queries)
+- [x] `+layout.svelte`: theme sync refactored from raw fetch to Supabase client
+- [x] Removed "No-Hit / No-Damage" challenge from 4 games (hades-2, hollow-knight, tiny-rogues, hollow-knight-modded)
+- [x] RLS policies: moderator UPDATE on games + INSERT on game_snapshots for assigned games
+- [x] Runners table migration confirmed complete — code queries `profiles`, table can be dropped
+
+### Previously Completed (Mar 1, 2026)
 - [x] Global spacing tightened (`main` padding 2rem → 1rem)
 - [x] Tab redesign: pill/rounded-rect style with border, surface background, border-radius 8px 8px 0 0
 - [x] "Representing" → "Ally of" on runner page and profile edit preview
@@ -317,8 +330,8 @@ The old `fixed_character` boolean on mini-challenge children. The new system is 
 All pending tasks are tracked in `REMINDERS.md`. Do not duplicate them here.
 
 Still in progress (see `REMINDERS.md` for details):
-- Runners table migration (partially complete — `profiles` is primary, `runners` is fallback)
-- Global search (searches games + runners, not yet runs/teams)
+- Runners table: code migration complete, `runners` table can be dropped from Supabase
+- Global search (searches games + runners + teams, not yet runs)
 
 ---
 
@@ -399,3 +412,24 @@ Decisions made during development that future assistants should know about:
 | Global freeze instead of per-game | Per-game freeze on list page was noisy; global freeze is the emergency use case | Mar 2026 |
 | Pill-style tabs over underline tabs | User wanted "distinguishable distance between tabs" — pill shape provides visual separation | Mar 2026 |
 | `$derived` over `$effect` for data | Derived values are declarative and don't cause extra re-renders; effects are for side-effects only | Feb 2026 |
+| Moderator access to game editor | Per-game moderators can edit content (categories, rules, challenges) but not meta (name, status). RLS policy on `games` table gates writes. | Mar 2026 |
+| Profiles RLS column restriction | Users can only update safe profile fields via RLS. Admin flags (`is_admin`, `is_super_admin`, `role`, `status`) blocked at the database level. | Mar 2026 |
+| Game editor save rate limit | 3-second cooldown between saves + admin-only field stripping in `saveSection()` as defense in depth. | Mar 2026 |
+| Supabase client over raw fetch | Migrated `admin.ts` and `+layout.svelte` from manual REST calls to Supabase JS client for consistency and better error handling. | Mar 2026 |
+
+---
+
+## 14. Accessibility (a11y) Build Warnings
+
+`svelte-check` reports ~142 a11y warnings. **These are non-blocking and should be ignored during development.** They will be addressed in a dedicated accessibility pass tracked in `REMINDERS.md`.
+
+When encountering these warnings, the assistant should:
+1. **Not treat them as errors** — they don't fail the build
+2. **Briefly explain what they mean** if the user asks
+3. **Not attempt to fix them** unless the user specifically requests accessibility work
+4. **Not add `svelte-ignore` comments** to suppress them — we want them visible for the accessibility pass
+
+The three warning categories:
+- **`a11y_label_has_associated_control`** (~100+): Form `<label>` elements not linked to inputs via `for`/`id`. Affects screen readers only.
+- **`a11y_click_events_have_key_events`** (~15): Modal backdrop `<div onclick>` without keyboard equivalents. Affects keyboard-only users.
+- **`css_unused_selector`** (~10): Dead CSS that can be cleaned up. Tracked in REMINDERS.md under "Content & Polish."

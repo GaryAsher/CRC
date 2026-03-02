@@ -153,6 +153,16 @@ export interface Game {
 	// Credits
 	credits?: GameCredit[];
 
+	// Additional custom tabs
+	additional_tabs?: {
+		tab1: { enabled: boolean; title: string; content: string };
+		tab2: { enabled: boolean; title: string; content: string };
+	};
+
+	// Freeze state
+	frozen_at?: string | null;
+	frozen_by?: string | null;
+
 	// Markdown body content (below the front matter ---)
 	content?: string;
 

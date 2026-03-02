@@ -41,18 +41,26 @@
 					.maybeSingle();
 
 				if (profile?.runner_id && profile.status === 'approved') {
-					const { data: verifierRole } = await supabase
-						.from('role_game_verifiers')
-						.select('id')
-						.eq('user_id', currentUser.id)
-						.limit(1)
-						.maybeSingle();
+					const [{ data: verifierRole }, { data: moderatorRole }] = await Promise.all([
+						supabase
+							.from('role_game_verifiers')
+							.select('id')
+							.eq('user_id', currentUser.id)
+							.limit(1)
+							.maybeSingle(),
+						supabase
+							.from('role_game_moderators')
+							.select('id')
+							.eq('user_id', currentUser.id)
+							.limit(1)
+							.maybeSingle()
+					]);
 
 					profileInfo = {
 						runner_id: profile.runner_id,
 						profileState: 'active',
 						is_admin: profile.is_admin === true || profile.is_super_admin === true,
-						is_moderator: profile.role === 'moderator',
+						is_moderator: profile.role === 'moderator' || !!moderatorRole,
 						is_verifier: !!verifierRole
 					};
 				} else if (profile?.runner_id) {

@@ -1,5 +1,5 @@
 import { supabase } from '$lib/supabase';
-import { PUBLIC_WORKER_URL, PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import { PUBLIC_WORKER_URL } from '$env/static/public';
 
 /**
  * Get the current user's access token for API calls.
@@ -12,6 +12,9 @@ export async function getAccessToken(): Promise<string | null> {
 /**
  * Check if the current user is an admin by querying profiles.
  * Returns role info including gameIds for per-game moderator access.
+ *
+ * NOTE: This is a client-side convenience for UI gating only.
+ * All privileged actions must be re-verified server-side (Worker or RLS).
  */
 export async function checkAdminRole(): Promise<{
 	admin: boolean;
@@ -26,49 +29,25 @@ export async function checkAdminRole(): Promise<{
 
 	const userId = session.user.id;
 
-	// Query profiles for admin status
-	const res = await fetch(
-		`${PUBLIC_SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}&select=is_admin,is_super_admin,runner_id,role`,
-		{
-			headers: {
-				'apikey': PUBLIC_SUPABASE_ANON_KEY,
-				'Authorization': `Bearer ${session.access_token}`
-			}
-		}
-	);
-
-	// Load game assignments from both role tables
-	const [gvRes, gmRes] = await Promise.all([
-		fetch(
-			`${PUBLIC_SUPABASE_URL}/rest/v1/role_game_verifiers?user_id=eq.${userId}&select=game_id`,
-			{
-				headers: {
-					'apikey': PUBLIC_SUPABASE_ANON_KEY,
-					'Authorization': `Bearer ${session.access_token}`
-				}
-			}
-		),
-		fetch(
-			`${PUBLIC_SUPABASE_URL}/rest/v1/role_game_moderators?user_id=eq.${userId}&select=game_id`,
-			{
-				headers: {
-					'apikey': PUBLIC_SUPABASE_ANON_KEY,
-					'Authorization': `Bearer ${session.access_token}`
-				}
-			}
-		)
+	// Query profiles and role tables in parallel via Supabase client
+	const [profileRes, gvRes, gmRes] = await Promise.all([
+		supabase
+			.from('profiles')
+			.select('is_admin, is_super_admin, runner_id, role')
+			.eq('user_id', userId)
+			.maybeSingle(),
+		supabase
+			.from('role_game_verifiers')
+			.select('game_id')
+			.eq('user_id', userId),
+		supabase
+			.from('role_game_moderators')
+			.select('game_id')
+			.eq('user_id', userId)
 	]);
 
-	const verifierGameIds: string[] = [];
-	const moderatorGameIds: string[] = [];
-	if (gvRes.ok) {
-		const gvData = await gvRes.json();
-		for (const row of gvData) if (row.game_id) verifierGameIds.push(row.game_id);
-	}
-	if (gmRes.ok) {
-		const gmData = await gmRes.json();
-		for (const row of gmData) if (row.game_id) moderatorGameIds.push(row.game_id);
-	}
+	const verifierGameIds: string[] = (gvRes.data || []).map((r: any) => r.game_id).filter(Boolean);
+	const moderatorGameIds: string[] = (gmRes.data || []).map((r: any) => r.game_id).filter(Boolean);
 	const allGameIds = [...new Set([...verifierGameIds, ...moderatorGameIds])];
 
 	// Build role info from profile
@@ -77,15 +56,12 @@ export async function checkAdminRole(): Promise<{
 	let isModerator = false;
 	let runnerId: string | null = null;
 
-	if (res.ok) {
-		const data = await res.json();
-		if (data.length > 0) {
-			const p = data[0];
-			isSuperAdmin = p.is_super_admin === true;
-			isAdminFlag = p.is_admin === true || isSuperAdmin;
-			isModerator = p.role === 'moderator';
-			runnerId = p.runner_id;
-		}
+	if (profileRes.data) {
+		const p = profileRes.data;
+		isSuperAdmin = p.is_super_admin === true;
+		isAdminFlag = p.is_admin === true || isSuperAdmin;
+		isModerator = p.role === 'moderator';
+		runnerId = p.runner_id;
 	}
 
 	const hasVerifierRole = verifierGameIds.length > 0;
@@ -109,25 +85,23 @@ export async function checkAdminRole(): Promise<{
  * Fetch pending items from Supabase.
  */
 export async function fetchPending(table: string): Promise<any[]> {
-	const token = await getAccessToken();
-	if (!token) return [];
+	const { data, error } = await supabase
+		.from(table)
+		.select('*')
+		.eq('status', 'pending')
+		.order('submitted_at', { ascending: false })
+		.limit(100);
 
-	const res = await fetch(
-		`${PUBLIC_SUPABASE_URL}/rest/v1/${table}?status=eq.pending&order=submitted_at.desc&limit=100`,
-		{
-			headers: {
-				'apikey': PUBLIC_SUPABASE_ANON_KEY,
-				'Authorization': `Bearer ${token}`
-			}
-		}
-	);
-
-	if (res.ok) return res.json();
-	return [];
+	if (error) {
+		console.error(`fetchPending(${table}):`, error.message);
+		return [];
+	}
+	return data || [];
 }
 
 /**
  * Call a Worker admin endpoint (approve/reject).
+ * Worker calls intentionally use raw fetch — they go to a Cloudflare Worker, not Supabase.
  */
 export async function adminAction(
 	endpoint: string,

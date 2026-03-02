@@ -3,7 +3,7 @@
 This document consolidates all reminders, future ideas, and planned features for CRC.
 Cross-reference with `CLAUDE.md` Development Checklist for technical implementation details.
 
-**Last updated:** 2026/02/28
+**Last updated:** 2026/03/02
 
 ---
 
@@ -22,6 +22,13 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ### Still To Do — Suggestions (Lower Priority)
 - [ ] **Add "Home" button in nav** — Aves recommends alongside logo
 - [ ] **Nav layout rebalance** — Aves suggests tabs on left next to logo, search on right
+
+---
+
+## Code Health
+- [ ] **Game editor is 1,585 lines in one file** (`src/routes/admin/game-editor/[game_id]/+page.svelte`) — works fine but painful to modify. Could eventually be split into sub-components per tab (GeneralTab.svelte, CategoriesTab.svelte, ChallengesTab.svelte, etc.)
+- [ ] **Route game editor saves through Worker** — currently saves go directly through Supabase client with RLS as the only gate. Sensitive field changes (name, status, frozen_at) should eventually go through the Worker for server-side validation, matching the pattern used for run submissions.
+- [ ] **Replace remaining raw fetch calls with Supabase client** — admin.ts and +layout.svelte are done. Remaining: admin/games, admin/profiles, admin/runs (data loading), profile/edit (PATCH), profile/theme (PATCH + GET). All functional but inconsistent with the rest of the codebase.
 
 ---
 
@@ -60,7 +67,7 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - [ ] Fill glossary definitions (hit, damage, death, hitless vs damageless, etc.)
 - [ ] Fill support page (FAQ, staff section, privacy request form)
 - [ ] Test Discord webhooks (run submission, game submission)
-- [ ] Audit SCSS for dead code
+- [ ] Audit SCSS for dead code — known unused selectors: `.legal-page h3` (guidelines, terms), `.btn--sm` / `.mt-3` (debug), `.fh a` (profile edit), `.mt-section` (submit), `section` (rules)
 
 ### 3. Legal & Compliance
 - [ ] Review Terms of Service line-by-line
@@ -144,6 +151,9 @@ Decision needed: GitHub Discussions vs Discord vs embedded mini-forum
 ---
 
 ## Accessibility
+
+> **Build warnings:** As of Mar 2026, `svelte-check` reports ~142 a11y warnings. These are non-blocking and will be resolved when we tackle this section. See CRC-HANDOFF.md §14 for guidance.
+
 ### Color & Theming
 - [ ] Light mode CSS variables — audit all `--bg`, `--fg`, `--accent`, `--surface`, `--panel`, `--border`, `--muted` for WCAG AA contrast (4.5:1 for text, 3:1 for large text/UI)
 - [ ] Dark/light mode testing across all pages (check for invisible text, low-contrast borders, unreadable links)
@@ -155,13 +165,15 @@ Decision needed: GitHub Discussions vs Discord vs embedded mini-forum
 - [ ] Visible focus indicators on buttons, links, tabs, dropdowns, and form fields
 - [ ] Logical tab order across all pages (especially admin forms and multi-tab layouts)
 - [ ] Skip-to-content link at the top of the page
+- [ ] Modal backdrops: add `role="button" tabindex="0" onkeydown` handlers (~15 instances across admin modals — financials, games, profiles, runs)
+- [ ] Replace `href="#"` on cookie/privacy settings links with `<button>` or `javascript:void(0)`
 
 ### Screen Readers & Semantics
 - [ ] Semantic HTML throughout — proper heading hierarchy (h1 → h2 → h3, no skips)
 - [ ] `alt` text on all images (game covers, avatars, badges)
 - [ ] ARIA labels on icon-only buttons (theme toggle, search, close/dismiss)
 - [ ] ARIA live regions for dynamic content (toast notifications, form validation errors)
-- [ ] Form fields have associated `<label>` elements (not just placeholder text)
+- [ ] Form `<label>` elements linked to controls via `for`/`id` pairs (~100+ instances: game editor, admin filters, profile edit/create, theme page, rules builder, financials, runs filters, suggest page). Pattern: `<label for="field-id">` + `<input id="field-id">`
 
 ### Motion & Preferences
 - [ ] Respect `prefers-reduced-motion` — disable hover zoom effects, transitions, and animations

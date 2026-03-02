@@ -379,6 +379,22 @@
 	.rule-card { margin-bottom: 0.75rem; }
 	.rule-card h3 { margin: 0 0 0.5rem; color: var(--accent); }
 
+	/* Exception / blockquote callouts inside rule content */
+	.rule-card :global(blockquote),
+	.card :global(blockquote) {
+		margin: 0.75rem 0;
+		padding: 0.6rem 0.85rem;
+		border-left: 3px solid #f59e0b;
+		background: rgba(245, 158, 11, 0.08);
+		border-radius: 0 6px 6px 0;
+		font-size: 0.9rem;
+		color: var(--fg);
+	}
+	.rule-card :global(blockquote p),
+	.card :global(blockquote p) { margin: 0.25rem 0; }
+	.rule-card :global(blockquote strong),
+	.card :global(blockquote strong) { color: #f59e0b; }
+
 	/* Rule Builder */
 	.rb-card { margin-bottom: 2rem; }
 	.rb-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
@@ -430,6 +446,9 @@
 	.rb-rule strong { color: var(--accent); }
 	.rb-rule__desc { margin-top: 0.3rem; font-size: 0.9rem; color: var(--fg); opacity: 0.85; }
 	.rb-rule__desc :global(p) { margin: 0.3rem 0; }
+	.rb-rule__desc :global(blockquote) { margin: 0.5rem 0; padding: 0.5rem 0.75rem; border-left: 3px solid #f59e0b; background: rgba(245, 158, 11, 0.08); border-radius: 0 6px 6px 0; font-size: 0.85rem; }
+	.rb-rule__desc :global(blockquote p) { margin: 0.2rem 0; }
+	.rb-rule__desc :global(blockquote strong) { color: #f59e0b; }
 	.rb-actions { margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end; }
 	.btn--outline { background: none; border-color: var(--border); }
 	.btn--outline:hover { border-color: var(--accent); color: var(--accent); }
