@@ -54,9 +54,29 @@
 
 .game-hero__content {
   padding: 1.25rem;
-  max-width: 70%;
+  max-width: 40%;
 }
 
+// Platform tags (left, below title)
+.game-hero__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+// Genre tags (right, bottom-aligned)
+.game-hero__genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 1.25rem;
+  align-self: flex-end;
+  justify-content: flex-end;
+  max-width: 40%;
+}
+
+// Keep legacy class for backwards compat
 .game-hero__platforms {
   display: flex;
   flex-wrap: wrap;
@@ -64,7 +84,7 @@
   padding: 1.25rem;
   align-self: flex-end;
   justify-content: flex-end;
-  max-width: 50%;
+  max-width: 40%;
 }
 
 // Platform tag variant
@@ -72,6 +92,15 @@
   background: rgba(0, 0, 0, 0.5);
   border-color: rgba(255, 255, 255, 0.2);
   color: var(--fg);
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+}
+
+// Genre tag variant (hero context)
+.game-hero .tag--genre {
+  background: rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--muted, #aaa);
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
 }
@@ -125,7 +154,8 @@
     max-width: 100%;
   }
 
-  .game-hero__platforms {
+  .game-hero__platforms,
+  .game-hero__genres {
     max-width: 100%;
     justify-content: flex-start;
     padding-top: 0;

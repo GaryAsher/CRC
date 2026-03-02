@@ -71,17 +71,21 @@
 				<div class="game-hero__overlay">
 					<div class="game-hero__content">
 						<h1>{game.game_name}</h1>
-						{#if game.genres?.length || game.platforms?.length}
-							<div class="game-genres">
-								{#each game.platforms ?? [] as platform}
+						{#if game.platforms?.length}
+							<div class="game-hero__tags">
+								{#each game.platforms as platform}
 									<span class="tag tag--platform">{slugToLabel(platform)}</span>
-								{/each}
-								{#each game.genres ?? [] as genre}
-									<span class="tag tag--genre">{slugToLabel(genre)}</span>
 								{/each}
 							</div>
 						{/if}
 					</div>
+					{#if game.genres?.length}
+						<div class="game-hero__genres">
+							{#each game.genres ?? [] as genre}
+								<span class="tag tag--genre">{slugToLabel(genre)}</span>
+							{/each}
+						</div>
+					{/if}
 				</div>
 			</section>
 		</div>
@@ -89,6 +93,16 @@
 {:else}
 	<div class="page-width">
 		<h1>{game.game_name}</h1>
+		{#if game.platforms?.length || game.genres?.length}
+			<div class="game-genres">
+				{#each game.platforms ?? [] as platform}
+					<span class="tag tag--platform">{slugToLabel(platform)}</span>
+				{/each}
+				{#each game.genres ?? [] as genre}
+					<span class="tag tag--genre">{slugToLabel(genre)}</span>
+				{/each}
+			</div>
+		{/if}
 	</div>
 {/if}
 
@@ -125,5 +139,11 @@
 	}
 	.game-tabs {
 		margin-bottom: 1.5rem;
+	}
+	.game-genres {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		margin-top: 0.5rem;
 	}
 </style>

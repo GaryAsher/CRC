@@ -46,7 +46,9 @@
 </script>
 
 {#if checking}
-	{@render children()}
+	<div class="admin-loading">
+		<div class="spinner"></div>
+	</div>
 {:else if isDebugBlocked}
 	<!-- Debug mode is active and this role can't see this page -->
 	<div class="page-width">
@@ -72,6 +74,21 @@
 {/if}
 
 <style>
+	.admin-loading {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 60vh;
+	}
+	.admin-loading .spinner {
+		width: 36px;
+		height: 36px;
+		border: 3px solid var(--border, #333);
+		border-top-color: var(--accent, #7c5cff);
+		border-radius: 50%;
+		animation: admin-spin 0.7s linear infinite;
+	}
+	@keyframes admin-spin { to { transform: rotate(360deg); } }
 	.access-blocked {
 		text-align: center;
 		padding: 5rem 1rem;

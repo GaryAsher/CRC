@@ -385,7 +385,8 @@
 	.sync-status--error { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
 
 	.theme-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-	.theme-settings { display: flex; flex-direction: column; gap: 1.5rem; }
+	.theme-settings { display: flex; flex-direction: column; gap: 1rem; }
+	.theme-settings .card { margin: 0; }
 
 	/* Presets */
 	.preset-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }

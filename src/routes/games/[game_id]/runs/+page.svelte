@@ -27,7 +27,7 @@
 </svelte:head>
 
 {#if tabs().length > 1}
-	<nav class="runner-tabs" aria-label="Run categories">
+	<nav class="runner-tabs runs-subtabs" aria-label="Run categories">
 		{#each tabs() as tab}
 			<button
 				class="tab"
@@ -94,6 +94,10 @@
 {/if}
 
 <style>
+	/* Runs sub-tabs stick below the main game tabs (76px header + ~39px game tabs) */
+	:global(.runs-subtabs) {
+		top: 115px !important;
+	}
 	section { margin-bottom: 2rem; }
 	h2 { margin-bottom: 0.25rem; }
 	.section-desc { margin-bottom: 1rem; font-size: 0.85rem; }

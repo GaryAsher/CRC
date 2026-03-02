@@ -261,30 +261,6 @@
 			</div>
 		{/if}
 
-		<!-- Game Page Credits in Overview -->
-		{@const overviewCreditedGames = data.allGames.filter(g =>
-			(g as any).credits?.some((c: any) => c.runner_id === runner.runner_id)
-		)}
-		{#if overviewCreditedGames.length > 0}
-			<div class="card mt-section">
-				<h3>📋 Game Page Credits</h3>
-				<div class="credits-grid">
-					{#each overviewCreditedGames as cg}
-						{@const credit = (cg as any).credits?.find((c: any) => c.runner_id === runner.runner_id)}
-						<a href="/games/{cg.game_id}" class="credit-game-card card-lift">
-							{#if cg.cover}
-								<div class="credit-game-card__bg" style="background-image: url('{cg.cover}')"></div>
-							{/if}
-							<div class="credit-game-card__overlay">
-								<span class="credit-game-card__name">{cg.game_name}</span>
-								<span class="credit-game-card__role">{credit?.role || 'Contributor'}</span>
-							</div>
-						</a>
-					{/each}
-				</div>
-			</div>
-		{/if}
-
 		{#if inProgressGoals.length > 0}
 			<div class="card mt-section">
 				<h2>🎯 Goals In Progress</h2>
@@ -313,7 +289,7 @@
 			</div>
 		{/if}
 
-		{#if !runner.bio && !runner.content && !runner.featured_runs?.length && !runner.contributions?.length && overviewCreditedGames.length === 0 && inProgressGoals.length === 0}
+		{#if !runner.bio && !runner.content && !runner.featured_runs?.length && !runner.contributions?.length && inProgressGoals.length === 0}
 			<div class="card"><p class="muted">No overview information yet.</p></div>
 		{/if}
 	{/if}

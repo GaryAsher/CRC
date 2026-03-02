@@ -4,7 +4,9 @@
 	import { session, isLoading } from '$stores/auth';
 	import { goto } from '$app/navigation';
 	import { checkAdminRole } from '$lib/admin';
+	import { getAccessToken } from '$lib/admin';
 	import { supabase } from '$lib/supabase';
+	import { PUBLIC_WORKER_URL } from '$env/static/public';
 	import type { Game, FullRunCategory, MiniChallengeGroup, PlayerMadeChallenge, ChallengeType, GlitchCategory, Restriction, CharacterColumn, CharacterOption } from '$types';
 
 	let checking = $state(true);
@@ -154,9 +156,30 @@
 		originalSlugs = slugs;
 	}
 
+	// ── Worker Call Helper ──────────────────────────────────────────────────
+
+	/** Call a Worker endpoint with JWT auth. Returns { ok, data?, error? } */
+	async function workerCall(endpoint: string, payload: Record<string, any>): Promise<{ ok: boolean; data?: any; error?: string }> {
+		const token = await getAccessToken();
+		if (!token) return { ok: false, error: 'Not authenticated. Please sign in again.' };
+		try {
+			const res = await fetch(`${PUBLIC_WORKER_URL}${endpoint}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ ...payload, token })
+			});
+			const data = await res.json();
+			if (res.ok && data.ok) return { ok: true, data };
+			return { ok: false, error: data.error || `Request failed (${res.status})` };
+		} catch (err: any) {
+			return { ok: false, error: err?.message || 'Network error' };
+		}
+	}
+
 	// ── Snapshot System ─────────────────────────────────────────────────────
 
-	/** Create a full snapshot of the game state before any save */
+	/** Create a full snapshot of the game state — retained for manual use.
+	 *  Save/freeze/delete/rollback snapshots are now created server-side by the Worker. */
 	async function createSnapshot(description: string) {
 		try {
 			await supabase.from('game_snapshots').insert({
@@ -182,51 +205,22 @@
 
 	async function rollbackToSnapshot(snapshotId: string) {
 		saving = true;
-		const { data: snap, error: fetchErr } = await supabase
-			.from('game_snapshots')
-			.select('snapshot_data')
-			.eq('id', snapshotId)
-			.single();
 
-		if (fetchErr || !snap) {
-			showToast('error', 'Failed to load snapshot');
+		const result = await workerCall('/game-editor/rollback', {
+			game_id: gameId,
+			snapshot_id: snapshotId
+		});
+
+		if (!result.ok) {
+			showToast('error', `Rollback failed: ${result.error}`);
 			saving = false;
 			return;
 		}
 
-		// Create a snapshot of current state before rollback (so this action is reversible)
-		await createSnapshot(`Pre-rollback backup (rolling back to snapshot ${snapshotId.slice(0, 8)})`);
-
-		const restored = snap.snapshot_data;
-		// Remove non-data fields before updating
-		delete restored.created_at;
-		delete restored.updated_at;
-
-		const { error } = await supabase
-			.from('games')
-			.update(restored)
-			.eq('game_id', gameId);
-
-		if (error) {
-			showToast('error', `Rollback failed: ${error.message}`);
-			saving = false;
-			return;
+		if (result.data?.game) {
+			game = result.data.game as Game;
+			hydrate(game!);
 		}
-
-		// Audit log
-		try {
-			await supabase.from('audit_log').insert({
-				table_name: 'games',
-				action: 'game_rollback',
-				record_id: gameId,
-				user_id: userId,
-				old_data: { snapshot_id: snapshotId },
-				new_data: { rolled_back_to: snapshotId }
-			});
-		} catch { /* best-effort */ }
-
-		game = { ...game, ...restored } as Game;
-		hydrate(game!);
 		rollbackConfirm = null;
 		showToast('success', 'Game rolled back successfully. A backup of the pre-rollback state was saved.');
 		await loadSnapshots();
@@ -239,33 +233,23 @@
 		if (!canFreeze) return;
 		saving = true;
 		const nowFrozen = !isFrozen;
-		const updates = nowFrozen
-			? { frozen_at: new Date().toISOString(), frozen_by: userId }
-			: { frozen_at: null, frozen_by: null };
 
-		if (nowFrozen) {
-			await createSnapshot('Pre-freeze snapshot (automatic)');
-		}
+		const result = await workerCall('/game-editor/freeze', {
+			game_id: gameId,
+			freeze: nowFrozen
+		});
 
-		const { error } = await supabase.from('games').update(updates).eq('game_id', gameId);
-		if (error) {
-			showToast('error', `Freeze failed: ${error.message}`);
+		if (!result.ok) {
+			showToast('error', `Freeze failed: ${result.error}`);
 			saving = false;
 			return;
 		}
 
-		try {
-			await supabase.from('audit_log').insert({
-				table_name: 'games',
-				action: nowFrozen ? 'game_frozen' : 'game_unfrozen',
-				record_id: gameId,
-				user_id: userId,
-				old_data: { frozen_at: game!.frozen_at },
-				new_data: updates
-			});
-		} catch { /* best-effort */ }
-
-		game = { ...game, ...updates } as Game;
+		game = {
+			...game,
+			frozen_at: result.data?.frozen_at ?? null,
+			frozen_by: result.data?.frozen_by ?? null
+		} as Game;
 		showToast('success', nowFrozen ? '🔒 Game frozen. All edits blocked until unfrozen.' : '🔓 Game unfrozen. Edits are now allowed.');
 		saving = false;
 	}
@@ -278,33 +262,24 @@
 		if (confirm1 !== gameId) { showToast('error', 'Delete cancelled — game ID did not match.'); return; }
 
 		saving = true;
-		await createSnapshot('Pre-deletion snapshot (automatic)');
 
-		const { error } = await supabase.from('games').delete().eq('game_id', gameId);
-		if (error) {
-			showToast('error', `Delete failed: ${error.message}`);
+		const result = await workerCall('/game-editor/delete', {
+			game_id: gameId,
+			confirm_game_id: confirm1
+		});
+
+		if (!result.ok) {
+			showToast('error', `Delete failed: ${result.error}`);
 			saving = false;
 			return;
 		}
-
-		try {
-			await supabase.from('audit_log').insert({
-				table_name: 'games',
-				action: 'game_deleted',
-				record_id: gameId,
-				user_id: userId,
-				old_data: deepClone(game),
-				new_data: null
-			});
-		} catch { /* best-effort */ }
 
 		goto('/admin/game-editor');
 	}
 
 	// ── Save Helpers ────────────────────────────────────────────────────────
 
-	// Fields only admins should be able to change
-	const ADMIN_ONLY_FIELDS = ['game_name', 'game_name_aliases', 'status'];
+	// Admin-only field restrictions are enforced server-side in the Worker
 
 	async function saveSection(sectionName: string, updates: Record<string, any>) {
 		if (!canEdit) { showToast('error', '🔒 Game is frozen. Only admins can unfreeze.'); return false; }
@@ -313,45 +288,28 @@
 		const now = Date.now();
 		if (now - lastSaveAt < 3000) { showToast('error', 'Please wait a moment before saving again.'); return false; }
 
-		// Strip admin-only fields for non-admins (defense in depth — UI also disables these)
-		if (!isAdmin) {
-			for (const key of ADMIN_ONLY_FIELDS) delete updates[key];
-			if (Object.keys(updates).length === 0) { showToast('error', 'No editable fields in this section.'); return false; }
-		}
-
 		saving = true;
 		lastSaveAt = now;
 		try {
-			const oldData: Record<string, any> = {};
-			const gameRecord = game as Record<string, any>;
-			for (const key of Object.keys(updates)) oldData[key] = gameRecord[key];
+			const result = await workerCall('/game-editor/save', {
+				game_id: gameId,
+				section_name: sectionName,
+				updates
+			});
 
-			// Create snapshot before saving
-			await createSnapshot(`Before ${sectionName} edit`);
-
-			const { error } = await supabase
-				.from('games')
-				.update(updates)
-				.eq('game_id', gameId);
-
-			if (error) {
-				showToast('error', `Save failed: ${error.message}`);
+			if (!result.ok) {
+				showToast('error', `Save failed: ${result.error}`);
 				saving = false;
 				return false;
 			}
 
-			try {
-				await supabase.from('audit_log').insert({
-					table_name: 'games',
-					action: `game_${sectionName}_edited`,
-					record_id: gameId,
-					user_id: userId,
-					old_data: oldData,
-					new_data: updates
-				});
-			} catch { /* best-effort */ }
-
-			game = { ...game, ...updates } as Game;
+			// Update local state from server response
+			if (result.data?.game) {
+				game = result.data.game as Game;
+				hydrate(game);
+			} else {
+				game = { ...game, ...updates } as Game;
+			}
 			showToast('success', `${sectionName.charAt(0).toUpperCase() + sectionName.slice(1)} saved!`);
 			saving = false;
 			return true;

@@ -27,8 +27,7 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 
 ## Code Health
 - [ ] **Game editor is 1,585 lines in one file** (`src/routes/admin/game-editor/[game_id]/+page.svelte`) — works fine but painful to modify. Could eventually be split into sub-components per tab (GeneralTab.svelte, CategoriesTab.svelte, ChallengesTab.svelte, etc.)
-- [ ] **Route game editor saves through Worker** — currently saves go directly through Supabase client with RLS as the only gate. Sensitive field changes (name, status, frozen_at) should eventually go through the Worker for server-side validation, matching the pattern used for run submissions.
-- [ ] **Replace remaining raw fetch calls with Supabase client** — admin.ts and +layout.svelte are done. Remaining: admin/games, admin/profiles, admin/runs (data loading), profile/edit (PATCH), profile/theme (PATCH + GET). All functional but inconsistent with the rest of the codebase.
+- [ ] **Route remaining raw fetch calls through Supabase client** — admin.ts and +layout.svelte are done. Remaining: admin/games, admin/profiles, admin/runs (data loading), profile/edit (PATCH), profile/theme (PATCH + GET). All functional but inconsistent with the rest of the codebase.
 
 ---
 
@@ -36,23 +35,37 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 
 ### 1. Small fixes
 - Profile/Settings
-  - [ ] User needs to have the option to add other OAuth methods. Right now it is just Twitch
-- Staff Panel:
-  - Change Name to to Admin Panel for now. It will need a new change later.
+  - [ ] I linked Twitch, but I need it to have a container similar to Discord AFTER it is linked.
+
 - Games Page:
   - Overview tab:
-    - [ ] Put Platforms on the left. Put Genres on the Right
+    - [ ] Platforms and Genres need to be in two separate columns, where Platforms is left-aligned and Genres is right-aligned.
+
 - Games Page:
   - Runs tab:
-    - [ ] Make a tab system for Full Runs and Mini Challenges
+    - [ ] When people scroll down, allow them to see both the Main tabs and the subtabs where the runs are.
+
 - Games Page:
   - Submit Run:
-    - [ ] The entire form is thinner than in other places. I want this to have the same width as rules, runs, history, resources, forum. etc.
-      - This change was correctly applied to https://www.challengerun.net/submit , but not to game/submit pages
+    - [ ] Put "Submit Run" button and Cloudflare verification in 2-column style
+    - [ ] Submit Run Button needs to be larger (do we already have a large button in global CSS?)
+    - [ ] Consolidate some sections and move them in a way that makes sense
+
+- profile/edit:
+  - remove separator at bottom that is right above "Save Changes" and "Cancel" button.
+
+- Runner Profile
+  - Overview:
+    - Remove Game Page Credits
+
+- profile/Theme
+  - [ ] Is the spacing between Font Options, Background Image, Custom Colors, and Preset Themes different than everything else on the site?
 
  - Rules tab:
     - [ ] Better styling for "Exceptions"
       - Still need your input on: What "Exceptions" refers to on the Rules tab — is that a section within rule markdown content, or a new data field you want to add?
+- Submit Page (https://www.challengerun.net/submit)
+  - Can we transform this to populate the respective game? or is that too much work?
 
 
 ### 2. Content & Polish
@@ -139,6 +152,10 @@ Decision needed: GitHub Discussions vs Discord vs embedded mini-forum
 - [ ] Upgrade to paid plan (first service upgrade)
   - After upgrade: enable "Prevent use of leaked passwords" in Auth → Attack Protection
 - [ ] GDPR export gap: `runs` and `game_achievements` RLS filters by `status = 'approved'` — admin can't export non-approved entries (minor, since tables only contain approved rows in practice)
+
+### Security
+- [ ] **Cloudflare WAF rate limiting** — Free plan only allows 1 rate limiting rule (currently protecting `/submit` endpoints). Admin endpoints rely on Worker-level in-memory rate limiting (per-isolate, not global). Upgrade to Pro ($20/mo) for full WAF with multiple rules when budget allows.
+- [ ] **CSP `unsafe-inline` for scripts** — SvelteKit requires inline scripts for hydration. Cloudflare Pages (static adapter) can't generate per-request nonces. **Accepted risk** — mitigated by input sanitization, RLS, and Worker validation. Revisit if moving to SSR or if SvelteKit adds static nonce support.
 
 ---
 

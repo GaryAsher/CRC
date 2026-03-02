@@ -1542,7 +1542,6 @@
 	/* Save actions */
 	.form-actions {
 		display: flex; gap: 0.75rem; margin-top: 2rem;
-		padding-top: 1.5rem; border-top: 1px solid var(--border);
 		justify-content: flex-end;
 	}
 

@@ -23,7 +23,7 @@
 // $$ LANGUAGE plpgsql;
 //
 // CREATE TRIGGER on_profile_update_trigger
-// AFTER UPDATE ON runner_profiles
+// AFTER UPDATE ON profiles
 // FOR EACH ROW
 // WHEN (OLD.* IS DISTINCT FROM NEW.*)
 // EXECUTE FUNCTION trigger_profile_sync();

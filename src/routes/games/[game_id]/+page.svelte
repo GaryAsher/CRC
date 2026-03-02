@@ -9,12 +9,6 @@
 	const runCountByCategory = $derived(data.runCountByCategory);
 	const totalRunCount = $derived(data.totalRunCount);
 
-	// Platforms and genres for overview display
-	function slugToLabel(slug: string): string {
-		return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-	}
-	const genres = $derived((game.genres ?? []).slice(0, 10));
-
 	// General rules: game-specific or default fallback
 	const generalRules = $derived(
 		game.general_rules || data.defaultGeneralRules || null
@@ -97,32 +91,6 @@
 	{/if}
 	<a href="/games/{game.game_id}/submit" class="btn btn--accent">Submit a Run</a>
 </section>
-
-<!-- Platforms & Genres -->
-{#if game.platforms?.length || genres.length}
-	<section class="platform-genre-row">
-		{#if game.platforms?.length}
-			<div class="pg-col">
-				<h3 class="pg-col__heading">Platforms</h3>
-				<div class="pg-col__tags">
-					{#each game.platforms as platform}
-						<span class="tag tag--platform">{slugToLabel(platform)}</span>
-					{/each}
-				</div>
-			</div>
-		{/if}
-		{#if genres.length}
-			<div class="pg-col pg-col--right">
-				<h3 class="pg-col__heading">Genres</h3>
-				<div class="pg-col__tags">
-					{#each genres as genre}
-						<span class="tag tag--genre">{slugToLabel(genre)}</span>
-					{/each}
-				</div>
-			</div>
-		{/if}
-	</section>
-{/if}
 
 <!-- 3. General Rules (Accordion) -->
 <div class="card card--compact">
@@ -291,40 +259,6 @@
 {/if}
 
 <style>
-	/* Platform / Genre row */
-	.platform-genre-row {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 1.5rem;
-		margin-bottom: 1.5rem;
-	}
-	.pg-col__heading {
-		font-size: 0.85rem;
-		font-weight: 600;
-		color: var(--muted);
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-		margin-bottom: 0.5rem;
-	}
-	.pg-col__tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-	.pg-col__tags .tag {
-		display: inline-block;
-		padding: 0.25rem 0.6rem;
-		border-radius: var(--radius-sm, 4px);
-		font-size: 0.8rem;
-		border: 1px solid var(--border);
-		background: var(--surface);
-		color: var(--fg);
-	}
-	.pg-col__tags .tag--platform { border-color: var(--accent); color: var(--accent); }
-	.pg-col--right { text-align: right; }
-	.pg-col--right .pg-col__tags { justify-content: flex-end; }
-	@media (max-width: 500px) {
-		.platform-genre-row { grid-template-columns: 1fr; gap: 1rem; }
-		.pg-col--right { text-align: left; }
-		.pg-col--right .pg-col__tags { justify-content: flex-start; }
-	}
-
 	/* Layout */
 	section { margin-bottom: 1.5rem; }
 	h2 { margin-bottom: 0.75rem; }
