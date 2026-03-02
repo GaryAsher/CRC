@@ -5,7 +5,7 @@
 	import { sanitizeText } from '$lib/utils/markdown';
 	import { checkBannedTerms } from '$lib/utils/banned-terms';
 	import { COUNTRIES, matchLocationToCode, getCountry } from '$lib/data/countries';
-	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+
 	import AuthGuard from '$components/auth/AuthGuard.svelte';
 
 	// Banner preset groups — each uses a CSS gradient as background (no external URLs, always works)
@@ -364,23 +364,13 @@
 			const { data: { session: sess } } = await supabase.auth.getSession();
 			if (!sess) throw new Error('Not authenticated. Please sign in again.');
 
-			const res = await fetch(
-				`${PUBLIC_SUPABASE_URL}/rest/v1/profiles?user_id=eq.${sess.user.id}`,
-				{
-					method: 'PATCH',
-					headers: {
-						'apikey': PUBLIC_SUPABASE_ANON_KEY,
-						'Authorization': `Bearer ${sess.access_token}`,
-						'Content-Type': 'application/json',
-						'Prefer': 'return=minimal'
-					},
-					body: JSON.stringify(update)
-				}
-			);
+			const { error: updateError } = await supabase
+				.from('profiles')
+				.update(update)
+				.eq('user_id', sess.user.id);
 
-			if (!res.ok) {
-				const err = await res.json().catch(() => ({}));
-				throw new Error(err.message || `Save failed (${res.status})`);
+			if (updateError) {
+				throw new Error(updateError.message || 'Save failed');
 			}
 
 			// Update local pending state

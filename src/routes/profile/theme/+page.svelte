@@ -7,7 +7,7 @@
 		applyCustomTheme, saveCustomThemeToStorage, clearCustomTheme
 	} from '$stores/theme';
 	import type { CustomTheme } from '$stores/theme';
-	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+
 	import { browser } from '$app/environment';
 
 	let signedIn = $state(false);
@@ -114,20 +114,11 @@
 			const { data: { session: sess } } = await supabase.auth.getSession();
 			if (!sess) { syncStatus = 'error'; return; }
 
-			const res = await fetch(
-				`${PUBLIC_SUPABASE_URL}/rest/v1/profiles?user_id=eq.${sess.user.id}`,
-				{
-					method: 'PATCH',
-					headers: {
-						'apikey': PUBLIC_SUPABASE_ANON_KEY,
-						'Authorization': `Bearer ${sess.access_token}`,
-						'Content-Type': 'application/json',
-						'Prefer': 'return=minimal'
-					},
-					body: JSON.stringify({ theme_settings: themeData })
-				}
-			);
-			syncStatus = res.ok ? 'synced' : 'error';
+			const { error } = await supabase
+				.from('profiles')
+				.update({ theme_settings: themeData })
+				.eq('user_id', sess.user.id);
+			syncStatus = !error ? 'synced' : 'error';
 		} catch {
 			syncStatus = 'error';
 		}
@@ -161,21 +152,14 @@
 			try {
 				const { data: { session: sess } } = await supabase.auth.getSession();
 				if (sess) {
-					const res = await fetch(
-						`${PUBLIC_SUPABASE_URL}/rest/v1/profiles?user_id=eq.${sess.user.id}&select=theme_settings`,
-						{
-							headers: {
-								'apikey': PUBLIC_SUPABASE_ANON_KEY,
-								'Authorization': `Bearer ${sess.access_token}`
-							}
-						}
-					);
-					if (res.ok) {
-						const rows = await res.json();
-						if (rows.length > 0 && rows[0].theme_settings) {
-							applyLoadedData(rows[0].theme_settings);
-							syncStatus = 'synced';
-						}
+					const { data: profile } = await supabase
+						.from('profiles')
+						.select('theme_settings')
+						.eq('user_id', sess.user.id)
+						.maybeSingle();
+					if (profile?.theme_settings) {
+						applyLoadedData(profile.theme_settings);
+						syncStatus = 'synced';
 					}
 				}
 			} catch { /* ignore */ }

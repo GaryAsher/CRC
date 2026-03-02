@@ -1,9 +1,24 @@
 import { getPlatforms } from '$lib/server/data';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
 	const raw = getPlatforms();
 	const platforms = Object.entries(raw).map(([id, p]) => ({ id, label: p.label }));
 	platforms.sort((a, b) => a.label.localeCompare(b.label));
-	return { platforms };
+
+	// Load runner profile for auto-fill
+	let runnerProfile: { runner_id: string; display_name: string } | null = null;
+	if (locals.session?.user?.id) {
+		const { data: profile } = await locals.supabase
+			.from('profiles')
+			.select('runner_id, display_name')
+			.eq('user_id', locals.session.user.id)
+			.eq('status', 'approved')
+			.maybeSingle();
+		if (profile?.runner_id) {
+			runnerProfile = { runner_id: profile.runner_id, display_name: profile.display_name || profile.runner_id };
+		}
+	}
+
+	return { platforms, runnerProfile };
 };

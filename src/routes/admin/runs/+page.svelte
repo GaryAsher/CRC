@@ -4,7 +4,6 @@
 	import { goto } from '$app/navigation';
 	import { checkAdminRole, adminAction } from '$lib/admin';
 	import { supabase } from '$lib/supabase';
-	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 	let checking = $state(true);
 	let authorized = $state(false);
@@ -306,16 +305,14 @@
 	async function loadRuns() {
 		loading = true;
 		try {
-			const token = (await supabase.auth.getSession()).data.session?.access_token;
-			if (!token) { runs = []; loading = false; return; }
-
 			// Always load all statuses so tab counts are accurate; filter client-side
-			const res = await fetch(
-				`${PUBLIC_SUPABASE_URL}/rest/v1/pending_runs?order=submitted_at.desc&limit=500`,
-				{ headers: { 'apikey': PUBLIC_SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` } }
-			);
-			if (res.ok) {
-				const data = await res.json();
+			const { data, error } = await supabase
+				.from('pending_runs')
+				.select('*')
+				.order('submitted_at', { ascending: false })
+				.limit(500);
+
+			if (!error && data) {
 
 				// Resolve claimed_by UUIDs to runner_ids
 				const claimerIds = [...new Set(data.filter((r: any) => r.claimed_by).map((r: any) => r.claimed_by))];

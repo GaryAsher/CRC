@@ -11,21 +11,37 @@
 
 	let { data } = $props();
 	const game = $derived(data.game);
-	const platforms = $derived(data.platforms || []);
+	const allPlatforms = $derived(data.platforms || []);
+	const runnerProfile = $derived(data.runnerProfile);
+
+	// Filter platforms to this game's configured list (fall back to all if none set)
+	const gamePlatforms = $derived(
+		game.platforms?.length
+			? allPlatforms.filter((p: any) => game.platforms.includes(p.id))
+			: allPlatforms
+	);
 
 	// ── Form State ──
 	let categoryTier = $state('');
 	let categorySlug = $state('');
-	let selectedChallenges = $state<string[]>([]);
+	let platform = $state('');
 	let character = $state('');
+	let selectedChallenges = $state<string[]>([]);
 	let glitchId = $state('');
 	let selectedRestrictions = $state<string[]>([]);
-	let videoUrl = $state('');
-	let platform = $state('');
-	let dateCompleted = $state('');
 	let runTimeRta = $state('');
 	let runTimePrimary = $state('');
+	let dateCompleted = $state('');
+	let videoUrl = $state('');
 	let submitterNotes = $state('');
+
+	// ── Typeahead State ──
+	let platformSearch = $state('');
+	let platformOpen = $state(false);
+	let charSearch = $state('');
+	let charOpen = $state(false);
+	let glitchSearch = $state('');
+	let glitchOpen = $state(false);
 
 	// ── Video Metadata State ──
 	let videoTitle = $state('');
@@ -78,8 +94,6 @@
 	const gameTimingMethod = $derived(game.timing_method || '');
 	const hasGameTiming = $derived(!!gameTimingMethod && gameTimingMethod.toLowerCase() !== 'rta');
 	const gameTimingLabel = $derived(gameTimingMethod || 'Primary Time');
-	// RTA is always available unless game explicitly removes it
-	// If game timing IS rta, we only show one field
 	const showRtaSeparately = $derived(hasGameTiming);
 
 	// ── Derived category options ──
@@ -108,25 +122,22 @@
 	const selectedCategory = $derived(categoryOptions.find(c => c.slug === categorySlug));
 	const fixedLoadout = $derived(selectedCategory?.fixed_loadout?.enabled ? selectedCategory.fixed_loadout : null);
 
-	// Pre-fill locked fields when a fixed-loadout category is selected
 	$effect(() => {
 		const fl = fixedLoadout;
 		if (fl) {
-			if (fl.character) character = fl.character;
+			if (fl.character) { character = fl.character; charSearch = (game.characters_data || []).find((c: any) => c.slug === fl.character)?.label || fl.character; }
 			if (fl.challenge) selectedChallenges = [fl.challenge];
 			if (fl.restriction) selectedRestrictions = [fl.restriction];
 		}
 	});
 
-	// Clear fixed values when switching to a non-fixed category
 	let prevCategorySlug = $state('');
 	$effect(() => {
 		if (categorySlug !== prevCategorySlug) {
 			const prevCat = categoryOptions.find(c => c.slug === prevCategorySlug);
 			const prevFl = prevCat?.fixed_loadout?.enabled ? prevCat.fixed_loadout : null;
 			if (prevFl && !fixedLoadout) {
-				// Was fixed, now isn't — clear the locked values
-				if (prevFl.character) character = '';
+				if (prevFl.character) { character = ''; charSearch = ''; }
 				if (prevFl.challenge) selectedChallenges = selectedChallenges.filter(c => c !== prevFl.challenge);
 				if (prevFl.restriction) selectedRestrictions = selectedRestrictions.filter(r => r !== prevFl.restriction);
 			}
@@ -135,6 +146,7 @@
 	});
 
 	// ── Validation ──
+	const platformRequired = $derived(!!game.platform_required);
 	const videoValid = $derived(!videoUrl || isValidVideoUrl(videoUrl));
 	const notesWarning = $derived(checkBannedTerms(submitterNotes));
 	const canSubmit = $derived(
@@ -145,8 +157,25 @@
 		videoValid &&
 		!!turnstileToken &&
 		!notesWarning &&
-		!submitting
+		!submitting &&
+		(!platformRequired || !!platform)
 	);
+
+	// ── Typeahead Helpers ──
+	function norm(s: string) { return s.trim().toLowerCase(); }
+	function filterItems(items: { id?: string; slug?: string; label: string }[], search: string) {
+		const q = norm(search);
+		if (!q) return items.slice(0, 30);
+		return items.filter(i => norm(i.label).includes(q) || norm(i.id || i.slug || '').includes(q)).slice(0, 30);
+	}
+	function handleBlur(closeFn: () => void) { setTimeout(closeFn, 180); }
+
+	function selectPlatform(p: { id: string; label: string }) { platform = p.id; platformSearch = p.label; platformOpen = false; }
+	function clearPlatform() { platform = ''; platformSearch = ''; }
+	function selectCharacter(c: { slug: string; label: string }) { character = c.slug; charSearch = c.label; charOpen = false; }
+	function clearCharacter() { character = ''; charSearch = ''; }
+	function selectGlitch(g: { slug: string; label: string }) { glitchId = g.slug; glitchSearch = g.label; glitchOpen = false; }
+	function clearGlitch() { glitchId = ''; glitchSearch = ''; }
 
 	// ── Video Title Fetch ──
 	let fetchDebounce: ReturnType<typeof setTimeout> | null = null;
@@ -175,9 +204,7 @@
 				}
 			} else {
 				videoTitle = json.title || '';
-				// Try to extract upload date from YouTube video
 				if (!dateCompleted && json.upload_date) {
-					// noembed sometimes returns upload_date as YYYY-MM-DD
 					dateCompleted = json.upload_date;
 				}
 			}
@@ -198,7 +225,6 @@
 		}
 	}
 
-	// Auto-fetch when video URL changes
 	$effect(() => {
 		videoUrl;
 		onVideoUrlChange();
@@ -228,7 +254,6 @@
 		successMsg = '';
 
 		try {
-			// Get auth token for Worker verification
 			const { data: { session: sess } } = await supabase.auth.getSession();
 			if (!sess?.access_token) {
 				throw new Error('You must be signed in to submit a run.');
@@ -250,17 +275,12 @@
 				submitter_notes: submitterNotes.trim() || undefined,
 			};
 
-			// Date (optional)
 			if (dateCompleted) payload.run_date = dateCompleted;
-
-			// Timing: RTA is always captured
 			if (runTimeRta) payload.time_rta = runTimeRta;
 
-			// Game-specific timing (IGT, etc.)
 			if (showRtaSeparately && runTimePrimary) {
 				payload.time_primary = runTimePrimary;
 			} else if (!showRtaSeparately && runTimeRta) {
-				// If game timing IS rta (or unset), time_primary = rta
 				payload.time_primary = runTimeRta;
 			}
 
@@ -280,12 +300,12 @@
 			categoryTier = ''; categorySlug = ''; selectedChallenges = []; character = '';
 			glitchId = ''; selectedRestrictions = []; videoUrl = ''; platform = ''; dateCompleted = '';
 			runTimeRta = ''; runTimePrimary = ''; submitterNotes = ''; videoTitle = '';
+			platformSearch = ''; charSearch = ''; glitchSearch = '';
 		} catch (err: any) {
 			errorMsg = err.message || 'Submission failed. Please try again.';
 			showToast('error', err.message || 'Submission failed.');
 		} finally {
 			submitting = false;
-			// Reset Turnstile for next submission
 			if (turnstileWidgetId !== null && (window as any).turnstile) {
 				(window as any).turnstile.reset(turnstileWidgetId);
 				turnstileToken = '';
@@ -327,7 +347,8 @@
 	</div>
 {:else}
 	<form class="submit-form" onsubmit={handleSubmit}>
-		<!-- Category Selection -->
+
+		<!-- 1. Category Selection -->
 		<div class="submit-section">
 			<p class="submit-section__title">Category <span class="req">*</span></p>
 			<p class="submit-section__sub">Select the run tier and category.</p>
@@ -353,7 +374,77 @@
 			</div>
 		</div>
 
-		<!-- Challenges -->
+		<!-- 2. Platform (typeahead, filtered to game) -->
+		<div class="submit-section">
+			<p class="submit-section__title">Platform{#if platformRequired} <span class="req">*</span>{/if}</p>
+			<p class="submit-section__sub">{#if platformRequired}This game requires a platform selection.{:else}What platform did you play on? Optional but helpful for verification.{/if}</p>
+			<div class="field" style="max-width: 300px;">
+				<div class="ta">
+					<input type="text" class="ta__input" placeholder="Type a platform..." autocomplete="off" bind:value={platformSearch}
+						onclick={() => platformOpen = !platformOpen} oninput={() => { if (!platformOpen) platformOpen = true; }}
+						onblur={() => handleBlur(() => { platformOpen = false; if (platform) { const match = gamePlatforms.find((p: any) => p.id === platform); platformSearch = match?.label || ''; } else platformSearch = ''; })} />
+					{#if platform}<button type="button" class="ta__clear" onclick={clearPlatform}>✕</button>{/if}
+					{#if platformOpen}
+						{@const matches = filterItems(gamePlatforms, platformSearch)}
+						<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">No matches</li>{:else}{#each matches as p}<li><button type="button" class="ta__opt" class:ta__opt--active={platform === p.id} onmousedown={() => selectPlatform(p)}>{p.label}</button></li>{/each}{/if}</ul>
+					{/if}
+				</div>
+			</div>
+		</div>
+
+		<!-- 3. Runner (auto-fill + additional runners stub) -->
+		<div class="submit-section">
+			<p class="submit-section__title">Runner</p>
+			<div class="field-row">
+				<div class="field">
+					<label class="field-label">Your Profile</label>
+					{#if runnerProfile}
+						<div class="runner-autofill">
+							<a href="/runners/{runnerProfile.runner_id}" class="runner-autofill__link">{runnerProfile.display_name}</a>
+						</div>
+					{:else}
+						<div class="runner-autofill runner-autofill--none">
+							<span class="muted">No profile found — <a href="/profile/create">create one</a></span>
+						</div>
+					{/if}
+				</div>
+				<div class="field">
+					<label class="field-label">Additional Runners</label>
+					<div class="coming-soon-stub">
+						<span class="coming-soon-stub__icon">👥</span>
+						<span class="coming-soon-stub__text">Multi-runner support coming soon</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 4. Character (typeahead) -->
+		{#if game.character_column?.enabled && game.characters_data?.length}
+			<div class="submit-section">
+				<p class="submit-section__title">{game.character_column.label}{#if fixedLoadout?.character} <span class="fixed-badge">🔒 Fixed</span>{/if}</p>
+				<div class="field">
+					{#if fixedLoadout?.character}
+						<div class="ta">
+							<input type="text" class="ta__input" value={charSearch} disabled />
+						</div>
+						<span class="field-hint">Locked by category — this {game.character_column.label.toLowerCase()} is required for this challenge.</span>
+					{:else}
+						<div class="ta">
+							<input type="text" class="ta__input" placeholder="Type a {game.character_column.label.toLowerCase()}..." autocomplete="off" bind:value={charSearch}
+								onclick={() => charOpen = !charOpen} oninput={() => { if (!charOpen) charOpen = true; }}
+								onblur={() => handleBlur(() => { charOpen = false; if (character) { const match = (game.characters_data || []).find((c: any) => c.slug === character); charSearch = match?.label || ''; } else charSearch = ''; })} />
+							{#if character}<button type="button" class="ta__clear" onclick={clearCharacter}>✕</button>{/if}
+							{#if charOpen}
+								{@const matches = filterItems(game.characters_data || [], charSearch)}
+								<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">No matches</li>{:else}{#each matches as c}<li><button type="button" class="ta__opt" class:ta__opt--active={character === c.slug} onmousedown={() => selectCharacter(c)}>{c.label}</button></li>{/each}{/if}</ul>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			</div>
+		{/if}
+
+		<!-- 5. Challenges (chip grid) -->
 		{#if game.challenges_data?.length}
 			<div class="submit-section">
 				<p class="submit-section__title">Challenges{#if fixedLoadout?.challenge} <span class="fixed-badge">🔒 Fixed</span>{/if}</p>
@@ -370,40 +461,26 @@
 			</div>
 		{/if}
 
-		<!-- Character -->
-		{#if game.character_column?.enabled && game.characters_data?.length}
-			<div class="submit-section">
-				<p class="submit-section__title">{game.character_column.label}{#if fixedLoadout?.character} <span class="fixed-badge">🔒 Fixed</span>{/if}</p>
-				<div class="field">
-					<select bind:value={character} disabled={!!fixedLoadout?.character}>
-						<option value="">Select {game.character_column.label.toLowerCase()}...</option>
-						{#each game.characters_data as ch}
-							<option value={ch.slug}>{ch.label}</option>
-						{/each}
-					</select>
-					{#if fixedLoadout?.character}
-						<span class="field-hint">Locked by category — this {game.character_column.label.toLowerCase()} is required for this challenge.</span>
-					{/if}
-				</div>
-			</div>
-		{/if}
-
-		<!-- Glitch Category -->
+		<!-- 6. Glitch Category (typeahead) -->
 		{#if game.glitches_data?.length}
 			<div class="submit-section">
 				<p class="submit-section__title">Glitch Category</p>
 				<div class="field">
-					<select bind:value={glitchId}>
-						<option value="">Select glitch policy...</option>
-						{#each game.glitches_data as g}
-							<option value={g.slug}>{g.label}</option>
-						{/each}
-					</select>
+					<div class="ta">
+						<input type="text" class="ta__input" placeholder="Type a glitch category..." autocomplete="off" bind:value={glitchSearch}
+							onclick={() => glitchOpen = !glitchOpen} oninput={() => { if (!glitchOpen) glitchOpen = true; }}
+							onblur={() => handleBlur(() => { glitchOpen = false; if (glitchId) { const match = (game.glitches_data || []).find((g: any) => g.slug === glitchId); glitchSearch = match?.label || ''; } else glitchSearch = ''; })} />
+						{#if glitchId}<button type="button" class="ta__clear" onclick={clearGlitch}>✕</button>{/if}
+						{#if glitchOpen}
+							{@const matches = filterItems(game.glitches_data || [], glitchSearch)}
+							<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">No matches</li>{:else}{#each matches as g}<li><button type="button" class="ta__opt" class:ta__opt--active={glitchId === g.slug} onmousedown={() => selectGlitch(g)}>{g.label}</button></li>{/each}{/if}</ul>
+						{/if}
+					</div>
 				</div>
 			</div>
 		{/if}
 
-		<!-- Restrictions -->
+		<!-- 7. Restrictions (chip grid) -->
 		{#if game.restrictions_data?.length}
 			<div class="submit-section">
 				<p class="submit-section__title">Restrictions{#if fixedLoadout?.restriction} <span class="fixed-badge">🔒 Fixed</span>{/if}</p>
@@ -420,45 +497,7 @@
 			</div>
 		{/if}
 
-		<!-- Video Proof -->
-		<div class="submit-section">
-			<p class="submit-section__title">Video Proof <span class="req">*</span></p>
-			<div class="field">
-				<label for="video" class="field-label">Video URL <span class="req">*</span></label>
-				<input id="video" type="url" bind:value={videoUrl} required placeholder="https://youtube.com/watch?v=..." class:field--error={videoUrl && !videoValid} />
-				{#if videoUrl && !videoValid}
-					<span class="field-error">Must be a YouTube, Twitch, or supported video URL</span>
-				{/if}
-			</div>
-			{#if videoFetching}
-				<div class="video-meta"><span class="spinner spinner--small"></span> <span class="muted">Fetching video info...</span></div>
-			{/if}
-			{#if videoTitle}
-				<div class="video-meta video-meta--success">
-					<span class="video-meta__icon">🎬</span>
-					<span class="video-meta__title">{videoTitle}</span>
-				</div>
-			{/if}
-			{#if videoFetchError}
-				<div class="video-meta video-meta--warn"><span class="muted">{videoFetchError}</span></div>
-			{/if}
-		</div>
-
-		<!-- Platform -->
-		<div class="submit-section">
-			<p class="submit-section__title">Platform</p>
-			<p class="submit-section__sub">What platform did you play on? Optional but helpful for verification.</p>
-			<div class="field" style="max-width: 300px;">
-				<select bind:value={platform}>
-					<option value="">Select platform...</option>
-					{#each platforms as p}
-						<option value={p.id}>{p.label}</option>
-					{/each}
-				</select>
-			</div>
-		</div>
-
-		<!-- Run Timing -->
+		<!-- 8. Run Timing -->
 		<div class="submit-section">
 			<p class="submit-section__title">Run Timing</p>
 			<p class="submit-section__sub">
@@ -486,7 +525,7 @@
 			</div>
 		</div>
 
-		<!-- Date Completed -->
+		<!-- 9. Date Completed -->
 		<div class="submit-section">
 			<p class="submit-section__title">Date Completed</p>
 			<p class="submit-section__sub">When was this run completed? Optional — will use submission date if left blank.</p>
@@ -495,7 +534,31 @@
 			</div>
 		</div>
 
-		<!-- Runner Notes -->
+		<!-- 10. Video Proof -->
+		<div class="submit-section">
+			<p class="submit-section__title">Video Proof <span class="req">*</span></p>
+			<div class="field">
+				<label for="video" class="field-label">Video URL <span class="req">*</span></label>
+				<input id="video" type="url" bind:value={videoUrl} required placeholder="https://youtube.com/watch?v=..." class:field--error={videoUrl && !videoValid} />
+				{#if videoUrl && !videoValid}
+					<span class="field-error">Must be a YouTube, Twitch, or supported video URL</span>
+				{/if}
+			</div>
+			{#if videoFetching}
+				<div class="video-meta"><span class="spinner spinner--small"></span> <span class="muted">Fetching video info...</span></div>
+			{/if}
+			{#if videoTitle}
+				<div class="video-meta video-meta--success">
+					<span class="video-meta__icon">🎬</span>
+					<span class="video-meta__title">{videoTitle}</span>
+				</div>
+			{/if}
+			{#if videoFetchError}
+				<div class="video-meta video-meta--warn"><span class="muted">{videoFetchError}</span></div>
+			{/if}
+		</div>
+
+		<!-- 11. Runner Notes -->
 		<div class="submit-section">
 			<p class="submit-section__title">Runner Notes</p>
 			<p class="submit-section__sub">Optional notes about your run (strategy, memorable moments, attempts count, etc.). Max 500 characters.</p>
@@ -549,7 +612,6 @@
 	.mb-3 { margin-bottom: 1rem; text-align: center; }
 	.mt-1 { margin-top: 0.5rem; }
 	.mt-2 { margin-top: 0.75rem; }
-	.mt-section { margin-top: 1.5rem; }
 	.required-hint { font-size: 0.8rem; }
 	.req { color: #ef4444; font-weight: 600; }
 
@@ -577,9 +639,33 @@
 	input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 59, 195, 110), 0.15); }
 	input:hover:not(:disabled):not(:focus), select:hover:not(:disabled):not(:focus), textarea:hover:not(:disabled):not(:focus) { border-color: color-mix(in srgb, var(--border) 50%, var(--accent)); }
 	input::placeholder, textarea::placeholder { color: var(--border); }
-	select:disabled { opacity: 0.5; }
+	select:disabled, input:disabled { opacity: 0.5; }
 	.field--error { border-color: #ef4444 !important; }
 	.field-error { color: #ef4444; font-size: 0.75rem; }
+
+	/* Typeahead */
+	.ta { position: relative; }
+	.ta__input { width: 100%; padding: 0.5rem 0.75rem; padding-right: 2rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 0.9rem; font-family: inherit; }
+	.ta__input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(var(--accent-rgb, 59, 195, 110), 0.15); }
+	.ta__input::placeholder { color: var(--border); }
+	.ta__clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.8rem; padding: 2px 5px; border-radius: 3px; }
+	.ta__clear:hover { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+	.ta__list { position: absolute; top: 100%; left: 0; right: 0; z-index: 50; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; max-height: 200px; overflow-y: auto; list-style: none; margin: 4px 0 0; padding: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+	.ta__opt { display: block; width: 100%; text-align: left; padding: 0.4rem 0.6rem; background: none; border: none; color: var(--fg); cursor: pointer; font-size: 0.85rem; border-radius: 4px; font-family: inherit; }
+	.ta__opt:hover { background: var(--surface); }
+	.ta__opt--active { color: var(--accent); font-weight: 600; }
+	.ta__empty { padding: 0.5rem 0.6rem; color: var(--muted); font-size: 0.8rem; }
+
+	/* Runner auto-fill */
+	.runner-autofill { padding: 0.5rem 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
+	.runner-autofill__link { color: var(--accent); text-decoration: none; font-weight: 500; }
+	.runner-autofill__link:hover { text-decoration: underline; }
+	.runner-autofill--none { color: var(--text-muted); font-size: 0.85rem; }
+	.runner-autofill--none a { color: var(--accent); }
+
+	/* Coming soon stub */
+	.coming-soon-stub { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: var(--surface); border: 1px dashed var(--border); border-radius: 6px; color: var(--text-muted); font-size: 0.8rem; }
+	.coming-soon-stub__icon { font-size: 1rem; opacity: 0.5; }
 
 	/* Video meta */
 	.video-meta { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.85rem; }
@@ -606,7 +692,6 @@
 	.submit-footer { display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: center; padding-top: 0.5rem; }
 	.submit-footer__action { display: flex; justify-content: flex-end; }
 	.submit-footer__action .btn { min-width: 180px; justify-content: center; }
-	.turnstile-section { background: none; border: none; padding: 0; display: flex; align-items: center; gap: 0.75rem; }
 
 	.submit-error { padding: 0.6rem 0.75rem; border-radius: 6px; font-size: 0.85rem; background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
 

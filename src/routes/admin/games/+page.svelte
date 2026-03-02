@@ -4,7 +4,6 @@
 	import { goto } from '$app/navigation';
 	import { checkAdminRole, adminAction } from '$lib/admin';
 	import { supabase } from '$lib/supabase';
-	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 	let checking = $state(true);
 	let authorized = $state(false);
@@ -49,13 +48,12 @@
 	async function loadGames() {
 		loading = true;
 		try {
-			const token = (await supabase.auth.getSession()).data.session?.access_token;
-			if (!token) { games = []; loading = false; return; }
-			const res = await fetch(
-				`${PUBLIC_SUPABASE_URL}/rest/v1/pending_games?order=submitted_at.desc&limit=200`,
-				{ headers: { 'apikey': PUBLIC_SUPABASE_ANON_KEY, 'Authorization': `Bearer ${token}` } }
-			);
-			if (res.ok) games = await res.json();
+			const { data, error } = await supabase
+				.from('pending_games')
+				.select('*')
+				.order('submitted_at', { ascending: false })
+				.limit(200);
+			if (!error && data) games = data;
 		} catch { /* ignore */ }
 		loading = false;
 	}

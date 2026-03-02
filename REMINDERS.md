@@ -12,6 +12,7 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - [ ] Icons for Admins, Super Admins, Verifiers — attach to profiles
 - [ ] Add default profile picture and default banner
 - [ ] **Favicon** — update once we have a logo (currently empty placeholder)
+- [ ] **Split game editor into sub-components** (`src/routes/admin/game-editor/[game_id]/+page.svelte`) — currently ~1,620 lines. Split into GeneralTab.svelte, CategoriesTab.svelte, ChallengesTab.svelte, etc. **Revisit when:** file exceeds 2,000 lines OR a new feature requires editing 3+ tab sections simultaneously.
 
 ---
 
@@ -25,42 +26,22 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 
 ---
 
-## Code Health
-- [ ] **Game editor is 1,585 lines in one file** (`src/routes/admin/game-editor/[game_id]/+page.svelte`) — works fine but painful to modify. Could eventually be split into sub-components per tab (GeneralTab.svelte, CategoriesTab.svelte, ChallengesTab.svelte, etc.)
-- [ ] **Route remaining raw fetch calls through Supabase client** — admin.ts and +layout.svelte are done. Remaining: admin/games, admin/profiles, admin/runs (data loading), profile/edit (PATCH), profile/theme (PATCH + GET). All functional but inconsistent with the rest of the codebase.
-
----
-
 ## Short-Term Priorities
 
 ### 1. Small fixes
 - Games Page:
-  - Submit Run tab:
-    - [ ] Update Platform to have typeahead dropdown
-    - [ ] update Platform to pull only variables that have been added to that respective game
-    - [ ] Update character to have typeahead dropdown
-    - [ ] Order it in this way:
-      - Category (required)
-      - Platform (optional, unless a game makes it required via game editor)
-      - 2-column format:
-        - Runner Name/Profile (auto-fill with current signed in runner)
-        - Optional "add additional runners" where you can search for other runners and add them to that specific run. They would need to verify on their end that they did the run too. This verification would initially appear in Messaging (which needs to be worked on)
-      - Character column, if applicable. (required by default)
-      - Challenges (required)
-      - Restrictions (optional)
-      - Run Timing (optional)
-      - Date Completed (optional)
-      - Video Proof (required)
-      - Runner Notes (optional)
-      - This is meant to copy the order that it in seen in the runs tab. If runs tab every changes order, this should change too.
-
-- Admin Panel (sidebar):
-  - [ ] Swap Game Editor with Users & Roles
-- Game Editor:
-  - [ ] For child categories in parent-child categories, have each children have a show/hide, instead of all children at once.
+  - Submit Run:
+    - [x] Reorder fields to match runs tab (Category → Platform → Runner → Character → Challenges → Glitch → Restrictions → Timing → Date → Video → Notes)
+    - [x] Platform typeahead dropdown filtered to game's platforms
+    - [x] Character typeahead dropdown
+    - [x] Glitch category typeahead dropdown
+    - [x] Runner auto-fill from signed-in profile
+    - [x] Additional runners stub (Coming soon)
+    - [x] Platform required toggle (game editor + submit form)
 
 - Submit Page (https://www.challengerun.net/submit):
-  - [ ] Can we transform this to populate the respective game? or is that too much work?
+  - Can we transform this to populate the respective game? or is that too much work?
+
 
 ### 2. Content & Polish
 - [ ] Fill glossary definitions (hit, damage, death, hitless vs damageless, etc.)
@@ -103,32 +84,44 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - [ ] Per-challenge leaderboards
 - [ ] Sortable/filterable tables
 
+### 8. Multi-Runner Support
+Requires messaging system to be built first (runners must verify co-op participation).
+- [ ] Runner search component (typeahead, searches `profiles` table)
+- [ ] `co_runners` column on `pending_runs` (JSONB array of user_ids)
+- [ ] Verification flow: co-runner receives a message and must confirm
+- [ ] Co-runners displayed on approved run cards
+- [ ] Submit form: "Add Additional Runners" section (currently stubbed as Coming Soon)
+
+### 9. Multi-Run Support
+For runs that span multiple games (e.g., marathon challenge runs).
+- [ ] Scope and design TBD — related to Multi-Game Run Support in Future Features
+
 ---
 
 ## Future Features (Backlog)
 ### Modded Game Support
 - [ ] Separate game pages for modded versions (Option A from earlier discussion)
 
+### History Tab
+- [ ] Rule changes, discussions, community milestones
+- [ ] Needs Badges/Achievements system first
+- [ ] News + history integration (unified timeline)
+
 ### Forum Integration
 Decision needed: GitHub Discussions vs Discord vs embedded mini-forum
 - [ ] `/games/[game_id]/forum` route placeholder exists
 - [ ] Option C: Discord integration with widgets + channel links per game
 
-### History Tab
-- [ ] Rule changes, discussions, community milestones
-- [ ] Needs Badges/Achievements system first
-- [ ] News + history integration (unified timeline)
+### Multi-Game Run Support
+- [ ] `is_multi_game` + `related_games` fields
+- [ ] "🎮 MULTI-GAME" badge on game cards
+- [ ] Treat like modded games — own game entry with linking relationship
 
 ### Community Features
 - [ ] Player-made challenges via forum, connected to profiles
 - [ ] RSS feed optimization
 - [ ] "How to Navigate the Site" guide / FAQ
 - [ ] "Fixing Mistakes" guide for admins/verifiers
-
-### Multi-Game Run Support
-- [ ] `is_multi_game` + `related_games` fields
-- [ ] "🎮 MULTI-GAME" badge on game cards
-- [ ] Treat like modded games — own game entry with linking relationship
 
 ### Server-Side Pagination
 - [ ] Cursor-based pagination for runs queries
