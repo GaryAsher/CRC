@@ -3,7 +3,7 @@
 This document consolidates all reminders, future ideas, and planned features for CRC.
 Cross-reference with `CLAUDE.md` Development Checklist for technical implementation details.
 
-**Last updated:** 2026/03/02
+**Last updated:** 2026/03/03
 
 ---
 
@@ -29,15 +29,40 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ## Short-Term Priorities
 
 ### 1. Small fixes
-- Games Pages:
-  - Rules tab
-    - Add subtle pulse around "Open" on Rule Editor when runner visits for the first time. Use Theme color.
+- Games Page:
+  - Submit Run:
+    - For runner section:
+      - [x] Show Runner's Avatar, pronouns, location, and ally of (if applicable). *(Mar 3)*
+
+- Submit Page (https://www.challengerun.net/submit):
+  - Can we transform this to populate the respective game? or is that too much work?
+
+- Admin, Game Editor:
+  [x] Fix game covers so they use the standard 460x 215 size that steam uses. *(Mar 3)*
+    - [x] This needs to be applied to games on the games page too if it is not already.
+    - All tabs:
+      - [x] styling for checkboxes and text should be the same for "Game-specific Challenge, Has Exceptions, and Fixed Loadout *(Mar 3)*
+        - [x] Add some visual horizontal separator between child categories
+        
+- Edit Profile:
+  - Leaving the page resets everything? why?
+  - For "Save Changes", give it the big button that is used for game/submit. put it on the right. To the left of that button, add "reset".
+  - Customize:
+    - [ ] Change Banner Opacity default to 70%
+    - [ ] Change Banner Image URL to be have Upload Image and Remove
+    - [ ] Change banner to 16:9 ratio.
+    - [ ] In Banner section, note that banner uses 16:9 ratio.
+  - Highlights:
+    - [ ] Add option for a highlight to be a Community Achievement
+    - [ ] Change Run to pull from a run that the runner has actually submitted.
 
 - Runner Page:
   - Run Statistics:
     - [ ] Update how the runs are displayed when you click into a game.
 
-- [ ] remove test account from supabase: 1130d9b9-db13-41ad-b6b0-737826590e37
+### 1b. Deferred Features
+- [ ] **Claim enforcement on run approval** — currently cosmetic only. Worker doesn't check `claimed_by` before allowing approve/reject. Add check so only the claimer (or admin override) can act.
+- [ ] **History tab — wire up audit events** — UI is built (`/games/[game_id]/history`) but server returns empty array. Needs: `game_history` table + writes in `handleApproveRun`, `handleGameEditorSave`, `handleAssignRole`, etc.
 
 ### 2. Content & Polish
 - [ ] Fill glossary definitions (hit, damage, death, hitless vs damageless, etc.)
@@ -64,23 +89,28 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - [ ] Add language toggle to header
 - [ ] Request community translation help early
 
-### 5. Verifier CMS
+### 5. User Report & Request Systems
+- [ ] **Report system** — "Report" button on runner profiles, game pages, runs. `reports` table (reporter, target_type, target_id, reason, status). Admin queue tab to review.
+- [ ] **User requests** — feature requests, game suggestions, corrections. Could reuse `support_tickets` or a new `user_requests` table.
+- [ ] **Content moderation queue** — flag uploaded avatars/banners for review (graphic/sexual content). Consider automated image moderation (Cloudflare Images or similar) when budget allows.
+
+### 6. Verifier CMS
 - [ ] Inline editing on game pages with diff preview
 - [ ] Require 2 verifiers to approve rule changes
 - [ ] Game submission UI in admin dashboard (replace external form)
 
-### 6. Badges & Achievements System
+### 7. Badges & Achievements System
 - [ ] Design badge types (run count, challenge completion, community milestones)
 - [ ] Run count badges on game cards
 - [ ] Badge display on runner profiles
 - [ ] Achievement progress tracking
 
-### 7. Leaderboards
+### 8. Leaderboards
 - [ ] Per-game leaderboards
 - [ ] Per-challenge leaderboards
 - [ ] Sortable/filterable tables
 
-### 8. Multi-Runner Support
+### 9. Multi-Runner Support
 Requires messaging system to be built first (runners must verify co-op participation).
 - [ ] Runner search component (typeahead, searches `profiles` table)
 - [ ] `co_runners` column on `pending_runs` (JSONB array of user_ids)
@@ -88,7 +118,7 @@ Requires messaging system to be built first (runners must verify co-op participa
 - [ ] Co-runners displayed on approved run cards
 - [ ] Submit form: "Add Additional Runners" section (currently stubbed as Coming Soon)
 
-### 9. Multi-Run Support
+### 10. Multi-Run Support
 For runs that span multiple games (e.g., marathon challenge runs).
 - [ ] Scope and design TBD — related to Multi-Game Run Support in Future Features
 
@@ -99,8 +129,8 @@ For runs that span multiple games (e.g., marathon challenge runs).
 - [ ] Separate game pages for modded versions (Option A from earlier discussion)
 
 ### History Tab
+- [ ] **UI is built, needs backend wiring** — icons/labels defined for `run_approved`, `rule_updated`, `gm_added`, etc. Server returns empty array. Blocked on: `game_history` table + audit event writes in Worker approval/edit handlers.
 - [ ] Rule changes, discussions, community milestones
-- [ ] Needs Badges/Achievements system first
 - [ ] News + history integration (unified timeline)
 
 ### Forum Integration

@@ -58,7 +58,7 @@
 	// Banner display options (stored in socials.banner_opts)
 	let bannerSize = $state<'cover' | 'contain' | 'fill'>('cover');
 	let bannerPosition = $state<'center' | 'top' | 'bottom'>('center');
-	let bannerOpacity = $state(1);
+	let bannerOpacity = $state(0.7);
 	let bannerMode = $state<'above' | 'background'>('above');
 	let containerOpacity = $state(0.4);
 	let bannerIsGradient = $state(false); // true when a gradient preset is selected (no URL)
@@ -93,7 +93,7 @@
 	}
 
 	interface Highlight {
-		type: 'run' | 'playlist';
+		type: 'run' | 'playlist' | 'achievement';
 		// run fields
 		game_id: string;
 		game_name: string;
@@ -101,11 +101,14 @@
 		achievement: string;
 		video_url: string;
 		video_approved: boolean;
+		run_public_id?: string;
 		// playlist fields
 		title: string;
 		playlist_url: string;
 		cover_url: string;
 		description: string;
+		// achievement fields (reuses title, description, game_id, game_name)
+		date?: string;
 	}
 
 	let { data } = $props();
@@ -198,6 +201,23 @@
 
 	// Highlights
 	let highlights = $state<Highlight[]>([]);
+
+	// Runner's approved runs (for highlight picker)
+	let runnerRuns = $state<any[]>([]);
+
+	// Dirty tracking — warn before leaving with unsaved changes
+	let dirty = $state(false);
+	let savedOnce = $state(false);
+
+	function markDirty() { if (savedOnce) dirty = true; }
+
+	$effect(() => {
+		function onBeforeUnload(e: BeforeUnloadEvent) {
+			if (dirty) { e.preventDefault(); }
+		}
+		window.addEventListener('beforeunload', onBeforeUnload);
+		return () => window.removeEventListener('beforeunload', onBeforeUnload);
+	});
 
 	// ── Bio character count ─────────────────────────────────────
 	let bioCount = $derived(bio.length);
@@ -298,6 +318,20 @@
 
 			// Highlights
 			highlights = Array.isArray(profile.featured_runs) ? profile.featured_runs : [];
+
+			// Load runner's approved/verified runs for highlight picker
+			if (profile.runner_id) {
+				const { data: runs } = await supabase
+					.from('runs')
+					.select('public_id, game_id, category, category_slug, video_url, date_completed, status, runner')
+					.eq('runner_id', profile.runner_id)
+					.in('status', ['approved', 'verified'])
+					.order('date_completed', { ascending: false });
+				runnerRuns = runs || [];
+			}
+
+			savedOnce = true;
+			dirty = false;
 		} catch (err: any) {
 			msg = { type: 'error', text: err?.message || 'Failed to load profile.' };
 		}
@@ -378,6 +412,7 @@
 			otherLinks = [''];
 
 			msg = { type: 'success', text: 'Profile updated!' };
+			dirty = false;
 			// Scroll to top to show message
 			window.scrollTo({ top: 0, behavior: 'smooth' });
 		} catch (err: any) {
@@ -442,10 +477,83 @@
 			]);
 			avatarUrl = '';
 			uploadMsg = 'Avatar removed.';
+			markDirty();
 		} catch {
 			uploadMsg = 'Failed to remove avatar.';
 		}
 		uploading = false;
+	}
+
+	// ── Banner Upload ──────────────────────────────────────────
+	let bannerUploading = $state(false);
+	let bannerUploadMsg = $state('');
+
+	async function handleBannerUpload(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file || !$user) return;
+
+		if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+			bannerUploadMsg = 'Only PNG, JPG, or WebP files are allowed.';
+			return;
+		}
+		if (file.size > 5 * 1024 * 1024) {
+			bannerUploadMsg = 'File must be under 5MB.';
+			return;
+		}
+
+		bannerUploading = true;
+		bannerUploadMsg = '';
+
+		try {
+			const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+			const path = `${$user.id}/banner.${ext}`;
+
+			const { error: uploadError } = await supabase.storage
+				.from('banners')
+				.upload(path, file, { upsert: true, contentType: file.type });
+
+			if (uploadError) throw uploadError;
+
+			const { data: urlData } = supabase.storage
+				.from('banners')
+				.getPublicUrl(path);
+
+			bannerUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+			bannerIsGradient = false;
+			bannerGradient = '';
+			bannerUploadMsg = 'Banner uploaded!';
+			markDirty();
+		} catch (err: any) {
+			bannerUploadMsg = err?.message || 'Upload failed.';
+		}
+		bannerUploading = false;
+		input.value = '';
+	}
+
+	async function removeBanner() {
+		if (!$user) return;
+		bannerUploading = true;
+		try {
+			await supabase.storage.from('banners').remove([
+				`${$user.id}/banner.png`,
+				`${$user.id}/banner.jpg`,
+				`${$user.id}/banner.webp`
+			]);
+			bannerUrl = '';
+			bannerUploadMsg = 'Banner removed.';
+			markDirty();
+		} catch {
+			bannerUploadMsg = 'Failed to remove banner.';
+		}
+		bannerUploading = false;
+	}
+
+	// ── Reset form to saved state ──────────────────────────────
+	async function handleReset() {
+		if (!confirm('Reset all changes to last saved state?')) return;
+		dirty = false;
+		await loadProfile();
 	}
 
 	// ── URL Validation ──────────────────────────────────────────
@@ -506,13 +614,11 @@
 	}
 
 	// ── Highlights helpers ──────────────────────────────────────
-	function addHighlight(type: 'run' | 'playlist' = 'run') {
+	function addHighlight(type: 'run' | 'playlist' | 'achievement' = 'run') {
 		if (highlights.length >= 3) return;
-		if (type === 'playlist') {
-			highlights = [...highlights, { type: 'playlist', game_id: '', game_name: '', category: '', achievement: '', video_url: '', video_approved: false, title: '', playlist_url: '', cover_url: '', description: '' }];
-		} else {
-			highlights = [...highlights, { type: 'run', game_id: '', game_name: '', category: '', achievement: '', video_url: '', video_approved: false, title: '', playlist_url: '', cover_url: '', description: '' }];
-		}
+		const base: Highlight = { type, game_id: '', game_name: '', category: '', achievement: '', video_url: '', video_approved: false, title: '', playlist_url: '', cover_url: '', description: '', date: '' };
+		highlights = [...highlights, base];
+		markDirty();
 	}
 
 	function removeHighlight(i: number) {
@@ -523,6 +629,23 @@
 		const game = gamesList.find((g: any) => g.id === gameId);
 		if (!game) return;
 		highlights[i] = { ...highlights[i], game_id: game.id, game_name: game.name };
+		markDirty();
+	}
+
+	function selectRunForHighlight(i: number, publicId: string) {
+		const run = runnerRuns.find((r: any) => r.public_id === publicId);
+		if (!run) return;
+		const game = gamesList.find((g: any) => g.id === run.game_id);
+		highlights[i] = {
+			...highlights[i],
+			run_public_id: run.public_id,
+			game_id: run.game_id,
+			game_name: game?.name || run.game_id,
+			category: run.category || run.category_slug || '',
+			video_url: run.video_url || '',
+			video_approved: true,
+		};
+		markDirty();
 	}
 
 	// ── Video URL lookup for highlights ─────────────────────────
@@ -899,13 +1022,32 @@
 							</div>
 						</div>
 
-						<!-- Banner: Custom URL -->
+						<!-- Banner: Upload Image -->
 						<div class="fg">
-							<label class="fl" for="banner-url">Banner Image URL</label>
-							<input id="banner-url" type="url" class="fi" bind:value={bannerUrl}
-								oninput={() => { bannerIsGradient = false; bannerGradient = ''; }}
-								placeholder="https://example.com/banner.jpg" />
-							<p class="fh">Paste your own image URL, or pick a preset below.</p>
+							<label class="fl">Banner Image</label>
+							<p class="fh mb-3">Uses 16:9 aspect ratio (e.g. 1920×1080). PNG, JPG, or WebP, max 5MB.</p>
+							<div class="banner-upload-controls">
+								<label class="btn btn--small btn--upload">
+									📤 Upload Image
+									<input type="file" accept="image/png,image/jpeg,image/webp" onchange={handleBannerUpload} hidden />
+								</label>
+								{#if bannerUrl && !bannerIsGradient}
+									<button type="button" class="btn btn--small btn--outline" onclick={removeBanner} disabled={bannerUploading}>
+										🗑️ Remove
+									</button>
+								{/if}
+								{#if bannerUploading}
+									<span class="muted">Uploading...</span>
+								{/if}
+								{#if bannerUploadMsg}
+									<span class="muted">{bannerUploadMsg}</span>
+								{/if}
+							</div>
+							{#if bannerUrl && !bannerIsGradient}
+								<div class="banner-upload-preview mt-2">
+									<img src={bannerUrl} alt="Banner preview" />
+								</div>
+							{/if}
 						</div>
 
 						<!-- Banner: Preset Groups (accordion) -->
@@ -1201,14 +1343,20 @@
 											type="button"
 											class="btn btn--small"
 											class:btn--outline={hl.type !== 'run'}
-											onclick={() => highlights[i] = { ...highlights[i], type: 'run' }}
+											onclick={() => { highlights[i] = { ...highlights[i], type: 'run' }; markDirty(); }}
 										>🎮 Run</button>
 										<button
 											type="button"
 											class="btn btn--small"
 											class:btn--outline={hl.type !== 'playlist'}
-											onclick={() => highlights[i] = { ...highlights[i], type: 'playlist' }}
+											onclick={() => { highlights[i] = { ...highlights[i], type: 'playlist' }; markDirty(); }}
 										>🎬 Playlist</button>
+										<button
+											type="button"
+											class="btn btn--small"
+											class:btn--outline={hl.type !== 'achievement'}
+											onclick={() => { highlights[i] = { ...highlights[i], type: 'achievement' }; markDirty(); }}
+										>🏆 Achievement</button>
 										<button type="button" class="highlight-item__remove" onclick={() => removeHighlight(i)}>✕</button>
 									</div>
 								</div>
@@ -1234,52 +1382,64 @@
 											<input id="hl-cover-{i}" type="url" class="fi" bind:value={highlights[i].cover_url} placeholder="https://... (optional thumbnail)" />
 											<p class="fh">Optional — a thumbnail shown on your profile card. Leave blank for a default look.</p>
 										</div>
-									{:else}
-										<!-- Single run mode -->
+									{:else if hl.type === 'achievement'}
+										<!-- Community Achievement mode -->
+										<div class="fg">
+											<label class="fl" for="hl-ach-title-{i}">Achievement Title *</label>
+											<input id="hl-ach-title-{i}" type="text" class="fi" bind:value={highlights[i].title} oninput={markDirty} maxlength="100" placeholder="e.g., World First All Bosses Hitless" />
+										</div>
 										<div class="form-row">
 											<div class="fg fg--flex">
-												<label class="fl" for="hl-game-{i}">Game *</label>
-												<select id="hl-game-{i}" class="fi" value={hl.game_id} onchange={(e) => setHighlightGame(i, (e.target as HTMLSelectElement).value)}>
+												<label class="fl" for="hl-ach-game-{i}">Game</label>
+												<select id="hl-ach-game-{i}" class="fi" value={hl.game_id} onchange={(e) => { setHighlightGame(i, (e.target as HTMLSelectElement).value); }}>
 													<option value="">Select a game...</option>
 													{#each gamesList as g}
 														<option value={g.id}>{g.name}</option>
 													{/each}
 												</select>
 											</div>
+											<div class="fg fg--flex">
+												<label class="fl" for="hl-ach-date-{i}">Date</label>
+												<input id="hl-ach-date-{i}" type="date" class="fi" bind:value={highlights[i].date} oninput={markDirty} />
+											</div>
 										</div>
-
-										<div class="form-row">
-											<div class="fg fg--flex">
-												<label class="fl" for="hl-cat-{i}">Category</label>
-												<input id="hl-cat-{i}" type="text" class="fi" bind:value={highlights[i].category} maxlength="100" placeholder="e.g., All Bosses No Hit" />
-											</div>
-											<div class="fg fg--flex">
-												<label class="fl" for="hl-ach-{i}">Achievement</label>
-												<input id="hl-ach-{i}" type="text" class="fi" bind:value={highlights[i].achievement} maxlength="100" placeholder="e.g., World First" />
-											</div>
+										<div class="fg">
+											<label class="fl" for="hl-ach-desc-{i}">Description</label>
+											<textarea id="hl-ach-desc-{i}" class="fi" bind:value={highlights[i].description} oninput={markDirty} maxlength="200" rows="2" placeholder="What makes this achievement notable?"></textarea>
+										</div>
+									{:else}
+										<!-- Single run mode — pick from submitted runs -->
+										<div class="fg">
+											<label class="fl" for="hl-run-{i}">Select a Run *</label>
+											{#if runnerRuns.length > 0}
+												<select id="hl-run-{i}" class="fi" value={hl.run_public_id || ''} onchange={(e) => selectRunForHighlight(i, (e.target as HTMLSelectElement).value)}>
+													<option value="">Choose one of your runs...</option>
+													{#each runnerRuns as run}
+														{@const gameName = gamesList.find((g) => g.id === run.game_id)?.name || run.game_id}
+														<option value={run.public_id}>{gameName} — {run.category || run.category_slug}{run.status === 'verified' ? ' ✅' : ''}</option>
+													{/each}
+												</select>
+												{#if hl.game_name}
+													<p class="fh mt-2">🎮 {hl.game_name} — {hl.category}</p>
+												{/if}
+											{:else}
+												<p class="fh">No published runs found. Submit and get a run approved first!</p>
+											{/if}
 										</div>
 
 										<div class="fg">
-											<label class="fl" for="hl-video-{i}">Video URL</label>
-											<input id="hl-video-{i}" type="url" class="fi" bind:value={highlights[i].video_url} oninput={() => onHighlightVideoChange(i)} placeholder="https://youtube.com/watch?v=..." />
-											{#if highlights[i].video_url && !isValidVideoUrl(highlights[i].video_url)}
-												<p class="fh" style="color: var(--danger, #ef4444);">Must be a valid YouTube, Twitch, or Bilibili URL</p>
-											{:else}
-												<p class="fh">YouTube, Twitch, or Bilibili links. May require moderator approval.</p>
-											{/if}
-											{#if videoMeta[i]?.fetching}
-												<div class="video-meta"><span class="muted">Fetching video info...</span></div>
-											{/if}
-											{#if videoMeta[i]?.title}
-												<div class="video-meta video-meta--success">
-													<span>🎬</span>
-													<span class="video-meta__title">{videoMeta[i].title}</span>
-												</div>
-											{/if}
-											{#if videoMeta[i]?.error}
-												<div class="video-meta video-meta--warn"><span class="muted">{videoMeta[i].error}</span></div>
-											{/if}
+											<label class="fl" for="hl-ach-{i}">Achievement Label</label>
+											<input id="hl-ach-{i}" type="text" class="fi" bind:value={highlights[i].achievement} oninput={markDirty} maxlength="100" placeholder="e.g., World First, Personal Best" />
+											<p class="fh">Optional label shown on your profile card.</p>
 										</div>
+
+										{#if hl.video_url}
+											<div class="fg">
+												<label class="fl">Video</label>
+												<p class="fh">🎬 {hl.video_url}</p>
+											</div>
+										{/if}
+
 									{/if}
 
 								</div>
@@ -1290,25 +1450,32 @@
 							<div class="highlight-add-row">
 								<button type="button" class="btn btn--small mt-3" onclick={() => addHighlight('run')}>+ Add Run</button>
 								<button type="button" class="btn btn--small mt-3" onclick={() => addHighlight('playlist')}>+ Add Playlist</button>
+								<button type="button" class="btn btn--small mt-3" onclick={() => addHighlight('achievement')}>+ Add Achievement</button>
 							</div>
 						{/if}
 						<p class="fh">Up to 3 highlights. Mix and match runs and playlists.</p>
 					</div>
 				{/if}
 
-				<!-- Save Button (visible on all tabs) -->
+				<!-- Save / Reset (visible on all tabs) -->
 				<div class="form-actions">
 					{#if bannedTermsWarning}
-						<div class="alert alert--error">{bannedTermsWarning}</div>
+						<div class="alert alert--error" style="width:100%;">{bannedTermsWarning}</div>
 					{/if}
+					<a href={runnerId ? `/runners/${runnerId}` : '/profile'} class="btn btn--ghost">Cancel</a>
 					<button
-						class="btn btn--primary"
+						type="button"
+						class="btn"
+						onclick={handleReset}
+						disabled={saving}
+					>Reset</button>
+					<button
+						class="btn btn--accent btn--lg"
 						onclick={handleSave}
 						disabled={saving || !displayName.trim() || !!bannedTermsWarning || profileApprovalStatus !== 'approved'}
 					>
 						{saving ? 'Saving...' : 'Save Changes'}
 					</button>
-					<a href={runnerId ? `/runners/${runnerId}` : '/profile'} class="btn btn--ghost">Cancel</a>
 				</div>
 
 					</div> <!-- end edit-content -->
@@ -1364,7 +1531,7 @@
 	.preview-bg-banner { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: 0; }
 
 	/* Banner — matches .runner-banner on runner page */
-	.pv-banner { position: relative; height: 180px; border-radius: 12px 12px 0 0; overflow: hidden; margin-bottom: 0; }
+	.pv-banner { position: relative; aspect-ratio: 16/9; border-radius: 12px 12px 0 0; overflow: hidden; margin-bottom: 0; }
 	.pv-banner--empty { background: var(--surface); }
 	.pv-banner__img { position: absolute; inset: 0; background-size: cover; background-position: center; }
 	.pv-banner__gradient { position: absolute; inset: 0; background: linear-gradient(135deg, var(--accent), #1a1a2e); opacity: 0.6; }
@@ -1532,7 +1699,8 @@
 	/* Save actions */
 	.form-actions {
 		display: flex; gap: 0.75rem; margin-top: 2rem;
-		justify-content: flex-end;
+		justify-content: flex-end; align-items: center;
+		flex-wrap: wrap;
 	}
 
 	/* Toggle switch */
@@ -1587,4 +1755,11 @@
 	.video-meta--success { padding: 0.5rem 0.75rem; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 6px; }
 	.video-meta--warn { padding: 0.4rem 0.75rem; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.15); border-radius: 6px; }
 	.video-meta__title { color: var(--fg); font-weight: 500; }
+	/* Banner upload controls */
+	.banner-upload-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+	.banner-upload-preview {
+		border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+		aspect-ratio: 16/9; max-width: 320px;
+	}
+	.banner-upload-preview img { width: 100%; height: 100%; object-fit: cover; }
 </style>
