@@ -9,6 +9,13 @@
 // Individual admin pages can do additional role checks client-side
 // (e.g. super_admin-only pages), and the debug role system layered
 // on top is purely visual — it doesn't affect these server checks.
+//
+// NOTE: We use getUser() here instead of relying on locals.session
+// (which comes from getSession()). getSession() only decodes the JWT
+// locally — it doesn't verify with Supabase that the token is still
+// valid. getUser() makes a server round-trip to confirm the token
+// hasn't been revoked. This matters for admin routes where a tampered
+// or revoked JWT must not grant access.
 // =============================================================================
 
 import { redirect } from '@sveltejs/kit';
@@ -21,7 +28,13 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		throw redirect(302, `/sign-in?redirect=${encodeURIComponent(url.pathname)}`);
 	}
 
-	const userId = locals.session.user.id;
+	// Server-verify the token (not just decode it)
+	const { data: { user }, error: userError } = await locals.supabase.auth.getUser();
+	if (userError || !user) {
+		throw redirect(302, `/sign-in?redirect=${encodeURIComponent(url.pathname)}`);
+	}
+
+	const userId = user.id;
 
 	// Check profiles for admin/super_admin/moderator role
 	const { data: profile } = await locals.supabase

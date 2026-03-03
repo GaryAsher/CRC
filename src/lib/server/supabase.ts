@@ -223,6 +223,25 @@ export async function getRunCountForRunner(supabase: SupabaseClient, runnerId: s
 	return count ?? 0;
 }
 
+/** Get run counts for ALL runners in a single query (avoids N+1) */
+export async function getRunCountsByRunner(supabase: SupabaseClient): Promise<Map<string, number>> {
+	const { data, error } = await supabase
+		.from('runs')
+		.select('runner_id')
+		.eq('status', 'approved');
+
+	if (error) {
+		console.error('Error fetching run counts:', error.message);
+		return new Map();
+	}
+
+	const counts = new Map<string, number>();
+	for (const row of data || []) {
+		counts.set(row.runner_id, (counts.get(row.runner_id) || 0) + 1);
+	}
+	return counts;
+}
+
 // ─── Achievements ───────────────────────────────────────────────────────────
 
 export async function getAchievements(supabase: SupabaseClient): Promise<Achievement[]> {
