@@ -3,6 +3,8 @@
 **Last updated:** 2026-03-02
 **Purpose:** This document supplements `CLAUDE.md` (in the repo root) with lessons learned from active development sessions. Read `CLAUDE.md` first, then this document.
 
+> **Note on the `runners` table:** The `runners` table was dropped from Supabase in Mar 2026. All runner data comes from `profiles`. The TypeScript `Runner` interface and function names like `getRunners()` are kept as domain-level abstractions — they describe what the data represents (a runner), not which table it lives in.
+
 ---
 
 ## 1. Critical Rule: Never Guess Schemas
@@ -90,8 +92,8 @@ Notable columns added Feb 28, 2026:
 
 The permissive INSERT policy (`pending_runs_insert`) was **dropped** Feb 28 — all run submissions now go through the Worker, which validates and inserts via service key.
 
-### `runners` (legacy public-facing data — still used by /runners page)
-**NOTE:** This table still exists and powers `getRunners()` in `src/lib/server/supabase.ts`. It will eventually be replaced by `profiles`, but that migration hasn't happened yet. Do NOT drop it.
+### `runners` — DROPPED (Mar 2026)
+The legacy `runners` table has been dropped from Supabase. All runner data now comes from the `profiles` table. The server-side function `getRunners()` (in `src/lib/server/supabase.ts`) queries `profiles` where `status = 'approved'` and maps rows to the `Runner` TypeScript interface via `profileToRunner()`. The `Runner` type is kept as a domain-level interface — it represents a runner in the UI, not a database table.
 
 ### `role_game_verifiers` / `role_game_moderators`
 Per-game role assignments. Each row grants a user a role for a specific game.
@@ -298,6 +300,10 @@ The old `fixed_character` boolean on mini-challenge children. The new system is 
 - [x] Removed "No-Hit / No-Damage" challenge from 4 games (hades-2, hollow-knight, tiny-rogues, hollow-knight-modded)
 - [x] RLS policies: moderator UPDATE on games + INSERT on game_snapshots for assigned games
 - [x] Runners table migration confirmed complete — code queries `profiles`, table can be dropped
+- [x] Worker: `additional_runners` field now sanitized via `sanitizeArray()` (was raw passthrough)
+- [x] Worker: removed duplicate `profiles` query in `handleDataExport` — section 10 reuses section 1 result, now also only includes moderator_record if user actually has a staff role
+- [x] Worker: rate limiting upgraded from in-memory `Map` to Cloudflare KV (global, persists across isolate restarts). Falls back to in-memory if KV binding is missing.
+- [x] `wrangler.toml`: added `RATE_LIMIT_KV` namespace binding
 
 ### Previously Completed (Mar 1, 2026)
 - [x] Global spacing tightened (`main` padding 2rem → 1rem)
@@ -329,9 +335,9 @@ The old `fixed_character` boolean on mini-challenge children. The new system is 
 ### Known Pending Tasks
 All pending tasks are tracked in `REMINDERS.md`. Do not duplicate them here.
 
-Still in progress (see `REMINDERS.md` for details):
-- Runners table: code migration complete, `runners` table can be dropped from Supabase
-- Global search (searches games + runners + teams, not yet runs)
+Resolved as of Mar 2, 2026:
+- [x] ~~Runners table migration~~ — Complete. `runners` table dropped from Supabase. All code queries `profiles`. `getRunners()` maps profile rows to the `Runner` domain type.
+- [x] ~~Global search~~ — Now covers games, runners, runs, AND teams (`src/routes/search/+page.server.ts`).
 
 ---
 
@@ -416,6 +422,8 @@ Decisions made during development that future assistants should know about:
 | Profiles RLS column restriction | Users can only update safe profile fields via RLS. Admin flags (`is_admin`, `is_super_admin`, `role`, `status`) blocked at the database level. | Mar 2026 |
 | Game editor save rate limit | 3-second cooldown between saves + admin-only field stripping in `saveSection()` as defense in depth. | Mar 2026 |
 | Supabase client over raw fetch | Migrated `admin.ts` and `+layout.svelte` from manual REST calls to Supabase JS client for consistency and better error handling. | Mar 2026 |
+| KV-backed rate limiting | In-memory `Map` was per-isolate (reset on cold starts, not shared across edge locations). Moved to Cloudflare KV for global persistence. In-memory kept as fallback. Eventual consistency (~60s) is acceptable for rate limiting. | Mar 2026 |
+| `additional_runners` sanitized early | Field sanitized via `sanitizeArray()` even though multi-runner feature isn't built yet. Prevents unsanitized JSONB from reaching the database. Will validate against runner IDs when the feature is implemented. | Mar 2026 |
 
 ---
 

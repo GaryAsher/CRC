@@ -6,3 +6,10 @@ compatibility_date = "2024-01-01"
 ALLOWED_ORIGIN = "https://www.challengerun.net,https://challengerun.net"
 SUPABASE_URL = "https://riwcekvwpwmbtihjqhmh.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJpd2Nla3Z3cHdtYnRpaGpxaG1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MzU0MTksImV4cCI6MjA4NTIxMTQxOX0.eSO-2YiD_bbSMhU72LiyI0OnRqOOtapA2A2hUqaXYOM"
+
+# KV namespace for global rate limiting (persists across Worker isolates).
+# Rate limit keys are prefixed with "rl:" to avoid collisions.
+# The Worker falls back to in-memory rate limiting if this binding is missing.
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "6ed5275b4e7c4af68d01afac615821de"

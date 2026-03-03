@@ -112,11 +112,16 @@ function sanitizeArray(arr, maxItems = 20, maxItemLen = 200) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// RATE LIMITING (Item 7) — combine with Cloudflare Rate Limiting Rules
+// RATE LIMITING (Item 7) — KV-backed global rate limiting
 // ═══════════════════════════════════════════════════════════════════════════════
+// Primary: Cloudflare KV (global, persists across isolate restarts)
+// Fallback: In-memory Map (per-isolate, resets on cold start)
+// KV is eventually consistent (~60s), which is acceptable for rate limiting —
+// worst case a few extra requests sneak through during propagation.
 
-const rateLimitMap = new Map();
+const rateLimitMap = new Map(); // fallback when KV is unavailable
 const RATE_LIMIT_WINDOW = 60_000; // 1 minute
+const RATE_LIMIT_TTL = 120;       // KV TTL in seconds (2x window for safety)
 const RATE_LIMITS = {
   '/': 5,               // 5 submissions/min/IP
   '/submit': 5,
@@ -135,11 +140,36 @@ const RATE_LIMITS = {
   '/game-editor/rollback': 5,
 };
 
-function checkRateLimit(ip, path) {
+async function checkRateLimit(ip, path, env) {
   const limit = RATE_LIMITS[path];
   if (!limit || !ip) return true;
-  const key = `${ip}:${path}`;
+  const key = `rl:${ip}:${path}`;
   const now = Date.now();
+
+  // ── Try KV first (global rate limiting) ──────────────────────────────────
+  if (env.RATE_LIMIT_KV) {
+    try {
+      const raw = await env.RATE_LIMIT_KV.get(key);
+      let entry = raw ? JSON.parse(raw) : null;
+
+      if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW) {
+        // New window — reset counter
+        entry = { count: 1, windowStart: now };
+      } else {
+        entry.count++;
+      }
+
+      // Write back (non-blocking — don't await, fire and forget)
+      env.RATE_LIMIT_KV.put(key, JSON.stringify(entry), { expirationTtl: RATE_LIMIT_TTL });
+
+      return entry.count <= limit;
+    } catch (err) {
+      console.error('KV rate limit error, falling back to in-memory:', err);
+      // Fall through to in-memory
+    }
+  }
+
+  // ── Fallback: in-memory per-isolate rate limiting ────────────────────────
   if (!rateLimitMap.has(key)) {
     rateLimitMap.set(key, { count: 1, windowStart: now });
     return true;
@@ -452,7 +482,9 @@ async function handleRunSubmission(body, env, request) {
     time_rta:             body.time_rta ? sanitizeInput(body.time_rta, 20) : null,
     time_primary:         body.time_primary ? sanitizeInput(body.time_primary, 20) : null,
     submitter_notes:      body.submitter_notes ? sanitizeInput(body.submitter_notes, 500) : null,
-    additional_runners:   body.additional_runners || null,
+    additional_runners:   Array.isArray(body.additional_runners)
+                            ? sanitizeArray(body.additional_runners, 10, 60)
+                            : null,
     status:               'pending',
     schema_version:       body.schema_version || 7,
     submission_id:        submissionId,
@@ -1822,11 +1854,12 @@ async function handleDataExport(body, env, request) {
     exportData.sections.audit_log = audit.ok ? (audit.data || []) : [];
   }
 
-  // 10. Moderator record (if they are one)
-  const modRecord = await supabaseQuery(env,
-    `profiles?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
-  if (modRecord.ok && modRecord.data?.length > 0) {
-    exportData.sections.moderator_record = modRecord.data;
+  // 10. Moderator/admin record (reuses profile query from section 1)
+  if (profile.ok && profile.data?.length > 0) {
+    const p = profile.data[0];
+    if (p.is_admin || p.is_super_admin || p.role === 'moderator') {
+      exportData.sections.moderator_record = profile.data;
+    }
   }
 
   return jsonResponse(exportData, 200, env, request);
@@ -1861,7 +1894,7 @@ export default {
 
     // SECURITY (Item 7): Rate limiting
     const clientIp = request.headers.get('CF-Connecting-IP') || '';
-    if (!checkRateLimit(clientIp, path)) {
+    if (!await checkRateLimit(clientIp, path, env)) {
       return jsonResponse({ error: 'Too many requests. Please try again later.' }, 429, env, request);
     }
 

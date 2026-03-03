@@ -142,7 +142,7 @@ Decision needed: GitHub Discussions vs Discord vs embedded mini-forum
 - [ ] GDPR export gap: `runs` and `game_achievements` RLS filters by `status = 'approved'` — admin can't export non-approved entries (minor, since tables only contain approved rows in practice)
 
 ### Security
-- [ ] **Cloudflare WAF rate limiting** — Free plan only allows 1 rate limiting rule (currently protecting `/submit` endpoints). Admin endpoints rely on Worker-level in-memory rate limiting (per-isolate, not global). Upgrade to Pro ($20/mo) for full WAF with multiple rules when budget allows.
+- [ ] **Cloudflare WAF rate limiting** — Free plan only allows 1 rate limiting rule (currently protecting `/submit` endpoints). Worker now uses KV-backed global rate limiting (upgraded from per-isolate in-memory `Map`). Upgrade to Pro ($20/mo) for full WAF with multiple rules when budget allows.
 - [ ] **CSP `unsafe-inline` for scripts** — SvelteKit requires inline scripts for hydration. Cloudflare Pages (static adapter) can't generate per-request nonces. **Accepted risk** — mitigated by input sanitization, RLS, and Worker validation. Revisit if moving to SSR or if SvelteKit adds static nonce support.
 
 ---
