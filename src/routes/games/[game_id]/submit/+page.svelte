@@ -170,11 +170,11 @@
 	}
 	function handleBlur(closeFn: () => void) { setTimeout(closeFn, 180); }
 
-	function selectPlatform(p: { id: string; label: string }) { platform = p.id; platformSearch = p.label; platformOpen = false; }
+	function selectPlatform(p: { id?: string; label: string }) { platform = p.id || ''; platformSearch = p.label; platformOpen = false; }
 	function clearPlatform() { platform = ''; platformSearch = ''; }
-	function selectCharacter(c: { slug: string; label: string }) { character = c.slug; charSearch = c.label; charOpen = false; }
+	function selectCharacter(c: { slug?: string; label: string }) { character = c.slug || ''; charSearch = c.label; charOpen = false; }
 	function clearCharacter() { character = ''; charSearch = ''; }
-	function selectGlitch(g: { slug: string; label: string }) { glitchId = g.slug; glitchSearch = g.label; glitchOpen = false; }
+	function selectGlitch(g: { slug?: string; label: string }) { glitchId = g.slug || ''; glitchSearch = g.label; glitchOpen = false; }
 	function clearGlitch() { glitchId = ''; glitchSearch = ''; }
 
 	// ── Video Title Fetch ──

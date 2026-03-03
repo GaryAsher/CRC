@@ -157,6 +157,9 @@ export interface Game {
 	// Timing
 	timing_method: string;
 
+	// Platform
+	platform_required?: boolean;
+
 	// Community achievements
 	community_achievements?: CommunityAchievementDef[];
 
