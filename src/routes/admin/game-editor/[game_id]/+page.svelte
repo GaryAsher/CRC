@@ -31,7 +31,7 @@
 	let userRole = $state<{ admin: boolean; superAdmin: boolean; moderator: boolean; verifier: boolean; runnerId: string | null; gameIds: string[] } | null>(null);
 	let userId = $state<string | null>(null);
 
-	const gameId = $derived($page.params.game_id);
+	const gameId = $derived($page.params.game_id ?? '');
 
 	// ── Additional Tabs ──────────────────────────────────────────────────────
 	let additionalTabs = $state<{ tab1: { enabled: boolean; title: string; content: string }; tab2: { enabled: boolean; title: string; content: string } }>({
