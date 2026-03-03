@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { beforeNavigate } from '$app/navigation';
 	import { user } from '$stores/auth';
 	import { supabase } from '$lib/supabase';
 	import { isValidVideoUrl, isValidUrl, formatDate } from '$lib/utils';
@@ -217,6 +218,15 @@
 		}
 		window.addEventListener('beforeunload', onBeforeUnload);
 		return () => window.removeEventListener('beforeunload', onBeforeUnload);
+	});
+
+	// Guard SvelteKit in-app navigation (beforeunload doesn't fire for these)
+	beforeNavigate(({ cancel }) => {
+		if (dirty) {
+			if (!confirm('You have unsaved changes. Leave without saving?')) {
+				cancel();
+			}
+		}
 	});
 
 	// ── Bio character count ─────────────────────────────────────
@@ -749,23 +759,22 @@
 				{@const effectiveBgSize = bannerSize === 'fill' ? '100% 100%' : bannerSize === 'contain' ? 'contain' : 'cover'}
 				{@const effectiveBgPos = bannerPosition === 'top' ? 'top' : bannerPosition === 'bottom' ? 'bottom' : 'center'}
 
-				<!-- Sticky header: preview + tabs -->
-				<div class="edit-sticky-header">
-					<div class="preview-card" class:preview-card--bg-mode={effectiveBannerCss && bannerMode === 'background'}>
-						{#if effectiveBannerCss && bannerMode === 'background'}
-							<div class="preview-bg-banner" style="background:{effectiveBannerCss}; background-size:{effectiveBgSize}; background-position:{effectiveBgPos}; opacity:{bannerOpacity};"></div>
-						{/if}
-						<div class="preview-card__header">
-							<p class="preview-label">Profile Preview</p>
-							<button
-								type="button"
-								class="preview-toggle"
-								onclick={() => previewOpen = !previewOpen}
-								title={previewOpen ? 'Collapse preview' : 'Expand preview'}
-							>
-								{previewOpen ? '▲ Hide' : '▼ Show'}
-							</button>
-						</div>
+				<!-- Profile Preview — in normal flow, not sticky -->
+				<div class="preview-card" class:preview-card--bg-mode={effectiveBannerCss && bannerMode === 'background'}>
+					{#if effectiveBannerCss && bannerMode === 'background'}
+						<div class="preview-bg-banner" style="background:{effectiveBannerCss}; background-size:{effectiveBgSize}; background-position:{effectiveBgPos}; opacity:{bannerOpacity};"></div>
+					{/if}
+					<div class="preview-card__header">
+						<p class="preview-label">Profile Preview</p>
+						<button
+							type="button"
+							class="preview-toggle"
+							onclick={() => previewOpen = !previewOpen}
+							title={previewOpen ? 'Collapse preview' : 'Expand preview'}
+						>
+							{previewOpen ? '▲ Hide' : '▼ Show'}
+						</button>
+					</div>
 						{#if previewOpen}
 						<div class="preview-shell" style="--preview-opacity:{bannerOpacity}">
 							{#if effectiveBannerCss && bannerMode !== 'background'}
@@ -846,19 +855,21 @@
 						{/if}
 					</div>
 
-					<nav class="edit-tabs">
-						{#each TABS as tab}
-							<button
-								class="edit-tab"
-								class:edit-tab--active={activeTab === tab.id}
-								type="button"
-								onclick={() => activeTab = tab.id}
-							>
-								{tab.icon} {tab.label}
-							</button>
-						{/each}
-					</nav>
-				</div>
+					<!-- Sticky header: tabs only -->
+					<div class="edit-sticky-header">
+						<nav class="edit-tabs">
+							{#each TABS as tab}
+								<button
+									class="edit-tab"
+									class:edit-tab--active={activeTab === tab.id}
+									type="button"
+									onclick={() => activeTab = tab.id}
+								>
+									{tab.icon} {tab.label}
+								</button>
+							{/each}
+						</nav>
+					</div>
 
 				<!-- Tab content -->
 				<div class="edit-content">
@@ -1386,7 +1397,7 @@
 										<!-- Community Achievement mode -->
 										<div class="fg">
 											<label class="fl" for="hl-ach-title-{i}">Achievement Title *</label>
-											<input id="hl-ach-title-{i}" type="text" class="fi" bind:value={highlights[i].title} oninput={markDirty} maxlength="100" placeholder="e.g., World First All Bosses Hitless" />
+											<input id="hl-ach-title-{i}" type="text" class="fi" bind:value={highlights[i].title} oninput={markDirty} maxlength="100" placeholder="e.g., All Bosses Hitless Damageless" />
 										</div>
 										<div class="form-row">
 											<div class="fg fg--flex">
@@ -1429,7 +1440,7 @@
 
 										<div class="fg">
 											<label class="fl" for="hl-ach-{i}">Achievement Label</label>
-											<input id="hl-ach-{i}" type="text" class="fi" bind:value={highlights[i].achievement} oninput={markDirty} maxlength="100" placeholder="e.g., World First, Personal Best" />
+											<input id="hl-ach-{i}" type="text" class="fi" bind:value={highlights[i].achievement} oninput={markDirty} maxlength="100" placeholder="e.g., Personal Best, Community Achievement" />
 											<p class="fh">Optional label shown on your profile card.</p>
 										</div>
 
@@ -1462,7 +1473,6 @@
 					{#if bannedTermsWarning}
 						<div class="alert alert--error" style="width:100%;">{bannedTermsWarning}</div>
 					{/if}
-					<a href={runnerId ? `/runners/${runnerId}` : '/profile'} class="btn btn--ghost">Cancel</a>
 					<button
 						type="button"
 						class="btn"
@@ -1487,10 +1497,13 @@
 <style>
 	.edit-page { margin: 2rem auto; }
 
-	/* Sticky header: preview + tabs */
+	/* Preview card — in normal flow above sticky tabs */
+	.preview-card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 0.75rem; position: relative; }
+
+	/* Sticky header: tabs only */
 	.edit-sticky-header {
 		position: sticky; top: calc(4rem - 8px); z-index: 10;
-		background: var(--bg); padding-top: 24px; padding-bottom: 0;
+		background: var(--bg); padding-top: 8px; padding-bottom: 0;
 		margin-bottom: 1.5rem;
 	}
 	.edit-content { display: flex; flex-direction: column; gap: 1.5rem; }
@@ -1512,7 +1525,6 @@
 	.alert--warning { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24; }
 
 	/* Preview card — inside sticky header */
-	.preview-card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 0; position: relative; }
 	.preview-card--bg-mode .preview-card__header { position: relative; z-index: 1; }
 	.preview-card--bg-mode .preview-shell { background: transparent; }
 	.preview-card__header {

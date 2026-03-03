@@ -1,0 +1,253 @@
+<script lang="ts">
+	import { slugify, addItem, removeItem, moveItem, deepClone } from './_helpers.js';
+	import type { FullRunCategory, MiniChallengeGroup, PlayerMadeChallenge, ChallengeType, GlitchCategory, Restriction, CharacterColumn, CharacterOption } from '$types';
+
+	let {
+		fullRuns = $bindable(),
+		miniChallenges = $bindable(),
+		playerMade = $bindable(),
+		challengesData,
+		restrictionsData,
+		characterColumn,
+		charactersData,
+		originalSlugs,
+		canEdit,
+		isFrozen,
+		isAdmin,
+		saving,
+		onSave,
+		onReset,
+	}: {
+		fullRuns: FullRunCategory[];
+		miniChallenges: MiniChallengeGroup[];
+		playerMade: PlayerMadeChallenge[];
+		challengesData: ChallengeType[];
+		restrictionsData: Restriction[];
+		characterColumn: CharacterColumn;
+		charactersData: CharacterOption[];
+		originalSlugs: Set<string>;
+		canEdit: boolean;
+		isFrozen: boolean;
+		isAdmin: boolean;
+		saving: boolean;
+		onSave: () => void;
+		onReset: () => void;
+	} = $props();
+
+	let editingSection = $state<string | null>(null);
+	let editingIndex = $state<number | null>(null);
+
+	function toggleEdit(section: string, idx: number) {
+		if (editingSection === section && editingIndex === idx) { editingSection = null; editingIndex = null; }
+		else { editingSection = section; editingIndex = idx; }
+	}
+	function isEditing(section: string, idx: number) { return editingSection === section && editingIndex === idx; }
+	function isLockedSlug(slug: string) { return !!slug && originalSlugs.has(slug); }
+</script>
+
+<section class="editor-section" class:editor-section--frozen={isFrozen && !isAdmin}>
+	<h3 class="subsection-title">Full Run Categories</h3>
+	<p class="subsection-desc">Top-level categories for complete playthroughs.</p>
+	<div class="item-list">
+		{#each fullRuns as item, i}
+			<div class="item-card" class:item-card--open={isEditing('fr', i)}>
+				<div class="item-card__header">
+					<button class="item-card__toggle" onclick={() => toggleEdit('fr', i)}>
+						<span class="item-card__slug">{item.slug || '(new)'}</span>
+						<span class="item-card__label">{item.label || 'Untitled'}</span>
+					</button>
+					{#if canEdit}
+						<div class="item-card__actions">
+							<button class="item-btn" onclick={() => { fullRuns = moveItem(fullRuns, i, i - 1); }} disabled={i === 0}>↑</button>
+							<button class="item-btn" onclick={() => { fullRuns = moveItem(fullRuns, i, i + 1); }} disabled={i === fullRuns.length - 1}>↓</button>
+							<button class="item-btn item-btn--danger" onclick={() => { if (confirm(`Delete "${item.label}"?`)) fullRuns = removeItem(fullRuns, i); }}>✕</button>
+						</div>
+					{/if}
+				</div>
+				{#if isEditing('fr', i)}
+					<div class="item-card__body">
+						{#if isLockedSlug(item.slug)}
+							<div class="field-row--compact"><label>Slug</label><code class="slug-locked">{item.slug}</code></div>
+						{:else}
+							<div class="field-row--compact"><label>Slug</label><input type="text" value={item.slug} disabled class="slug-auto" /></div>
+						{/if}
+						<div class="field-row--compact"><label>Label</label><input type="text" bind:value={item.label} oninput={() => { if (!isLockedSlug(item.slug)) item.slug = slugify(item.label); }} disabled={!canEdit} /></div>
+						<div class="field-row--compact"><label>Description</label><textarea rows="2" bind:value={item.description} disabled={!canEdit}></textarea></div>
+						<span class="field-hint">Markdown supported</span>
+						<label class="toggle-row"><input type="checkbox" checked={item.fixed_loadout?.enabled || false} onchange={(e) => { if (!item.fixed_loadout) item.fixed_loadout = { enabled: false }; item.fixed_loadout.enabled = e.currentTarget.checked; fullRuns = [...fullRuns]; }} disabled={!canEdit} /> Fixed Loadout</label>
+						{#if item.fixed_loadout?.enabled}
+							<div class="fixed-loadout-fields">
+								{#if characterColumn.enabled && charactersData.length}
+									<div class="field-row--compact"><label>{characterColumn.label || 'Character'}</label><select value={item.fixed_loadout!.character || ''} onchange={(e) => { item.fixed_loadout!.character = e.currentTarget.value || undefined; fullRuns = [...fullRuns]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each charactersData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
+								{/if}
+								{#if challengesData.length}
+									<div class="field-row--compact"><label>Challenge</label><select value={item.fixed_loadout!.challenge || ''} onchange={(e) => { item.fixed_loadout!.challenge = e.currentTarget.value || undefined; fullRuns = [...fullRuns]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each challengesData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
+								{/if}
+								{#if restrictionsData.length}
+									<div class="field-row--compact"><label>Restriction</label><select value={item.fixed_loadout!.restriction || ''} onchange={(e) => { item.fixed_loadout!.restriction = e.currentTarget.value || undefined; fullRuns = [...fullRuns]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each restrictionsData as r}<option value={r.slug}>{r.label}</option>{/each}</select></div>
+								{/if}
+								{#if !characterColumn.enabled && !challengesData.length && !restrictionsData.length}
+									<p class="field-hint">Define characters, challenges, or restrictions in their respective tabs first.</p>
+								{/if}
+							</div>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		{/each}
+	</div>
+	{#if canEdit}<button class="btn btn--add" onclick={() => { fullRuns = addItem(fullRuns, { slug: '', label: '', description: '', fixed_loadout: { enabled: false } }); editingSection = 'fr'; editingIndex = fullRuns.length - 1; }}>+ Add Full Run Category</button>{/if}
+
+	<h3 class="subsection-title mt-2">Mini-Challenges</h3>
+	<p class="subsection-desc">Groups of in-game challenges with child categories.</p>
+	<div class="item-list">
+		{#each miniChallenges as group, gi}
+			<div class="item-card item-card--group" class:item-card--open={isEditing('mc', gi)}>
+				<div class="item-card__header">
+					<button class="item-card__toggle" onclick={() => toggleEdit('mc', gi)}>
+						<span class="item-card__slug">{group.slug || '(new)'}</span>
+						<span class="item-card__label">{group.label || 'Untitled Group'}</span>
+						<span class="item-card__count">{group.children?.length || 0} children</span>
+					</button>
+					{#if canEdit}
+						<div class="item-card__actions">
+							<button class="item-btn" onclick={() => { miniChallenges = moveItem(miniChallenges, gi, gi - 1); }} disabled={gi === 0}>↑</button>
+							<button class="item-btn" onclick={() => { miniChallenges = moveItem(miniChallenges, gi, gi + 1); }} disabled={gi === miniChallenges.length - 1}>↓</button>
+							<button class="item-btn item-btn--danger" onclick={() => { if (confirm(`Delete group "${group.label}" and all children?`)) miniChallenges = removeItem(miniChallenges, gi); }}>✕</button>
+						</div>
+					{/if}
+				</div>
+				{#if isEditing('mc', gi)}
+					<div class="item-card__body">
+						{#if isLockedSlug(group.slug)}
+							<div class="field-row--compact"><label>Slug</label><code class="slug-locked">{group.slug}</code></div>
+						{:else}
+							<div class="field-row--compact"><label>Slug</label><input type="text" value={group.slug} disabled class="slug-auto" /></div>
+						{/if}
+						<div class="field-row--compact"><label>Label</label><input type="text" bind:value={group.label} oninput={() => { if (!isLockedSlug(group.slug)) group.slug = slugify(group.label); }} disabled={!canEdit} /></div>
+						<div class="field-row--compact"><label>Description</label><textarea rows="2" bind:value={group.description} disabled={!canEdit}></textarea></div>
+						<span class="field-hint">Markdown supported</span>
+						<label class="toggle-row"><input type="checkbox" checked={!!group.exceptions} onchange={(e) => { group.exceptions = e.currentTarget.checked ? (group.exceptions || '') : undefined; miniChallenges = [...miniChallenges]; }} disabled={!canEdit} /> Has Exceptions</label>
+						{#if group.exceptions != null}
+							<textarea class="exceptions-textarea" rows="2" bind:value={group.exceptions} placeholder="Describe exceptions to the rules above (Markdown supported)..." disabled={!canEdit}></textarea>
+						{/if}
+						<details class="children-section">
+							<summary class="children-title">Children <span class="muted">({(group.children || []).length})</span> <span class="children-chevron">▶</span></summary>
+							{#each group.children || [] as child, ci}
+								<details class="child-card">
+									<summary class="child-card__header">
+										<span class="child-card__chevron">▶</span>
+										<span class="child-card__arrow">└</span>
+										<span class="child-card__slug-text">{child.slug || '(new)'}</span>
+										<span class="child-card__label-text">{child.label || 'Untitled'}</span>
+										{#if canEdit}<button class="item-btn item-btn--danger" onclick={(e) => { e.stopPropagation(); group.children = group.children.filter((_: any, j: number) => j !== ci); miniChallenges = [...miniChallenges]; }}>✕</button>{/if}
+									</summary>
+									<div class="child-card__body">
+										<div class="child-card__fields">
+											{#if isLockedSlug(child.slug)}
+												<div class="field-row--compact"><label>Slug</label><code class="slug-locked slug-locked--sm">{child.slug}</code></div>
+											{:else}
+												<div class="field-row--compact"><label>Slug</label><input type="text" value={child.slug} disabled class="slug-auto" /></div>
+											{/if}
+											<div class="field-row--compact"><label>Label</label><input type="text" bind:value={child.label} oninput={() => { if (!isLockedSlug(child.slug)) child.slug = slugify(child.label); }} disabled={!canEdit} /></div>
+										</div>
+										<div class="child-card__desc">
+											<textarea rows="2" bind:value={child.description} placeholder="Description (Markdown supported)..." disabled={!canEdit}></textarea>
+										</div>
+										<label class="toggle-row toggle-row--child"><input type="checkbox" checked={!!child.exceptions} onchange={(e) => { child.exceptions = e.currentTarget.checked ? (child.exceptions || '') : undefined; miniChallenges = [...miniChallenges]; }} disabled={!canEdit} /> Has Exceptions</label>
+										{#if child.exceptions != null}
+											<textarea class="exceptions-textarea" rows="2" bind:value={child.exceptions} placeholder="Exceptions (Markdown supported)..." disabled={!canEdit}></textarea>
+										{/if}
+										<label class="toggle-row toggle-row--child"><input type="checkbox" checked={child.fixed_loadout?.enabled || false} onchange={(e) => { if (!child.fixed_loadout) child.fixed_loadout = { enabled: false }; child.fixed_loadout.enabled = e.currentTarget.checked; miniChallenges = [...miniChallenges]; }} disabled={!canEdit} /> Fixed Loadout</label>
+										{#if child.fixed_loadout?.enabled}
+											<div class="fixed-loadout-fields">
+												{#if characterColumn.enabled && charactersData.length}
+													<div class="field-row--compact"><label>{characterColumn.label || 'Character'}</label><select value={child.fixed_loadout!.character || ''} onchange={(e) => { child.fixed_loadout!.character = e.currentTarget.value || undefined; miniChallenges = [...miniChallenges]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each charactersData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
+												{/if}
+												{#if challengesData.length}
+													<div class="field-row--compact"><label>Challenge</label><select value={child.fixed_loadout!.challenge || ''} onchange={(e) => { child.fixed_loadout!.challenge = e.currentTarget.value || undefined; miniChallenges = [...miniChallenges]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each challengesData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
+												{/if}
+												{#if restrictionsData.length}
+													<div class="field-row--compact"><label>Restriction</label><select value={child.fixed_loadout!.restriction || ''} onchange={(e) => { child.fixed_loadout!.restriction = e.currentTarget.value || undefined; miniChallenges = [...miniChallenges]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each restrictionsData as r}<option value={r.slug}>{r.label}</option>{/each}</select></div>
+												{/if}
+												{#if !characterColumn.enabled && !challengesData.length && !restrictionsData.length}
+													<p class="field-hint">Define characters, challenges, or restrictions in their respective tabs first.</p>
+												{/if}
+											</div>
+										{/if}
+									</div>
+								</details>
+							{/each}
+							{#if canEdit}<button class="btn btn--add btn--add-sm" onclick={() => { if (!group.children) group.children = []; group.children = [...group.children, { slug: '', label: '', description: '', fixed_loadout: { enabled: false } }]; miniChallenges = [...miniChallenges]; }}>+ Add Child</button>{/if}
+						</details>
+					</div>
+				{/if}
+			</div>
+		{/each}
+	</div>
+	{#if canEdit}<button class="btn btn--add" onclick={() => { miniChallenges = addItem(miniChallenges, { slug: '', label: '', description: '', children: [] }); editingSection = 'mc'; editingIndex = miniChallenges.length - 1; }}>+ Add Mini-Challenge Group</button>{/if}
+
+	<h3 class="subsection-title mt-2">Player-Made</h3>
+	<p class="subsection-desc">Community-created challenge categories.</p>
+	<div class="item-list">
+		{#each playerMade as item, i}
+			<div class="item-card" class:item-card--open={isEditing('pm', i)}>
+				<div class="item-card__header">
+					<button class="item-card__toggle" onclick={() => toggleEdit('pm', i)}>
+						<span class="item-card__slug">{item.slug || '(new)'}</span>
+						<span class="item-card__label">{item.label || 'Untitled'}</span>
+					</button>
+					{#if canEdit}
+						<div class="item-card__actions">
+							<button class="item-btn" onclick={() => { playerMade = moveItem(playerMade, i, i - 1); }} disabled={i === 0}>↑</button>
+							<button class="item-btn" onclick={() => { playerMade = moveItem(playerMade, i, i + 1); }} disabled={i === playerMade.length - 1}>↓</button>
+							<button class="item-btn item-btn--danger" onclick={() => { if (confirm(`Delete "${item.label}"?`)) playerMade = removeItem(playerMade, i); }}>✕</button>
+						</div>
+					{/if}
+				</div>
+				{#if isEditing('pm', i)}
+					<div class="item-card__body">
+						{#if isLockedSlug(item.slug)}
+							<div class="field-row--compact"><label>Slug</label><code class="slug-locked">{item.slug}</code></div>
+						{:else}
+							<div class="field-row--compact"><label>Slug</label><input type="text" value={item.slug} disabled class="slug-auto" /></div>
+						{/if}
+						<div class="field-row--compact"><label>Label</label><input type="text" bind:value={item.label} oninput={() => { if (!isLockedSlug(item.slug)) item.slug = slugify(item.label); }} disabled={!canEdit} /></div>
+						<div class="field-row--compact"><label>Description</label><textarea rows="2" bind:value={item.description} disabled={!canEdit}></textarea></div>
+						<span class="field-hint">Markdown supported</span>
+						<div class="field-row--compact"><label>Creator</label><input type="text" bind:value={item.creator} placeholder="Runner ID" disabled={!canEdit} /></div>
+						<label class="toggle-row"><input type="checkbox" checked={!!item.exceptions} onchange={(e) => { item.exceptions = e.currentTarget.checked ? (item.exceptions || '') : undefined; playerMade = [...playerMade]; }} disabled={!canEdit} /> Has Exceptions</label>
+						{#if item.exceptions != null}
+							<textarea class="exceptions-textarea" rows="2" bind:value={item.exceptions} placeholder="Describe exceptions (Markdown supported)..." disabled={!canEdit}></textarea>
+						{/if}
+						<label class="toggle-row"><input type="checkbox" checked={item.fixed_loadout?.enabled || false} onchange={(e) => { if (!item.fixed_loadout) item.fixed_loadout = { enabled: false }; item.fixed_loadout.enabled = e.currentTarget.checked; playerMade = [...playerMade]; }} disabled={!canEdit} /> Fixed Loadout</label>
+						{#if item.fixed_loadout?.enabled}
+							<div class="fixed-loadout-fields">
+								{#if characterColumn.enabled && charactersData.length}
+									<div class="field-row--compact"><label>{characterColumn.label || 'Character'}</label><select value={item.fixed_loadout!.character || ''} onchange={(e) => { item.fixed_loadout!.character = e.currentTarget.value || undefined; playerMade = [...playerMade]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each charactersData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
+								{/if}
+								{#if challengesData.length}
+									<div class="field-row--compact"><label>Challenge</label><select value={item.fixed_loadout!.challenge || ''} onchange={(e) => { item.fixed_loadout!.challenge = e.currentTarget.value || undefined; playerMade = [...playerMade]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each challengesData as ch}<option value={ch.slug}>{ch.label}</option>{/each}</select></div>
+								{/if}
+								{#if restrictionsData.length}
+									<div class="field-row--compact"><label>Restriction</label><select value={item.fixed_loadout!.restriction || ''} onchange={(e) => { item.fixed_loadout!.restriction = e.currentTarget.value || undefined; playerMade = [...playerMade]; }} disabled={!canEdit}><option value="">— Not fixed —</option>{#each restrictionsData as r}<option value={r.slug}>{r.label}</option>{/each}</select></div>
+								{/if}
+								{#if !characterColumn.enabled && !challengesData.length && !restrictionsData.length}
+									<p class="field-hint">Define characters, challenges, or restrictions in their respective tabs first.</p>
+								{/if}
+							</div>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		{/each}
+	</div>
+	{#if canEdit}<button class="btn btn--add" onclick={() => { playerMade = addItem(playerMade, { slug: '', label: '', description: '', fixed_loadout: { enabled: false } }); editingSection = 'pm'; editingIndex = playerMade.length - 1; }}>+ Add Player-Made Category</button>{/if}
+
+	{#if canEdit}
+		<div class="section-actions">
+			<button class="btn btn--save" onclick={onSave} disabled={saving}>{saving ? 'Saving...' : '💾 Save Categories'}</button>
+			<button class="btn btn--reset" onclick={onReset}>↩ Reset</button>
+		</div>
+	{/if}
+</section>

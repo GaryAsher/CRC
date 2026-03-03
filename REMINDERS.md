@@ -29,32 +29,16 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ## Short-Term Priorities
 
 ### 1. Small fixes
-- Games Page:
-  - Submit Run:
-    - For runner section:
-      - [x] Show Runner's Avatar, pronouns, location, and ally of (if applicable). *(Mar 3)*
-
 - Submit Page (https://www.challengerun.net/submit):
   - Can we transform this to populate the respective game? or is that too much work?
 
-- Admin, Game Editor:
-  [x] Fix game covers so they use the standard 460x 215 size that steam uses. *(Mar 3)*
-    - [x] This needs to be applied to games on the games page too if it is not already.
-    - All tabs:
-      - [x] styling for checkboxes and text should be the same for "Game-specific Challenge, Has Exceptions, and Fixed Loadout *(Mar 3)*
-        - [x] Add some visual horizontal separator between child categories
-        
 - Edit Profile:
   - Leaving the page resets everything? why?
-  - For "Save Changes", give it the big button that is used for game/submit. put it on the right. To the left of that button, add "reset".
+  - For "Save Changes", give it the big button that is used for game/submit. It should bg-btn style put it on the right. To the left of that button, add "reset". Remove the "Cancel" button
   - Customize:
-    - [ ] Change Banner Opacity default to 70%
-    - [ ] Change Banner Image URL to be have Upload Image and Remove
-    - [ ] Change banner to 16:9 ratio.
-    - [ ] In Banner section, note that banner uses 16:9 ratio.
+    - [ ] Show/Hide button covers the settings? It should push the settings down. Show/Hide is just so half the screen isnt covered with the profile preview.
   - Highlights:
-    - [ ] Add option for a highlight to be a Community Achievement
-    - [ ] Change Run to pull from a run that the runner has actually submitted.
+    - [ ] Remove the text that says "World's First". I do not want to reference World's First in any fashion
 
 - Runner Page:
   - Run Statistics:
