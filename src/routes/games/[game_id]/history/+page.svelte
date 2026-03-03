@@ -9,15 +9,15 @@
 	import type { Game, FullRunCategory, MiniChallengeGroup, PlayerMadeChallenge, ChallengeType, GlitchCategory, Restriction, CharacterColumn, CharacterOption } from '$types';
 	import { deepClone } from '$lib/utils';
 
-	import GeneralTab from './GeneralTab.svelte';
-	import CategoriesTab from './CategoriesTab.svelte';
-	import RulesTab from './RulesTab.svelte';
-	import ChallengesTab from './ChallengesTab.svelte';
-	import RestrictionsTab from './RestrictionsTab.svelte';
-	import CharactersTab from './CharactersTab.svelte';
-	import CustomTabsSettings from './CustomTabsSettings.svelte';
-	import AdditionalContentTab from './AdditionalContentTab.svelte';
-	import HistoryTab from './HistoryTab.svelte';
+	import GeneralTab from '../../../admin/game-editor/[game_id]/GeneralTab.svelte';
+	import CategoriesTab from '../../../admin/game-editor/[game_id]/CategoriesTab.svelte';
+	import RulesTab from '../../../admin/game-editor/[game_id]/RulesTab.svelte';
+	import ChallengesTab from '../../../admin/game-editor/[game_id]/ChallengesTab.svelte';
+	import RestrictionsTab from '../../../admin/game-editor/[game_id]/RestrictionsTab.svelte';
+	import CharactersTab from '../../../admin/game-editor/[game_id]/CharactersTab.svelte';
+	import CustomTabsSettings from '../../../admin/game-editor/[game_id]/CustomTabsSettings.svelte';
+	import AdditionalContentTab from '../../../admin/game-editor/[game_id]/AdditionalContentTab.svelte';
+	import HistoryTab from '../../../admin/game-editor/[game_id]/HistoryTab.svelte';
 
 	// ── Auth / access state ─────────────────────────────────────────────────
 	let checking = $state(true);
