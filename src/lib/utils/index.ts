@@ -135,6 +135,14 @@ export function isValidVideoUrl(url: string): boolean {
 }
 
 /**
+ * Deep clone an object via JSON round-trip.
+ * Suitable for plain data (no functions, Dates, etc.).
+ */
+export function deepClone<T>(obj: T): T {
+	return JSON.parse(JSON.stringify(obj));
+}
+
+/**
  * Group an array of items by a key.
  */
 export function groupBy<T>(items: T[], keyFn: (item: T) => string): Record<string, T[]> {

@@ -7,7 +7,7 @@
 	import { supabase } from '$lib/supabase';
 	import { PUBLIC_WORKER_URL } from '$env/static/public';
 	import type { Game, FullRunCategory, MiniChallengeGroup, PlayerMadeChallenge, ChallengeType, GlitchCategory, Restriction, CharacterColumn, CharacterOption } from '$types';
-	import { deepClone } from './_helpers.js';
+	import { deepClone } from '$lib/utils';
 
 	import GeneralTab from './GeneralTab.svelte';
 	import CategoriesTab from './CategoriesTab.svelte';
