@@ -252,7 +252,7 @@
 		overflow: hidden;
 	}
 	.game-card__cover {
-		height: 140px;
+		aspect-ratio: 460 / 215;
 		background-size: cover;
 		position: relative;
 	}

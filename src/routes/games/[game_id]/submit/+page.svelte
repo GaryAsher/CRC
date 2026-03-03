@@ -8,6 +8,7 @@
 	import { checkBannedTerms } from '$lib/utils/banned-terms';
 	import { showToast } from '$stores/toast';
 	import { PUBLIC_WORKER_URL, PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
+	import { getCountry } from '$lib/data/countries';
 
 	let { data } = $props();
 	const game = $derived(data.game);
@@ -399,8 +400,34 @@
 				<div class="field">
 					<label class="field-label">Your Profile</label>
 					{#if runnerProfile}
+						{@const locCountry = runnerProfile.location ? getCountry(runnerProfile.location) : null}
+						{@const repCountry = runnerProfile.socials?.representing ? getCountry(runnerProfile.socials.representing) : null}
 						<div class="runner-autofill">
-							<a href="/runners/{runnerProfile.runner_id}" class="runner-autofill__link">{runnerProfile.display_name}</a>
+							<img
+								class="runner-autofill__avatar"
+								src={runnerProfile.avatar_url || '/img/site/default-runner.png'}
+								alt=""
+							/>
+							<div class="runner-autofill__info">
+								<a href="/runners/{runnerProfile.runner_id}" class="runner-autofill__link">{runnerProfile.display_name}</a>
+								{#if runnerProfile.pronouns}
+									<span class="runner-autofill__pronouns">{runnerProfile.pronouns}</span>
+								{/if}
+								{#if locCountry || repCountry}
+									<span class="runner-autofill__location">
+										{#if locCountry}
+											<img class="runner-autofill__flag" src="https://flagcdn.com/w40/{locCountry.code.toLowerCase()}.png" alt="{locCountry.name} flag" width="16" height="12" />
+											{locCountry.name}
+										{/if}
+										{#if repCountry && repCountry.code !== locCountry?.code}
+											<span class="runner-autofill__ally">· Ally of
+												<img class="runner-autofill__flag" src="https://flagcdn.com/w40/{repCountry.code.toLowerCase()}.png" alt="{repCountry.name} flag" width="16" height="12" />
+												{repCountry.name}
+											</span>
+										{/if}
+									</span>
+								{/if}
+							</div>
 						</div>
 					{:else}
 						<div class="runner-autofill runner-autofill--none">
@@ -657,9 +684,15 @@
 	.ta__empty { padding: 0.5rem 0.6rem; color: var(--muted); font-size: 0.8rem; }
 
 	/* Runner auto-fill */
-	.runner-autofill { padding: 0.5rem 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
-	.runner-autofill__link { color: var(--accent); text-decoration: none; font-weight: 500; }
+	.runner-autofill { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
+	.runner-autofill__avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+	.runner-autofill__info { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+	.runner-autofill__link { color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
 	.runner-autofill__link:hover { text-decoration: underline; }
+	.runner-autofill__pronouns { font-size: 0.78rem; color: var(--muted); }
+	.runner-autofill__location { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; }
+	.runner-autofill__flag { display: inline-block; vertical-align: middle; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+	.runner-autofill__ally { display: inline-flex; align-items: center; gap: 0.25rem; opacity: 0.75; }
 	.runner-autofill--none { color: var(--text-muted); font-size: 0.85rem; }
 	.runner-autofill--none a { color: var(--accent); }
 

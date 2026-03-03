@@ -1000,7 +1000,7 @@
 									<div class="field-row--compact"><label>Label</label><input type="text" bind:value={item.label} oninput={() => { if (!isLockedSlug(item.slug)) item.slug = slugify(item.label); }} disabled={!canEdit} /></div>
 									<div class="field-row--compact"><label>Description</label><textarea rows="3" bind:value={item.description} disabled={!canEdit}></textarea></div>
 									<span class="field-hint">Markdown supported</span>
-									<label class="child-row__check mt-1"><input type="checkbox" bind:checked={item.game_specific} disabled={!canEdit} /> Game-specific challenge (unique to this game)</label>
+									<label class="toggle-row"><input type="checkbox" bind:checked={item.game_specific} disabled={!canEdit} /> Game-specific challenge</label>
 								</div>
 									<label class="toggle-row"><input type="checkbox" checked={!!item.exceptions} onchange={(e) => { item.exceptions = e.currentTarget.checked ? (item.exceptions || '') : undefined; challengesData = [...challengesData]; }} disabled={!canEdit} /> Has Exceptions</label>
 									{#if item.exceptions != null}
@@ -1063,7 +1063,7 @@
 									<div class="field-row--compact"><label>Label</label><input type="text" bind:value={item.label} oninput={() => { if (!isLockedSlug(item.slug)) item.slug = slugify(item.label); }} disabled={!canEdit} /></div>
 									<div class="field-row--compact"><label>Description</label><textarea rows="3" bind:value={item.description} disabled={!canEdit}></textarea></div>
 									<span class="field-hint">Markdown supported</span>
-									<label class="child-row__check mt-1"><input type="checkbox" bind:checked={item.game_specific} disabled={!canEdit} /> Game-specific glitch category (unique to this game)</label>
+									<label class="toggle-row"><input type="checkbox" bind:checked={item.game_specific} disabled={!canEdit} /> Game-specific glitch category</label>
 									<label class="toggle-row"><input type="checkbox" checked={!!item.exceptions} onchange={(e) => { item.exceptions = e.currentTarget.checked ? (item.exceptions || '') : undefined; glitchesData = [...glitchesData]; }} disabled={!canEdit} /> Has Exceptions</label>
 									{#if item.exceptions != null}
 										<textarea class="exceptions-textarea" rows="2" bind:value={item.exceptions} placeholder="Describe exceptions to the rules above (Markdown supported)..." disabled={!canEdit}></textarea>
@@ -1527,7 +1527,7 @@
 
 	/* Cover upload */
 	.cover-preview { display: flex; align-items: flex-end; gap: 0.75rem; margin-bottom: 0.5rem; }
-	.cover-preview__img { width: 230px; height: 107px; background-size: cover; border-radius: 6px; border: 1px solid var(--border); flex-shrink: 0; }
+	.cover-preview__img { width: 230px; aspect-ratio: 460 / 215; background-size: cover; border-radius: 6px; border: 1px solid var(--border); flex-shrink: 0; }
 	.cover-preview__actions { display: flex; flex-direction: column; gap: 0.35rem; }
 	.cover-upload-btn { cursor: pointer; }
 	.cover-empty { border: 2px dashed var(--border); border-radius: 8px; padding: 2rem; text-align: center; }
@@ -1573,6 +1573,7 @@
 	.child-row__check { display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: var(--muted); white-space: nowrap; cursor: pointer; }
 	.child-row__check input { width: 14px; height: 14px; accent-color: var(--accent); }
 	.child-card { margin-bottom: 0.5rem; padding-left: 0.5rem; border-left: 2px solid var(--border); }
+	.child-card + .child-card { padding-top: 0.5rem; border-top: 1px dashed var(--border); }
 	.child-card__header { display: flex; gap: 0.35rem; align-items: center; cursor: pointer; list-style: none; user-select: none; padding: 0.25rem 0; }
 	.child-card__header::-webkit-details-marker { display: none; }
 	.child-card__chevron { font-size: 0.6rem; color: var(--text-muted); transition: transform 0.15s ease; flex-shrink: 0; }

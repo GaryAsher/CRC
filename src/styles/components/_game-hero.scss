@@ -20,7 +20,7 @@
   overflow: hidden;
   margin: 0 0 1.25rem 0;
 
-  aspect-ratio: 2 / 1;                    // 2:1 aspect ratio
+  aspect-ratio: 460 / 215;                // Steam standard cover ratio
   height: auto;
 
   background-size: cover;
@@ -115,11 +115,11 @@
 // ──────────────────────────────────────────────────────────
 // Fallback for browsers without aspect-ratio support
 // ──────────────────────────────────────────────────────────
-@supports not (aspect-ratio: 2 / 1) {
+@supports not (aspect-ratio: 460 / 215) {
   .game-hero::before {
     content: "";
     display: block;
-    padding-top: 50%;
+    padding-top: 46.74%;
   }
 
   .game-hero__overlay {
