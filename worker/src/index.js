@@ -565,6 +565,11 @@ async function handleGameSubmission(body, env, request) {
     return jsonResponse({ error: 'At least 1 challenge type is required' }, 400, env, request);
   }
 
+  // If characters enabled, need at least 2
+  if (body.character_enabled && (!Array.isArray(body.characters) || body.characters.filter(c => c && (typeof c === 'string' ? c.trim() : c.label?.trim())).length < 2)) {
+    return jsonResponse({ error: 'At least 2 character options are required when characters are enabled' }, 400, env, request);
+  }
+
   // Verify Turnstile
   const ip = request.headers.get('CF-Connecting-IP');
   const turnstileOk = await verifyTurnstile(body.turnstile_token, env, ip);

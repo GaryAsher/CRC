@@ -180,6 +180,7 @@
 	let avatarUrl = $state('');
 	let avatarPosX = $state(50); // 0–100 percentage for custom avatar crop
 	let avatarPosY = $state(50);
+	let avatarZoom = $state(1); // 1–3 zoom level
 	let bannerUrl = $state('');
 	let uploading = $state(false);
 	let uploadMsg = $state('');
@@ -315,6 +316,7 @@
 			const ao = s.avatar_opts || {};
 			avatarPosX = ao.x ?? 50;
 			avatarPosY = ao.y ?? 50;
+			avatarZoom = ao.zoom ?? 1;
 			// Initialize combobox display text from loaded codes
 			const locCountry = COUNTRIES.find(c => c.code === location);
 			locationSearch = locCountry ? locCountry.flag + ' ' + locCountry.name : location;
@@ -395,7 +397,7 @@
 			if (socialSteam.trim()) socials.steam = socialSteam.trim();
 			if (representing) socials.representing = representing;
 			if (hideActivity) socials.hide_activity = true;
-			socials.avatar_opts = { x: avatarPosX, y: avatarPosY };
+			socials.avatar_opts = { x: avatarPosX, y: avatarPosY, zoom: avatarZoom };
 			const bannerOpts: Record<string,any> = { size: bannerSize, position: bannerPosition, opacity: bannerOpacity, mode: bannerMode, container_opacity: containerOpacity };
 			if (bannerPosition === 'custom') bannerOpts.custom_y = bannerCustomY;
 			if (bannerGradient) bannerOpts.gradient = bannerGradient;
@@ -784,9 +786,6 @@
 				<!-- Sticky header: preview + tabs -->
 				<div class="edit-sticky-header">
 					<div class="preview-card" class:preview-card--bg-mode={effectiveBannerCss && bannerMode === 'background'}>
-						{#if effectiveBannerCss && bannerMode === 'background'}
-							<div class="preview-bg-banner" style="background:{effectiveBannerCss}; background-size:{effectiveBgSize}; background-position:{effectiveBgPos}; opacity:{bannerOpacity};"></div>
-						{/if}
 						<div class="preview-card__header">
 							<p class="preview-label">Profile Preview</p>
 							<button
@@ -818,9 +817,13 @@
 								{/if}
 								<div class="pv-left">
 									{#if avatarUrl}
-										<img class="pv-avatar" src={avatarUrl} alt="" style="object-position:{avatarPosX}% {avatarPosY}%;" />
+										<div class="pv-avatar-wrap">
+											<img class="pv-avatar" src={avatarUrl} alt="" style="object-position:{avatarPosX}% {avatarPosY}%; transform:scale({avatarZoom}); transform-origin:{avatarPosX}% {avatarPosY}%;" />
+										</div>
 									{:else}
-										<div class="pv-avatar pv-avatar--placeholder">👤</div>
+										<div class="pv-avatar-wrap">
+											<div class="pv-avatar pv-avatar--placeholder">👤</div>
+										</div>
 									{/if}
 									<div class="pv-name">
 										<h1>
@@ -1028,7 +1031,7 @@
 							<div class="avatar-upload">
 								<div class="avatar-upload__preview">
 									{#if avatarUrl}
-										<img src={avatarUrl} alt="Avatar preview" style="object-position:{avatarPosX}% {avatarPosY}%;" />
+										<img src={avatarUrl} alt="Avatar preview" style="object-position:{avatarPosX}% {avatarPosY}%; transform:scale({avatarZoom}); transform-origin:{avatarPosX}% {avatarPosY}%;" />
 									{:else}
 										<div class="avatar-upload__placeholder">👤</div>
 									{/if}
@@ -1054,7 +1057,11 @@
 							</div>
 							{#if avatarUrl}
 								<div class="avatar-crop-section mt-2">
-									<label class="fl">Adjust Position</label>
+									<label class="fl">Adjust Position & Zoom</label>
+									<div class="avatar-zoom-row mb-2">
+										<span class="fh">Zoom: {avatarZoom.toFixed(1)}x</span>
+										<input type="range" min="1" max="3" step="0.1" bind:value={avatarZoom} oninput={() => markDirty()} class="avatar-zoom-slider" />
+									</div>
 									<p class="fh mb-2">Drag inside the frame to choose which part of your image is shown.</p>
 									<!-- svelte-ignore a11y_no_static_element_interactions -->
 									<div
@@ -1104,7 +1111,7 @@
 											if (e.key === 'ArrowRight') { avatarPosX = Math.min(100, avatarPosX + 2); markDirty(); e.preventDefault(); }
 										}}
 									>
-										<img src={avatarUrl} alt="" class="avatar-drag-img" style="object-position:{avatarPosX}% {avatarPosY}%;" />
+										<img src={avatarUrl} alt="" class="avatar-drag-img" style="object-position:{avatarPosX}% {avatarPosY}%; transform:scale({avatarZoom}); transform-origin:{avatarPosX}% {avatarPosY}%;" />
 										<div class="avatar-drag-crosshair" style="left:{avatarPosX}%; top:{avatarPosY}%;">
 											<span class="avatar-drag-dot"></span>
 										</div>
@@ -1116,7 +1123,7 @@
 						<!-- Banner: Upload Image -->
 						<div class="fg">
 							<label class="fl">Banner Image</label>
-							<p class="fh mb-3">Wide banner image (recommended ~1200×400 or wider). PNG, JPG, or WebP, max 5MB.</p>
+							<p class="fh mb-3">Uses 2:1 aspect ratio (e.g. 1200×600 or 1920×960). PNG, JPG, or WebP, max 5MB.</p>
 							<div class="banner-upload-controls">
 								<label class="btn btn--small btn--upload">
 									📤 Upload Image
@@ -1683,7 +1690,7 @@
 	.preview-bg-banner { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: 0; }
 
 	/* Banner — matches .runner-banner on runner page */
-	.pv-banner { position: relative; height: 180px; border-radius: 12px 12px 0 0; overflow: hidden; margin-bottom: 0; }
+	.pv-banner { position: relative; aspect-ratio: 2/1; border-radius: 12px 12px 0 0; overflow: hidden; margin-bottom: 0; }
 	.pv-banner--empty { background: var(--surface); }
 	.pv-banner__img { position: absolute; inset: 0; background-size: cover; background-position: center; }
 	.pv-banner__gradient { position: absolute; inset: 0; background: linear-gradient(135deg, var(--accent), #1a1a2e); opacity: 0.6; }
@@ -1697,7 +1704,8 @@
 	.pv-top--bg-mode .pv-socials { position: relative; z-index: 1; }
 	.pv-top--bg-mode .pv-link { background: rgba(0, 0, 0, var(--container-opacity, 0.4)); backdrop-filter: blur(8px); border-color: rgba(255, 255, 255, 0.1); }
 	.pv-left { display: flex; align-items: center; gap: 1.25rem; flex: 1; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); padding: 0.9rem; }
-	.pv-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); flex-shrink: 0; }
+	.pv-avatar-wrap { width: 80px; height: 80px; border-radius: 50%; overflow: hidden; border: 3px solid var(--accent); flex-shrink: 0; }
+	.pv-avatar { width: 100%; height: 100%; object-fit: cover; border: none; border-radius: 0; }
 	.pv-avatar--placeholder {
 		display: flex; align-items: center; justify-content: center; background: var(--surface);
 		font-size: 2rem; color: var(--muted);
@@ -1798,7 +1806,6 @@
 	.form-row { display: flex; gap: 1rem; }
 	@media (max-width: 600px) {
 		.form-row { flex-direction: column; gap: 0; }
-		.pv-banner { height: 120px; }
 	}
 
 	/* Avatar upload */
@@ -1818,6 +1825,8 @@
 
 	/* Avatar crop/drag frame */
 	.avatar-crop-section { max-width: 260px; }
+	.avatar-zoom-row { display: flex; align-items: center; gap: 0.75rem; }
+	.avatar-zoom-slider { flex: 1; min-width: 100px; accent-color: var(--accent); }
 	.avatar-drag-frame {
 		position: relative; width: 160px; height: 160px; border-radius: 50%; overflow: hidden;
 		border: 2px solid var(--accent); cursor: move; user-select: none; touch-action: none;

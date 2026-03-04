@@ -209,6 +209,7 @@ export interface RunnerSocials {
 	avatar_opts?: {
 		x?: number;
 		y?: number;
+		zoom?: number;
 	};
 	hide_activity?: boolean;
 }

@@ -68,6 +68,8 @@
 	// Avatar position
 	const avatarOpts = $derived(socials.avatar_opts || {});
 	const avatarPos = $derived(`${avatarOpts.x ?? 50}% ${avatarOpts.y ?? 50}%`);
+	const avatarZoom = $derived(avatarOpts.zoom ?? 1);
+	const avatarOrigin = $derived(`${avatarOpts.x ?? 50}% ${avatarOpts.y ?? 50}%`);
 
 	// Profile header location/representing
 	const repCode = $derived(socials.representing || '');
@@ -103,12 +105,14 @@
 			<div class="runner-top__bg" style="background:{bBg}; background-size:{bSize}; background-position:{bPos}; opacity:{bOpacity};"></div>
 		{/if}
 		<div class="runner-left">
-			<img
-				class="runner-avatar"
-				src={runner.avatar || '/img/site/default-runner.png'}
-				alt={runner.runner_name}
-				style="object-position:{avatarPos};"
-			/>
+			<div class="runner-avatar-wrap">
+				<img
+					class="runner-avatar"
+					src={runner.avatar || '/img/site/default-runner.png'}
+					alt={runner.runner_name}
+					style="object-position:{avatarPos}; transform:scale({avatarZoom}); transform-origin:{avatarOrigin};"
+				/>
+			</div>
 			<div class="runner-name">
 				<h1>
 					{runner.runner_name}
@@ -644,7 +648,7 @@
 	.mt-section { margin-top: 1.5rem; }
 
 	/* Banner */
-	.runner-banner { position: relative; height: 180px; border-radius: 12px 12px 0 0; overflow: hidden; margin-bottom: 0; }
+	.runner-banner { position: relative; aspect-ratio: 2/1; border-radius: 12px 12px 0 0; overflow: hidden; margin-bottom: 0; }
 	.runner-banner__img { position: absolute; inset: 0; background-size: cover; background-position: center; }
 	.runner-banner__fade { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 30%, var(--bg) 100%); }
 	/* Card background mode — banner behind info box */
@@ -658,7 +662,8 @@
 	/* Profile Top */
 	.runner-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
 	.runner-left { display: flex; align-items: center; gap: 1.25rem; }
-	.runner-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--runner-accent, var(--accent)); flex-shrink: 0; }
+	.runner-avatar-wrap { width: 80px; height: 80px; border-radius: 50%; overflow: hidden; border: 3px solid var(--runner-accent, var(--accent)); flex-shrink: 0; }
+	.runner-avatar { width: 100%; height: 100%; object-fit: cover; }
 	.runner-name h1 { margin: 0; }
 	.runner-pronouns { font-size: 0.8em; font-weight: 400; color: var(--text-muted); }
 	.runner-location, .runner-status { margin: 0.15rem 0 0; font-size: 0.85rem; }
@@ -843,7 +848,7 @@
 
 	/* Responsive */
 	@media (max-width: 640px) {
-		.runner-banner { height: 120px; }
+		.runner-banner { max-height: 180px; }
 		.runner-top { flex-direction: column; }
 		.runner-socials { grid-template-columns: 1fr; }
 		.runner-stats-card { justify-content: center; }

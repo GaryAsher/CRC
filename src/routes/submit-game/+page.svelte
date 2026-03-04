@@ -365,10 +365,15 @@
 	let submitting = $state(false);
 	let result = $state<{ ok: boolean; message: string } | null>(null);
 
+	let hasEnoughCharacters = $derived(
+		!characterEnabled || characterOptions.filter(c => c.trim()).length >= 2
+	);
+
 	let canSubmit = $derived(
 		gameName.trim() &&
 		hasAtLeastOneCategory &&
 		hasAtLeastOneChallenge &&
+		hasEnoughCharacters &&
 		turnstileToken &&
 		!submitting &&
 		!bannedTermsWarning
@@ -396,10 +401,13 @@
 
 	function scrollToSection(key: string) {
 		openSections = { ...openSections, [key]: true };
-		// Wait a tick for the section to open/render, then scroll
 		requestAnimationFrame(() => {
 			const el = document.getElementById(`section-${key}`);
-			if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			if (el) {
+				// Account for sticky site header (~70px)
+				const y = el.getBoundingClientRect().top + window.scrollY - 80;
+				window.scrollTo({ top: y, behavior: 'smooth' });
+			}
 		});
 	}
 
@@ -737,7 +745,7 @@
 					</section>
 
 					<!-- ═══ Section 6: Characters ═══ -->
-					<section class="form-section" class:open={openSections.characters}>
+					<section id="section-characters" class="form-section" class:open={openSections.characters}>
 						<button type="button" class="section-toggle" onclick={() => toggleSection('characters')}>
 							<span class="section-toggle__label">🧙 Characters / Weapons / Classes</span>
 							<span class="section-toggle__chevron">{openSections.characters ? '▲' : '▼'}</span>
@@ -750,6 +758,7 @@
 									<span class="toggle-label">This game requires you pick a character, weapon, or class before starting the game.</span>
 								</label>
 								{#if characterEnabled}
+									<p class="fh mt-2" style="margin-left: 3.25rem;">At least 2 options are required when characters are enabled.</p>
 									<div class="fg mt-2">
 										<label class="fl" for="charLabel">Column Label</label>
 										<input id="charLabel" type="text" class="fi" bind:value={characterLabel} placeholder="Character" maxlength="50" />
@@ -924,6 +933,11 @@
 						{#if !hasAtLeastOneChallenge && gameName.trim()}
 							<button type="button" class="validation-link" onclick={() => scrollToSection('challenges')}>
 								⚠ Please select at least 1 challenge type — click to go there
+							</button>
+						{/if}
+						{#if !hasEnoughCharacters && gameName.trim()}
+							<button type="button" class="validation-link" onclick={() => scrollToSection('characters')}>
+								⚠ Characters enabled — at least 2 options required — click to go there
 							</button>
 						{/if}
 

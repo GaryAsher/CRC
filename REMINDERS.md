@@ -25,27 +25,21 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ## Short-Term Priorities
 ### 1. Game Submit Section
 - https://www.challengerun.net/submit-game
-  - [ ] Make Character box open by default
-  - [ ] At the bottom, when it shows "Please add at least 1 run category" or some other requirement, add the option for the user to click it, which moves the scroll bar to that section of the form.
-  - Run Categories:
-    - For Mini-Challenge Categories:
-      - [ ] Change text from "Smaller challenges like individual boss fights, specific sections, or pantheons" to "Smaller challenges like individual boss fights, individual leves, or small guantlets that exist in game."
-  - Glitch Categories:
-    - No Major Glitches (NMG):
-      - When selected, open a description box asking the user to include the rules for No Major Glitches.
-    - Game-Specific Glitch Categories:
-      - [ ] Add the option for users to include a description for each entry.
+  - [ ] Make Character unchecked by default, the container is open by default. If character is checked, then at least 2 characters are required before submitting.
+  - [ ] At the bottom, the scroll almost works perfectly. It brings the user to the options in the box. I want it to bring the user to the top of the container. So if Challenges needs to be filled out, they should be redirected where the top of the screen shows: "⚔️ Challenges * ▲"
 
 ### 1.5 Small fixes
 - Profile Edit:
   - Customize:
+    - Adjust Position:
+      - [ ] Give users the option to zoom in or out of their image
+      - [ ] Update Avatar in profile preview based on adjustments made to avatar
     - Banner Image:
-      - [ ] Allow the user to select which portion of the image the want to show. So like a box that shows what portion the banner will use.
-        - Maybe make this an option in Align, that says "Custom"?
-      - [ ] Remove "Show Full" option.
-      - [ ] Change the "Uses 16:9 aspect ratio (e.g. 1920×1080). PNG, JPG, or WebP, max 5MB." text to say the aspect that is actually being used in "Card Background"
-        - Should we increase the size allowed for the bucket?
-      - [ ] Change the "Above Profile" option to use the same aspect ratio as Card Background
+      - [ ] Change ratio to 2:1
+        - update "Wide banner image (recommended ~1200×400 or wider). PNG, JPG, or WebP, max 5MB." text according to these changes.
+    - Banner Display Options:
+      - Position:
+        - [ ] When selecting Card Background, the banner in Preview looks like it is showing twice? once in the "Hide" section and once above it? How do we fix this so it properly shows the profile preview?
 
 - News Section
   - [ ] Review entire process
