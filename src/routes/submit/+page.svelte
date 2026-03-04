@@ -94,6 +94,9 @@
 		</div>
 		</div>
 		<p class="picker-hint">Or go to a game's page and click "Submit Run" from there.</p>
+	<div class="game-request">
+		<p>Don't see your game? <a href="/submit-game" class="game-request__link">Request a new game</a></p>
+	</div>
 	</div>
 </div>
 
@@ -134,4 +137,8 @@
 	.typeahead__empty { padding: 0.75rem; font-size: 0.85rem; color: var(--text-muted); text-align: center; }
 
 	.picker-hint { margin: 1rem 0 0; font-size: 0.8rem; color: var(--text-muted); text-align: center; }
+
+	.game-request { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); text-align: center; font-size: 0.9rem; }
+	.game-request__link { color: var(--accent); font-weight: 600; }
+	.game-request__link:hover { text-decoration: underline; }
 </style>

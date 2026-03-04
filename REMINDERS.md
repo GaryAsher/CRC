@@ -3,26 +3,82 @@
 This document consolidates all reminders, future ideas, and planned features for CRC.
 Cross-reference with `CLAUDE.md` Development Checklist for technical implementation details.
 
-**Last updated:** 2026/03/03
+**Last updated:** 2026/03/04
 
 ---
 
 ## Revisit (Needs Polish)
 ### Global
-- [ ] Icons for Admins, Super Admins, Verifiers — attach to profiles
+- [ ] Icons for Verifiers, Moderators, Admins, and Super Admins — attach to profiles
 - [ ] Add default profile picture and default banner
 - [ ] **Favicon** — update once we have a logo (currently empty placeholder)
+
+### Ideas:
+- Submit Page (https://www.challengerun.net/submit):
+  - [ ] Can we transform this to populate the respective game? or is that too much work?
+- Runner Page:
+  - Run Statistics:
+    - [ ] Update how the runs are displayed when you click into a game.
 
 ---
 
 ## Short-Term Priorities
+### 1. Game Submit Section
+- https://www.challengerun.net/submit-game
+  - [ ] Add a button that leads to this page? Maybe on the submit page?
+  - [ ] Make all required boxes have the open-state.
+  - [ ] All optional boxes are closed-state by default, EXCEPT Your Involvement, which is open-state.
+  - [ ] Allow users to Save Draft, so they can revisit it later with the same information filled out.
+  - Game Info:
+    - Game Name:
+      - [ ] Add "Please use the full game name" below Game Name and in italics. 
+      - [ ] Change example text to say "Sekiro: Shadows Die Twice"
+    - Short Name / Aliases:
+      - [ ] Add short explanation in italics
+      - [ ] Change example text to "Sekiro, SSDT, Shadows Die Twice"
+    - Description:
+      - [ ] Change text to "Sekiro: Shadows Die Twice is a 2019 action-adventure game developed by FromSoftware. It was released in Japan..."
+  - Platforms & Genres:
+    - Separate these into two different sections
+    - For the Genres section, 
+      - [ ] Add text saying "Add up to 5 relevant genres for the game"
+      - [ ] Allow users to have 3 "Other" Genres, where they can type in a Genre. These are admin-reviewed. They review that spelling is correct and that it is valid genre. If it is, then it is added to the list of Genres.
+      - [ ] Add some option for users to search for genres
+  - Run Categories:
+    - [ ] Mark this as required, saying "At least 1 category is required"
+    - For Full Run Categories
+      - [ ] Add some text that these usually involve reaching game credits.
+      - [ ] Remove Full Run Categories having an open box
+      - [ ] Change text from "+ Add Category" to "+ Add Full Run"
+    - For Mini-Challenge Categories:
+      - [ ] Change text to Pantheon of the Artist, Individual Bosses, Individual Levels
+      - [ ] Add some kind of ability for users to add parent-child categories.
+        -  [ ] Add option to pick child categories, with explanation of what they are.
+  - Challenges:
+    - [ ] Mark this as Required
+    - [ ] Change order to be alphabetical
+    - [ ] Remove Custom Challenges, replace it with a checkbox saying "My Challenge is not here"
+      - [ ] Ask user for challenge, noting that it should be applicable to a majority of games.
+      - [ ] Add description box for user to note to challenge. Allow markdown.
+      - [ ] In the example Challenge type and Challenge description, put the currentwording for Deathless as an example.
+  - Characters / Weapons / Classes:
+    - [ ] Change Text from "This game has selectable characters, weapons, or classes" to "This game requires you pick a character, weapon, or class before starting the game."
+    - [ ] Add "Weapon / Aspect" to list of example
+  - Glitch Categories:
+    - [ ] Change "Custom Glitch Categories" to "Game-Specific Glitch Categories
+    - [ ] For Unrestricted, add "any and all glitches are allowed"
+  - Your Involvement:
+    - Additional Notes:
+      - [ ] Change text to say "Let us know any thoughts, ideas, suggestions, or frustrations with the game submission form. Please be respectful in this reply if you have criticisms."
 
-### 1. Small fixes
-- Submit Page (https://www.challengerun.net/submit):
-  - Can we transform this to populate the respective game? or is that too much work?
-- Runner Page:
-  - Run Statistics:
-    - [ ] Update how the runs are displayed when you click into a game.
+### 1.5 Small fixes
+- Profile Edit:
+  - [ ] Fix refresh when tabbing out of profile edit.
+    - Page refreshes when you leave the tab. Why does this happen? Did changing the sticky header do something to it?
+
+- News Section
+  - [ ] Review entire process
+  - [ ] Add system patch notes as first 3 news pieces.
 
 ### 2. Content & Polish
 - [ ] Fill glossary definitions (hit, damage, death, hitless vs damageless, etc.)

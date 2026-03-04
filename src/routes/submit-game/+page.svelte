@@ -15,9 +15,8 @@
 	let aliases = $state('');
 	let description = $state('');
 
-	// Section 2: Platforms & Genres
+	// Section 2: Platforms
 	let selectedPlatforms = $state<string[]>([]);
-	let selectedGenres = $state<string[]>([]);
 	let platformSearch = $state('');
 
 	let filteredPlatforms = $derived.by(() => {
@@ -33,30 +32,85 @@
 			selectedPlatforms = [...selectedPlatforms, slug];
 		}
 	}
+
+	// Section 3: Genres
+	let selectedGenres = $state<string[]>([]);
+	let genreSearch = $state('');
+	let customGenres = $state<string[]>([]);
+
+	let filteredGenres = $derived.by(() => {
+		if (!genreSearch.trim()) return genres;
+		const q = genreSearch.toLowerCase();
+		return genres.filter((g: any) => g.label.toLowerCase().includes(q) || g.slug.toLowerCase().includes(q));
+	});
+
 	function toggleGenre(slug: string) {
 		if (selectedGenres.includes(slug)) {
 			selectedGenres = selectedGenres.filter(s => s !== slug);
-		} else {
+		} else if (selectedGenres.length < 5) {
 			selectedGenres = [...selectedGenres, slug];
 		}
 	}
+	function addCustomGenre() {
+		if (customGenres.length < 3) customGenres = [...customGenres, ''];
+	}
+	function removeCustomGenre(i: number) {
+		customGenres = customGenres.filter((_, idx) => idx !== i);
+	}
 
-	// Section 3: Categories
-	let fullRunCategories = $state<string[]>(['']);
-	let miniChallengeCategories = $state<string[]>([]);
+	// Section 4: Run Categories
+	let fullRunCategories = $state<string[]>([]);
+	interface MiniChallengeGroup {
+		parent: string;
+		children: string[];
+	}
+	let miniChallengeGroups = $state<MiniChallengeGroup[]>([]);
 
 	function addFullRun() { fullRunCategories = [...fullRunCategories, '']; }
 	function removeFullRun(i: number) { fullRunCategories = fullRunCategories.filter((_, idx) => idx !== i); }
-	function addMiniChallenge() { miniChallengeCategories = [...miniChallengeCategories, '']; }
-	function removeMiniChallenge(i: number) { miniChallengeCategories = miniChallengeCategories.filter((_, idx) => idx !== i); }
 
-	// Section 4: Challenges
+	function addMiniGroup() {
+		miniChallengeGroups = [...miniChallengeGroups, { parent: '', children: [] }];
+	}
+	function removeMiniGroup(i: number) {
+		miniChallengeGroups = miniChallengeGroups.filter((_, idx) => idx !== i);
+	}
+	function addMiniChild(groupIdx: number) {
+		miniChallengeGroups = miniChallengeGroups.map((g, i) =>
+			i === groupIdx ? { ...g, children: [...g.children, ''] } : g
+		);
+	}
+	function removeMiniChild(groupIdx: number, childIdx: number) {
+		miniChallengeGroups = miniChallengeGroups.map((g, i) =>
+			i === groupIdx ? { ...g, children: g.children.filter((_, ci) => ci !== childIdx) } : g
+		);
+	}
+	function updateMiniParent(groupIdx: number, value: string) {
+		miniChallengeGroups = miniChallengeGroups.map((g, i) =>
+			i === groupIdx ? { ...g, parent: value } : g
+		);
+	}
+	function updateMiniChild(groupIdx: number, childIdx: number, value: string) {
+		miniChallengeGroups = miniChallengeGroups.map((g, gi) =>
+			gi === groupIdx ? { ...g, children: g.children.map((c, ci) => ci === childIdx ? value : c) } : g
+		);
+	}
+
+	let hasAtLeastOneCategory = $derived.by(() => {
+		const hasFullRun = fullRunCategories.some(c => c.trim());
+		const hasMini = miniChallengeGroups.some(g => g.parent.trim());
+		return hasFullRun || hasMini;
+	});
+
+	// Section 5: Challenges (alphabetical)
 	const STANDARD_CHALLENGES = [
-		'Hitless', 'Damageless', 'Deathless', 'Flawless',
-		'Blindfolded', 'Minimalist', 'Pacifist', 'Speedrun'
+		'Blindfolded', 'Damageless', 'Deathless', 'Flawless',
+		'Hitless', 'Minimalist', 'Pacifist', 'Speedrun'
 	];
 	let selectedChallenges = $state<string[]>([]);
-	let customChallenges = $state<string[]>([]);
+	let customChallengeEnabled = $state(false);
+	let customChallengeName = $state('');
+	let customChallengeDescription = $state('');
 
 	function toggleChallenge(c: string) {
 		if (selectedChallenges.includes(c)) {
@@ -65,10 +119,12 @@
 			selectedChallenges = [...selectedChallenges, c];
 		}
 	}
-	function addCustomChallenge() { customChallenges = [...customChallenges, '']; }
-	function removeCustomChallenge(i: number) { customChallenges = customChallenges.filter((_, idx) => idx !== i); }
 
-	// Section 5: Characters
+	let hasAtLeastOneChallenge = $derived(
+		selectedChallenges.length > 0 || (customChallengeEnabled && customChallengeName.trim())
+	);
+
+	// Section 6: Characters
 	let characterEnabled = $state(false);
 	let characterLabel = $state('Character');
 	let characterOptions = $state<string[]>([]);
@@ -76,12 +132,12 @@
 	function addCharacter() { characterOptions = [...characterOptions, '']; }
 	function removeCharacter(i: number) { characterOptions = characterOptions.filter((_, idx) => idx !== i); }
 
-	// Section 6: Restrictions
+	// Section 7: Restrictions
 	let restrictions = $state<string[]>([]);
 	function addRestriction() { restrictions = [...restrictions, '']; }
 	function removeRestriction(i: number) { restrictions = restrictions.filter((_, idx) => idx !== i); }
 
-	// Section 7: Timing
+	// Section 8: Timing
 	let timingMethod = $state('RTA');
 	const TIMING_OPTIONS = [
 		{ value: 'RTA', label: 'RTA (Real Time Attack)' },
@@ -89,26 +145,30 @@
 		{ value: 'LRT', label: 'LRT (Load-Removed Time)' },
 	];
 
-	// Section 8: Glitches
-	const GLITCH_PRESETS = ['Unrestricted', 'No Major Glitches (NMG)', 'Glitchless'];
+	// Section 9: Glitches
+	const GLITCH_PRESETS = [
+		{ slug: 'unrestricted', label: 'Unrestricted', hint: 'Any and all glitches are allowed' },
+		{ slug: 'nmg', label: 'No Major Glitches (NMG)', hint: '' },
+		{ slug: 'glitchless', label: 'Glitchless', hint: '' },
+	];
 	let selectedGlitches = $state<string[]>([]);
 	let customGlitches = $state<string[]>([]);
 	let glitchDocLinks = $state('');
 
-	function toggleGlitch(g: string) {
-		if (selectedGlitches.includes(g)) {
-			selectedGlitches = selectedGlitches.filter(s => s !== g);
+	function toggleGlitch(slug: string) {
+		if (selectedGlitches.includes(slug)) {
+			selectedGlitches = selectedGlitches.filter(s => s !== slug);
 		} else {
-			selectedGlitches = [...selectedGlitches, g];
+			selectedGlitches = [...selectedGlitches, slug];
 		}
 	}
 	function addCustomGlitch() { customGlitches = [...customGlitches, '']; }
 	function removeCustomGlitch(i: number) { customGlitches = customGlitches.filter((_, idx) => idx !== i); }
 
-	// Section 9: Rules
+	// Section 10: Rules
 	let generalRules = $state('');
 
-	// Section 10: Involvement & Notes
+	// Section 11: Involvement & Notes
 	const INVOLVEMENT_OPTIONS = [
 		'I would like to be credited for helping set this page up.',
 		'I am interested in helping moderate this game.',
@@ -124,6 +184,123 @@
 			involvement = [...involvement, opt];
 		}
 	}
+
+	// ── Draft Save/Load ──────────────────────────────────────
+	let draftStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
+	let draftExists = $state(false);
+	let draftLoading = $state(true);
+	let draftPromptVisible = $state(false);
+
+	function serializeForm() {
+		return {
+			gameName, aliases, description,
+			selectedPlatforms, selectedGenres, customGenres,
+			fullRunCategories, miniChallengeGroups,
+			selectedChallenges, customChallengeEnabled, customChallengeName, customChallengeDescription,
+			characterEnabled, characterLabel, characterOptions,
+			restrictions, timingMethod,
+			selectedGlitches, customGlitches, glitchDocLinks,
+			generalRules, involvement, additionalNotes,
+		};
+	}
+
+	function loadFormFromDraft(d: any) {
+		if (!d) return;
+		gameName = d.gameName ?? '';
+		aliases = d.aliases ?? '';
+		description = d.description ?? '';
+		selectedPlatforms = d.selectedPlatforms ?? [];
+		selectedGenres = d.selectedGenres ?? [];
+		customGenres = d.customGenres ?? [];
+		fullRunCategories = d.fullRunCategories ?? [];
+		miniChallengeGroups = d.miniChallengeGroups ?? [];
+		selectedChallenges = d.selectedChallenges ?? [];
+		customChallengeEnabled = d.customChallengeEnabled ?? false;
+		customChallengeName = d.customChallengeName ?? '';
+		customChallengeDescription = d.customChallengeDescription ?? '';
+		characterEnabled = d.characterEnabled ?? false;
+		characterLabel = d.characterLabel ?? 'Character';
+		characterOptions = d.characterOptions ?? [];
+		restrictions = d.restrictions ?? [];
+		timingMethod = d.timingMethod ?? 'RTA';
+		selectedGlitches = d.selectedGlitches ?? [];
+		customGlitches = d.customGlitches ?? [];
+		glitchDocLinks = d.glitchDocLinks ?? '';
+		generalRules = d.generalRules ?? '';
+		involvement = d.involvement ?? [];
+		additionalNotes = d.additionalNotes ?? '';
+	}
+
+	async function checkForDraft() {
+		if (!$user) { draftLoading = false; return; }
+		try {
+			const { data: draft, error } = await supabase
+				.from('game_submission_drafts')
+				.select('draft_data')
+				.eq('user_id', $user.id)
+				.maybeSingle();
+			if (!error && draft?.draft_data) {
+				draftExists = true;
+				draftPromptVisible = true;
+			}
+		} catch { /* silent — table may not exist yet */ }
+		draftLoading = false;
+	}
+
+	async function loadDraft() {
+		if (!$user) return;
+		try {
+			const { data: draft } = await supabase
+				.from('game_submission_drafts')
+				.select('draft_data')
+				.eq('user_id', $user.id)
+				.maybeSingle();
+			if (draft?.draft_data) {
+				loadFormFromDraft(draft.draft_data);
+			}
+		} catch { /* silent */ }
+		draftPromptVisible = false;
+	}
+
+	function dismissDraftPrompt() {
+		draftPromptVisible = false;
+	}
+
+	async function saveDraft() {
+		if (!$user) return;
+		draftStatus = 'saving';
+		try {
+			const { error } = await supabase
+				.from('game_submission_drafts')
+				.upsert({
+					user_id: $user.id,
+					draft_data: serializeForm(),
+					updated_at: new Date().toISOString(),
+				}, { onConflict: 'user_id' });
+			if (error) throw error;
+			draftStatus = 'saved';
+			draftExists = true;
+			setTimeout(() => { if (draftStatus === 'saved') draftStatus = 'idle'; }, 3000);
+		} catch {
+			draftStatus = 'error';
+			setTimeout(() => { if (draftStatus === 'error') draftStatus = 'idle'; }, 4000);
+		}
+	}
+
+	async function deleteDraft() {
+		if (!$user) return;
+		try {
+			await supabase
+				.from('game_submission_drafts')
+				.delete()
+				.eq('user_id', $user.id);
+			draftExists = false;
+		} catch { /* silent */ }
+	}
+
+	$effect(() => {
+		if ($user) checkForDraft();
+	});
 
 	// ── Turnstile ─────────────────────────────────────────────
 	let turnstileToken = $state('');
@@ -172,6 +349,8 @@
 			{ label: 'Rules', value: generalRules },
 			{ label: 'Notes', value: additionalNotes },
 			{ label: 'Aliases', value: aliases },
+			{ label: 'Custom challenge', value: customChallengeName },
+			{ label: 'Custom challenge description', value: customChallengeDescription },
 		];
 		for (const f of fields) {
 			const result = checkBannedTerms(f.value);
@@ -183,13 +362,29 @@
 	let submitting = $state(false);
 	let result = $state<{ ok: boolean; message: string } | null>(null);
 
-	let canSubmit = $derived(gameName.trim() && turnstileToken && !submitting && !bannedTermsWarning);
+	let canSubmit = $derived(
+		gameName.trim() &&
+		hasAtLeastOneCategory &&
+		hasAtLeastOneChallenge &&
+		turnstileToken &&
+		!submitting &&
+		!bannedTermsWarning
+	);
 
 	// ── Collapsible sections ──────────────────────────────────
+	// Required sections open, optional closed, except Involvement (open).
 	let openSections = $state<Record<string, boolean>>({
-		info: true, platforms: true, categories: true,
-		challenges: false, characters: false, restrictions: false,
-		timing: false, glitches: false, rules: false, involvement: false
+		info: true,
+		platforms: false,
+		genres: false,
+		categories: true,
+		challenges: true,
+		characters: false,
+		restrictions: false,
+		timing: false,
+		glitches: false,
+		rules: false,
+		involvement: true,
 	});
 
 	function toggleSection(key: string) {
@@ -207,12 +402,32 @@
 
 		const allChallenges = [
 			...selectedChallenges.map(c => ({ slug: slugify(c), label: c })),
-			...clean(customChallenges).map(c => ({ slug: slugify(c), label: c })),
 		];
+		if (customChallengeEnabled && customChallengeName.trim()) {
+			allChallenges.push({
+				slug: slugify(customChallengeName),
+				label: customChallengeName.trim(),
+			});
+		}
+
 		const allGlitches = [
-			...selectedGlitches.map(g => ({ slug: slugify(g), label: g })),
+			...selectedGlitches.map(slug => {
+				const preset = GLITCH_PRESETS.find(g => g.slug === slug);
+				return { slug, label: preset?.label ?? slug };
+			}),
 			...clean(customGlitches).map(g => ({ slug: slugify(g), label: g })),
 		];
+
+		const miniChallengesPayload = miniChallengeGroups
+			.filter(g => g.parent.trim())
+			.map(g => ({
+				slug: slugify(g.parent),
+				label: g.parent.trim(),
+				children: g.children.filter(c => c.trim()).map(c => ({
+					slug: slugify(c),
+					label: c.trim(),
+				})),
+			}));
 
 		const payload = {
 			game_name: gameName.trim(),
@@ -220,9 +435,11 @@
 			description: description.trim() || null,
 			platforms: selectedPlatforms,
 			genres: selectedGenres,
+			custom_genres: clean(customGenres),
 			full_run_categories: clean(fullRunCategories).map(c => ({ slug: slugify(c), label: c })),
-			mini_challenges: clean(miniChallengeCategories).map(c => ({ slug: slugify(c), label: c })),
+			mini_challenges: miniChallengesPayload,
 			challenges: allChallenges,
+			custom_challenge_description: (customChallengeEnabled && customChallengeDescription.trim()) ? customChallengeDescription.trim() : null,
 			character_enabled: characterEnabled,
 			character_label: characterLabel.trim() || 'Character',
 			characters: clean(characterOptions).map(c => ({ slug: slugify(c), label: c })),
@@ -237,7 +454,6 @@
 		};
 
 		try {
-			// Get auth token (sent in body, matching worker pattern)
 			const { data: { session: sess } } = await supabase.auth.getSession();
 			if (!sess?.access_token) throw new Error('Not authenticated. Please sign in again.');
 
@@ -250,6 +466,7 @@
 			if (res.ok && data.ok) {
 				result = { ok: true, message: 'Game submitted for review! Our team will review your request and set up the game page if approved.' };
 				window.scrollTo({ top: 0, behavior: 'smooth' });
+				await deleteDraft();
 			} else {
 				result = { ok: false, message: data.error || 'Submission failed. Please try again.' };
 			}
@@ -274,6 +491,16 @@
 			<p class="page-desc">Suggest a new game for the Challenge Run Community. Fill in as much as you can — our team will review and refine.</p>
 			<p class="page-desc muted">Fields marked <span class="req">*</span> are required. Everything else is optional but helps us set up the game faster.</p>
 
+			{#if draftPromptVisible}
+				<div class="draft-banner">
+					<span>📝 You have a saved draft for this form.</span>
+					<div class="draft-banner__actions">
+						<button class="btn btn--small btn--accent" onclick={loadDraft}>Load Draft</button>
+						<button class="btn btn--small" onclick={dismissDraftPrompt}>Start Fresh</button>
+					</div>
+				</div>
+			{/if}
+
 			{#if result}
 				<div class="alert alert--{result.ok ? 'success' : 'error'}">{result.message}</div>
 				{#if result.ok}
@@ -287,35 +514,36 @@
 			{#if !result?.ok}
 				<div class="form-sections">
 
-					<!-- ═══ Section 1: Game Info ═══ -->
+					<!-- ═══ Section 1: Game Info (REQUIRED) ═══ -->
 					<section class="form-section" class:open={openSections.info}>
 						<button type="button" class="section-toggle" onclick={() => toggleSection('info')}>
-							<span class="section-toggle__label">🎮 Game Info</span>
+							<span class="section-toggle__label">🎮 Game Info <span class="req">*</span></span>
 							<span class="section-toggle__chevron">{openSections.info ? '▲' : '▼'}</span>
 						</button>
 						{#if openSections.info}
 							<div class="section-body">
 								<div class="fg">
 									<label class="fl" for="gameName">Game Name <span class="req">*</span></label>
-									<input id="gameName" type="text" class="fi" bind:value={gameName} placeholder="e.g. Hollow Knight" maxlength="200" />
+									<input id="gameName" type="text" class="fi" bind:value={gameName} placeholder="e.g. Sekiro: Shadows Die Twice" maxlength="200" />
+									<p class="fh"><em>Please use the full game name.</em></p>
 								</div>
 								<div class="fg">
 									<label class="fl" for="aliases">Short Names / Aliases</label>
-									<input id="aliases" type="text" class="fi" bind:value={aliases} placeholder="e.g. HK, Hollow Knight: Voidheart Edition" maxlength="500" />
-									<p class="fh">Comma-separated. Other names people use for this game.</p>
+									<input id="aliases" type="text" class="fi" bind:value={aliases} placeholder="e.g. Sekiro, SSDT, Shadows Die Twice" maxlength="500" />
+									<p class="fh"><em>Comma-separated. Include abbreviations, acronyms, or alternate titles people commonly use for this game.</em></p>
 								</div>
 								<div class="fg">
 									<label class="fl" for="description">Description</label>
-									<textarea id="description" class="fi" bind:value={description} placeholder="Brief description of the game and why it fits CRC..." rows="3" maxlength="2000"></textarea>
+									<textarea id="description" class="fi" bind:value={description} placeholder="e.g. Sekiro: Shadows Die Twice is a 2019 action-adventure game developed by FromSoftware. It was released in Japan..." rows="3" maxlength="2000"></textarea>
 								</div>
 							</div>
 						{/if}
 					</section>
 
-					<!-- ═══ Section 2: Platforms & Genres ═══ -->
+					<!-- ═══ Section 2: Platforms ═══ -->
 					<section class="form-section" class:open={openSections.platforms}>
 						<button type="button" class="section-toggle" onclick={() => toggleSection('platforms')}>
-							<span class="section-toggle__label">🖥️ Platforms & Genres</span>
+							<span class="section-toggle__label">🖥️ Platforms</span>
 							<span class="section-toggle__chevron">{openSections.platforms ? '▲' : '▼'}</span>
 						</button>
 						{#if openSections.platforms}
@@ -340,61 +568,117 @@
 										{/each}
 									</div>
 								</div>
+							</div>
+						{/if}
+					</section>
+
+					<!-- ═══ Section 3: Genres ═══ -->
+					<section class="form-section" class:open={openSections.genres}>
+						<button type="button" class="section-toggle" onclick={() => toggleSection('genres')}>
+							<span class="section-toggle__label">🏷️ Genres</span>
+							<span class="section-toggle__chevron">{openSections.genres ? '▲' : '▼'}</span>
+						</button>
+						{#if openSections.genres}
+							<div class="section-body">
 								<div class="fg">
 									<label class="fl">Genres</label>
+									<p class="fh mb-2">Add up to 5 relevant genres for the game.</p>
+									<input type="text" class="fi mb-2" bind:value={genreSearch} placeholder="Search genres..." />
+									{#if selectedGenres.length > 0}
+										<div class="selected-chips mb-2">
+											{#each selectedGenres as slug}
+												{@const genre = genres.find((g: any) => g.slug === slug)}
+												<button type="button" class="chip chip--selected" onclick={() => toggleGenre(slug)}>{genre?.label || slug} ✕</button>
+											{/each}
+										</div>
+									{/if}
+									{#if selectedGenres.length >= 5}
+										<p class="fh" style="color: var(--accent);">Maximum of 5 genres reached.</p>
+									{/if}
 									<div class="checkbox-grid">
-										{#each genres as g}
-											<label class="check-item">
-												<input type="checkbox" checked={selectedGenres.includes(g.slug)} onchange={() => toggleGenre(g.slug)} />
+										{#each filteredGenres as g}
+											<label class="check-item" class:check-item--disabled={selectedGenres.length >= 5 && !selectedGenres.includes(g.slug)}>
+												<input
+													type="checkbox"
+													checked={selectedGenres.includes(g.slug)}
+													onchange={() => toggleGenre(g.slug)}
+													disabled={selectedGenres.length >= 5 && !selectedGenres.includes(g.slug)}
+												/>
 												<span>{g.label}</span>
 											</label>
 										{/each}
 									</div>
 								</div>
+								<div class="fg">
+									<label class="fl">Other Genres</label>
+									<p class="fh mb-2">Don't see a genre that fits? Add up to 3 custom genres. These will be reviewed by our team.</p>
+									{#each customGenres as _, i}
+										<div class="list-row">
+											<input type="text" class="fi" bind:value={customGenres[i]} placeholder="e.g. Tower Defense" maxlength="60" />
+											<button type="button" class="list-row__remove" onclick={() => removeCustomGenre(i)}>✕</button>
+										</div>
+									{/each}
+									{#if customGenres.length < 3}
+										<button type="button" class="btn btn--small mt-2" onclick={addCustomGenre}>+ Add Genre</button>
+									{/if}
+								</div>
 							</div>
 						{/if}
 					</section>
 
-					<!-- ═══ Section 3: Categories ═══ -->
+					<!-- ═══ Section 4: Run Categories (REQUIRED) ═══ -->
 					<section class="form-section" class:open={openSections.categories}>
 						<button type="button" class="section-toggle" onclick={() => toggleSection('categories')}>
-							<span class="section-toggle__label">📂 Run Categories</span>
+							<span class="section-toggle__label">📂 Run Categories <span class="req">*</span></span>
 							<span class="section-toggle__chevron">{openSections.categories ? '▲' : '▼'}</span>
 						</button>
 						{#if openSections.categories}
 							<div class="section-body">
+								<p class="fh mb-2">At least 1 category is required.</p>
+
 								<div class="fg">
 									<label class="fl">Full Run Categories</label>
-									<p class="fh mb-2">Major categories like "Any%", "All Bosses", "100%".</p>
+									<p class="fh mb-2">Full runs typically involve completing the game through to the credits.</p>
 									{#each fullRunCategories as _, i}
 										<div class="list-row">
 											<input type="text" class="fi" bind:value={fullRunCategories[i]} placeholder="e.g. Any%, All Bosses" maxlength="100" />
-											{#if fullRunCategories.length > 1}
-												<button type="button" class="list-row__remove" onclick={() => removeFullRun(i)}>✕</button>
-											{/if}
+											<button type="button" class="list-row__remove" onclick={() => removeFullRun(i)}>✕</button>
 										</div>
 									{/each}
-									<button type="button" class="btn btn--small mt-2" onclick={addFullRun}>+ Add Category</button>
+									<button type="button" class="btn btn--small mt-2" onclick={addFullRun}>+ Add Full Run</button>
 								</div>
+
 								<div class="fg">
 									<label class="fl">Mini-Challenge Categories</label>
-									<p class="fh mb-2">Smaller challenges like individual boss fights, specific sections, etc.</p>
-									{#each miniChallengeCategories as _, i}
-										<div class="list-row">
-											<input type="text" class="fi" bind:value={miniChallengeCategories[i]} placeholder="e.g. Pantheon of Hallownest, Trial of the Fool" maxlength="100" />
-											<button type="button" class="list-row__remove" onclick={() => removeMiniChallenge(i)}>✕</button>
+									<p class="fh mb-2">Smaller challenges like individual boss fights, specific sections, or pantheons. Add a group (e.g. "Bosses") and then add specific entries within it.</p>
+									{#each miniChallengeGroups as group, gi}
+										<div class="mini-group">
+											<div class="list-row">
+												<input type="text" class="fi" value={group.parent} oninput={(e) => updateMiniParent(gi, (e.target as HTMLInputElement).value)} placeholder="e.g. Pantheon of the Artist, Individual Bosses, Individual Levels" maxlength="100" />
+												<button type="button" class="list-row__remove" onclick={() => removeMiniGroup(gi)}>✕</button>
+											</div>
+											<div class="mini-children">
+												<p class="fh mb-2" style="font-size: 0.78rem;">Sub-categories are specific entries within this group (e.g. individual boss names within a "Bosses" group).</p>
+												{#each group.children as _, ci}
+													<div class="list-row">
+														<input type="text" class="fi" value={group.children[ci]} oninput={(e) => updateMiniChild(gi, ci, (e.target as HTMLInputElement).value)} placeholder="e.g. Margit, Godrick" maxlength="100" />
+														<button type="button" class="list-row__remove" onclick={() => removeMiniChild(gi, ci)}>✕</button>
+													</div>
+												{/each}
+												<button type="button" class="btn btn--small btn--sub mt-2" onclick={() => addMiniChild(gi)}>+ Add Sub-Category</button>
+											</div>
 										</div>
 									{/each}
-									<button type="button" class="btn btn--small mt-2" onclick={addMiniChallenge}>+ Add Mini-Challenge</button>
+									<button type="button" class="btn btn--small mt-2" onclick={addMiniGroup}>+ Add Mini-Challenge Group</button>
 								</div>
 							</div>
 						{/if}
 					</section>
 
-					<!-- ═══ Section 4: Challenges ═══ -->
+					<!-- ═══ Section 5: Challenges (REQUIRED) ═══ -->
 					<section class="form-section" class:open={openSections.challenges}>
 						<button type="button" class="section-toggle" onclick={() => toggleSection('challenges')}>
-							<span class="section-toggle__label">⚔️ Challenges</span>
+							<span class="section-toggle__label">⚔️ Challenges <span class="req">*</span></span>
 							<span class="section-toggle__chevron">{openSections.challenges ? '▲' : '▼'}</span>
 						</button>
 						{#if openSections.challenges}
@@ -412,21 +696,30 @@
 									</div>
 								</div>
 								<div class="fg">
-									<label class="fl">Custom Challenges</label>
-									<p class="fh mb-2">Game-specific challenge types not listed above.</p>
-									{#each customChallenges as _, i}
-										<div class="list-row">
-											<input type="text" class="fi" bind:value={customChallenges[i]} placeholder="e.g. No Shield" maxlength="100" />
-											<button type="button" class="list-row__remove" onclick={() => removeCustomChallenge(i)}>✕</button>
+									<label class="check-item custom-challenge-toggle">
+										<input type="checkbox" bind:checked={customChallengeEnabled} />
+										<span>My challenge is not listed here</span>
+									</label>
+									{#if customChallengeEnabled}
+										<div class="custom-challenge-fields">
+											<p class="fh mb-2">Suggest a challenge type that would be applicable to a majority of games. Our team will review it.</p>
+											<div class="fg">
+												<label class="fl" for="customChallengeName">Challenge Name</label>
+												<input id="customChallengeName" type="text" class="fi" bind:value={customChallengeName} placeholder="e.g. Deathless" maxlength="100" />
+											</div>
+											<div class="fg">
+												<label class="fl" for="customChallengeDesc">Challenge Description</label>
+												<textarea id="customChallengeDesc" class="fi" bind:value={customChallengeDescription} placeholder="e.g. A death is when your character fails in a way that resets progress, typically with a penalty like losing lives, items, or other resources." rows="3" maxlength="2000"></textarea>
+												<p class="fh">Markdown is supported.</p>
+											</div>
 										</div>
-									{/each}
-									<button type="button" class="btn btn--small mt-2" onclick={addCustomChallenge}>+ Add Challenge</button>
+									{/if}
 								</div>
 							</div>
 						{/if}
 					</section>
 
-					<!-- ═══ Section 5: Characters ═══ -->
+					<!-- ═══ Section 6: Characters ═══ -->
 					<section class="form-section" class:open={openSections.characters}>
 						<button type="button" class="section-toggle" onclick={() => toggleSection('characters')}>
 							<span class="section-toggle__label">🧙 Characters / Weapons / Classes</span>
@@ -437,13 +730,13 @@
 								<label class="toggle-row">
 									<input type="checkbox" class="toggle-check" bind:checked={characterEnabled} />
 									<span class="toggle-slider"></span>
-									<span class="toggle-label">This game has selectable characters, weapons, or classes</span>
+									<span class="toggle-label">This game requires you pick a character, weapon, or class before starting the game.</span>
 								</label>
 								{#if characterEnabled}
 									<div class="fg mt-2">
 										<label class="fl" for="charLabel">Column Label</label>
 										<input id="charLabel" type="text" class="fi" bind:value={characterLabel} placeholder="Character" maxlength="50" />
-										<p class="fh">What do you call it? "Character", "Weapon", "Class", "Loadout", etc.</p>
+										<p class="fh">What do you call it? "Character", "Weapon", "Weapon / Aspect", "Class", "Loadout", etc.</p>
 									</div>
 									<div class="fg">
 										<label class="fl">Options</label>
@@ -460,7 +753,7 @@
 						{/if}
 					</section>
 
-					<!-- ═══ Section 6: Restrictions ═══ -->
+					<!-- ═══ Section 7: Restrictions ═══ -->
 					<section class="form-section" class:open={openSections.restrictions}>
 						<button type="button" class="section-toggle" onclick={() => toggleSection('restrictions')}>
 							<span class="section-toggle__label">🚫 Game-Specific Restrictions</span>
@@ -480,7 +773,7 @@
 						{/if}
 					</section>
 
-					<!-- ═══ Section 7: Timing ═══ -->
+					<!-- ═══ Section 8: Timing ═══ -->
 					<section class="form-section" class:open={openSections.timing}>
 						<button type="button" class="section-toggle" onclick={() => toggleSection('timing')}>
 							<span class="section-toggle__label">⏱️ Timing Method</span>
@@ -503,7 +796,7 @@
 						{/if}
 					</section>
 
-					<!-- ═══ Section 8: Glitches ═══ -->
+					<!-- ═══ Section 9: Glitches ═══ -->
 					<section class="form-section" class:open={openSections.glitches}>
 						<button type="button" class="section-toggle" onclick={() => toggleSection('glitches')}>
 							<span class="section-toggle__label">🐛 Glitch Categories</span>
@@ -514,17 +807,20 @@
 								<div class="fg">
 									<label class="fl">Glitch Structure</label>
 									<p class="fh mb-2">Select all that apply to this game.</p>
-									<div class="checkbox-grid">
+									<div class="glitch-options">
 										{#each GLITCH_PRESETS as g}
 											<label class="check-item">
-												<input type="checkbox" checked={selectedGlitches.includes(g)} onchange={() => toggleGlitch(g)} />
-												<span>{g}</span>
+												<input type="checkbox" checked={selectedGlitches.includes(g.slug)} onchange={() => toggleGlitch(g.slug)} />
+												<span>{g.label}</span>
+												{#if g.hint}
+													<span class="glitch-hint">— {g.hint}</span>
+												{/if}
 											</label>
 										{/each}
 									</div>
 								</div>
 								<div class="fg">
-									<label class="fl">Custom Glitch Categories</label>
+									<label class="fl">Game-Specific Glitch Categories</label>
 									{#each customGlitches as _, i}
 										<div class="list-row">
 											<input type="text" class="fi" bind:value={customGlitches[i]} placeholder="e.g. No Wrong Warp" maxlength="100" />
@@ -541,7 +837,7 @@
 						{/if}
 					</section>
 
-					<!-- ═══ Section 9: Rules ═══ -->
+					<!-- ═══ Section 10: Rules ═══ -->
 					<section class="form-section" class:open={openSections.rules}>
 						<button type="button" class="section-toggle" onclick={() => toggleSection('rules')}>
 							<span class="section-toggle__label">📜 General Rules</span>
@@ -558,7 +854,7 @@
 						{/if}
 					</section>
 
-					<!-- ═══ Section 10: Involvement & Notes ═══ -->
+					<!-- ═══ Section 11: Involvement & Notes ═══ -->
 					<section class="form-section" class:open={openSections.involvement}>
 						<button type="button" class="section-toggle" onclick={() => toggleSection('involvement')}>
 							<span class="section-toggle__label">🤝 Your Involvement</span>
@@ -577,13 +873,13 @@
 								</div>
 								<div class="fg">
 									<label class="fl" for="notes">Additional Notes</label>
-									<textarea id="notes" class="fi" bind:value={additionalNotes} placeholder="Anything else we should know..." rows="3" maxlength="2000"></textarea>
+									<textarea id="notes" class="fi" bind:value={additionalNotes} placeholder="Let us know any thoughts, ideas, suggestions, or frustrations with the game submission form. Please be respectful in this reply if you have criticisms." rows="3" maxlength="2000"></textarea>
 								</div>
 							</div>
 						{/if}
 					</section>
 
-					<!-- ═══ Turnstile + Submit ═══ -->
+					<!-- ═══ Turnstile + Draft + Submit ═══ -->
 					<div class="submit-section">
 						<div id="turnstile-container-game" class="turnstile-container"></div>
 						{#if !turnstileReady}<p class="fh">Loading verification...</p>{/if}
@@ -592,9 +888,21 @@
 							<div class="alert alert--error">{bannedTermsWarning}</div>
 						{/if}
 
-						<button class="btn btn--accent btn--lg submit-btn" onclick={handleSubmit} disabled={!canSubmit}>
-							{submitting ? 'Submitting...' : 'Submit Game Request'}
-						</button>
+						{#if !hasAtLeastOneCategory && gameName.trim()}
+							<p class="fh" style="color: #ef4444;">Please add at least 1 run category.</p>
+						{/if}
+						{#if !hasAtLeastOneChallenge && gameName.trim()}
+							<p class="fh" style="color: #ef4444;">Please select at least 1 challenge type.</p>
+						{/if}
+
+						<div class="submit-buttons">
+							<button class="btn btn--lg" onclick={saveDraft} disabled={!gameName.trim()}>
+								{#if draftStatus === 'saving'}Saving...{:else if draftStatus === 'saved'}✓ Draft Saved{:else if draftStatus === 'error'}Save Failed{:else}Save Draft{/if}
+							</button>
+							<button class="btn btn--accent btn--lg submit-btn" onclick={handleSubmit} disabled={!canSubmit}>
+								{submitting ? 'Submitting...' : 'Submit Game Request'}
+							</button>
+						</div>
 					</div>
 
 				</div> <!-- end form-sections -->
@@ -611,6 +919,14 @@
 	.submit-page { max-width: 720px; margin: 2rem auto; }
 	.page-desc { font-size: 0.95rem; margin: 0.25rem 0; }
 	.req { color: #ef4444; font-weight: 700; }
+
+	/* Draft banner */
+	.draft-banner {
+		display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;
+		background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25);
+		border-radius: 10px; padding: 0.85rem 1.25rem; margin: 1rem 0; font-size: 0.9rem;
+	}
+	.draft-banner__actions { display: flex; gap: 0.5rem; }
 
 	/* Section accordion */
 	.form-sections { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }
@@ -654,6 +970,11 @@
 	}
 	.check-item:hover { background: rgba(255,255,255,0.03); }
 	.check-item input[type="checkbox"] { accent-color: var(--accent); }
+	.check-item--disabled { opacity: 0.4; cursor: not-allowed; }
+
+	/* Glitch options (vertical for hints) */
+	.glitch-options { display: flex; flex-direction: column; gap: 0.25rem; }
+	.glitch-hint { font-size: 0.8rem; color: var(--muted); font-style: italic; }
 
 	/* Radio group */
 	.radio-group { display: flex; flex-direction: column; gap: 0.25rem; }
@@ -672,12 +993,24 @@
 	}
 	.list-row__remove:hover { color: #ef4444; border-color: #ef4444; background: rgba(239, 68, 68, 0.08); }
 
+	/* Mini-challenge groups */
+	.mini-group {
+		background: rgba(255,255,255,0.015); border: 1px solid var(--border);
+		border-radius: 8px; padding: 0.85rem; margin-bottom: 0.75rem;
+	}
+	.mini-children { padding-left: 1rem; margin-top: 0.5rem; border-left: 2px solid var(--border); }
+	.btn--sub { font-size: 0.8rem; padding: 0.25rem 0.6rem; }
+
+	/* Custom challenge fields */
+	.custom-challenge-toggle { font-weight: 500; padding: 0.5rem 0.5rem; }
+	.custom-challenge-fields { padding: 0.75rem 0 0 1.5rem; border-left: 2px solid var(--accent); margin-top: 0.5rem; }
+
 	/* Selected chips */
 	.selected-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 	.chip { padding: 0.25rem 0.65rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer; border: none; }
 	.chip--selected { background: var(--accent); color: white; }
 
-	/* Toggle switch (from profile edit) */
+	/* Toggle switch */
 	.toggle-row { display: flex; align-items: center; gap: 0.75rem; cursor: pointer; padding: 0.5rem 0; user-select: none; }
 	.toggle-check { display: none; }
 	.toggle-slider {
@@ -696,7 +1029,9 @@
 	/* Submit section */
 	.submit-section { margin-top: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
 	.turnstile-container { min-height: 65px; }
-	.submit-btn { width: 100%; max-width: 400px; justify-content: center; }
+	.submit-buttons { display: flex; gap: 0.75rem; width: 100%; max-width: 500px; }
+	.submit-buttons .btn { flex: 1; justify-content: center; text-align: center; }
+	.submit-btn { flex: 1.5 !important; }
 
 	/* Buttons */
 	.btn { display: inline-flex; align-items: center; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--fg); text-decoration: none; }
@@ -706,6 +1041,7 @@
 	.btn--accent:hover { filter: brightness(1.1); }
 	.btn--accent:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
 	.btn--lg { padding: 0.75rem 2rem; font-size: 1.05rem; min-height: 44px; }
+	.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 	/* Alerts */
 	.alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }

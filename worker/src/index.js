@@ -549,6 +549,22 @@ async function handleGameSubmission(body, env, request) {
     return jsonResponse({ error: 'Invalid game name' }, 400, env, request);
   }
 
+  // At least one category (full run or mini-challenge) required
+  const hasFullRun = Array.isArray(body.full_run_categories) && body.full_run_categories.some(c =>
+    typeof c === 'string' ? c.trim() : (c && c.label && c.label.trim())
+  );
+  const hasMini = Array.isArray(body.mini_challenges) && body.mini_challenges.some(c =>
+    typeof c === 'string' ? c.trim() : (c && c.label && c.label.trim())
+  );
+  if (!hasFullRun && !hasMini) {
+    return jsonResponse({ error: 'At least 1 run category is required' }, 400, env, request);
+  }
+
+  // At least one challenge required
+  if (!Array.isArray(body.challenges) || body.challenges.length === 0) {
+    return jsonResponse({ error: 'At least 1 challenge type is required' }, 400, env, request);
+  }
+
   // Verify Turnstile
   const ip = request.headers.get('CF-Connecting-IP');
   const turnstileOk = await verifyTurnstile(body.turnstile_token, env, ip);
@@ -601,6 +617,9 @@ async function handleGameSubmission(body, env, request) {
       challenges_data: (body.challenges || []).map(c =>
         typeof c === 'string' ? { slug: slugify(c), label: sanitizeInput(c, 100) } : c
       ),
+      custom_challenge_description: body.custom_challenge_description
+        ? sanitizeInput(body.custom_challenge_description, 2000)
+        : null,
       restrictions_data: (body.restrictions || []).map(r =>
         typeof r === 'string' ? { slug: slugify(r), label: sanitizeInput(r, 100) } : r
       ),
@@ -610,9 +629,19 @@ async function handleGameSubmission(body, env, request) {
       full_runs: (body.full_run_categories || []).map(c =>
         typeof c === 'string' ? { slug: slugify(c), label: sanitizeInput(c, 100) } : c
       ),
-      mini_challenges: (body.mini_challenges || []).map(c =>
-        typeof c === 'string' ? { slug: slugify(c), label: sanitizeInput(c, 100) } : c
-      ),
+      mini_challenges: (body.mini_challenges || []).map(mc => {
+        if (typeof mc === 'string') return { slug: slugify(mc), label: sanitizeInput(mc, 100), children: [] };
+        return {
+          slug: mc.slug || slugify(mc.label || ''),
+          label: sanitizeInput(mc.label || '', 100),
+          children: (mc.children || []).map(ch =>
+            typeof ch === 'string'
+              ? { slug: slugify(ch), label: sanitizeInput(ch, 100) }
+              : { slug: ch.slug || slugify(ch.label || ''), label: sanitizeInput(ch.label || '', 100) }
+          ),
+        };
+      }),
+      custom_genres: (body.custom_genres || []).map(g => sanitizeInput(g, 60)).filter(Boolean),
       glitch_doc_links: body.glitch_doc_links || null,
       involvement: body.involvement || [],
     },
@@ -637,7 +666,11 @@ async function handleGameSubmission(body, env, request) {
       { name: 'Game', value: gameName, inline: true },
       { name: 'ID', value: gameId, inline: true },
       { name: 'Categories', value: `${(body.full_run_categories || []).length} full, ${(body.mini_challenges || []).length} mini`, inline: true },
+      { name: 'Challenges', value: `${(body.challenges || []).length} selected`, inline: true },
       { name: 'Platforms', value: `${(body.platforms || []).length} selected`, inline: true },
+      ...(body.custom_genres && body.custom_genres.length > 0
+        ? [{ name: 'Custom Genres', value: body.custom_genres.join(', '), inline: true }]
+        : []),
     ],
     timestamp: new Date().toISOString(),
   });
