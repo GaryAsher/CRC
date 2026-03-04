@@ -630,6 +630,28 @@
 		setTimeout(() => actionMessage = null, 3000);
 	}
 
+	async function deleteRun(run: any) {
+		const source = run._source === 'approved' ? 'runs' : 'pending_runs';
+		const label = `${run.game_id} by ${run.runner_id || run.runner} (${run.category || run.category_slug})`;
+		if (!confirm(`Permanently delete this run?\n\n${label}\n\nThis cannot be undone.`)) return;
+		processingId = run.public_id;
+		actionMessage = null;
+		try {
+			const { error } = await supabase.from(source).delete().eq('public_id', run.public_id);
+			if (error) throw error;
+			if (source === 'runs') {
+				approvedRuns = approvedRuns.filter(r => r.public_id !== run.public_id);
+			} else {
+				runs = runs.filter(r => r.public_id !== run.public_id);
+			}
+			actionMessage = { type: 'success', text: 'Run deleted.' };
+		} catch (e: any) {
+			actionMessage = { type: 'error', text: `Delete failed: ${e.message}` };
+		}
+		processingId = null;
+		setTimeout(() => actionMessage = null, 3000);
+	}
+
 	// ── Init ──────────────────────────────────────────────────────────────────
 	onMount(() => {
 		const unsub = isLoading.subscribe(async (l) => {
@@ -840,6 +862,11 @@
 										<button class="btn btn--reject" onclick={() => openRejectModal(run)} disabled={processingId === run.public_id}>
 											❌ Reject
 										</button>
+										{#if isAdmin || isSuperAdmin}
+											<button class="btn btn--delete" onclick={() => deleteRun(run)} disabled={processingId === run.public_id}>
+												🗑️ Delete
+											</button>
+										{/if}
 									</div>
 								{:else if canEditApproved}
 									<div class="run-actions">
@@ -855,6 +882,11 @@
 										<button class="btn btn--changes" onclick={() => openEditModal(run)} disabled={processingId === run.public_id}>
 											✏️ Edit Run
 										</button>
+										{#if isAdmin || isSuperAdmin}
+											<button class="btn btn--delete" onclick={() => deleteRun(run)} disabled={processingId === run.public_id}>
+												🗑️ Delete
+											</button>
+										{/if}
 									</div>
 								{:else if viewOnly}
 									<div class="run-actions run-actions--viewonly">
@@ -1231,6 +1263,8 @@
 	.btn--approve { background: #28a745; color: white; border-color: #28a745; }
 	.btn--approve:hover { background: #218838; color: white; }
 	.btn--reject { border-color: #dc3545; color: #dc3545; }
+	.btn--delete { border-color: #6b7280; color: #ef4444; }
+	.btn--delete:hover { background: rgba(239, 68, 68, 0.08); border-color: #ef4444; }
 	.btn--reject:hover { background: #dc3545; color: white; }
 	.btn--changes { border-color: #17a2b8; color: #17a2b8; }
 	.btn--changes:hover { background: #17a2b8; color: white; }

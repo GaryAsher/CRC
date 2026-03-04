@@ -1,5 +1,4 @@
 import { getActiveGames, getRunners, getTeams } from '$lib/server/supabase';
-import { getPosts } from '$lib/server/data';
 import type { RequestHandler } from './$types';
 
 const SITE = 'https://www.challengerun.net';
@@ -13,12 +12,18 @@ function url(loc: string, priority: string, changefreq: string, lastmod?: string
 }
 
 export const GET: RequestHandler = async ({ locals }) => {
-	const [games, runners, teams, posts] = await Promise.all([
+	const [games, runners, teams, postsRes] = await Promise.all([
 		getActiveGames(locals.supabase),
 		getRunners(locals.supabase),
 		getTeams(locals.supabase),
-		Promise.resolve(getPosts())
+		locals.supabase
+			.from('news_posts')
+			.select('slug, date')
+			.eq('published', true)
+			.order('date', { ascending: false })
 	]);
+
+	const posts = postsRes.data || [];
 
 	const urls: string[] = [];
 
@@ -61,7 +66,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 	// News posts
 	for (const post of posts) {
-		const date = post.date instanceof Date ? post.date : new Date(post.date);
+		const date = new Date(post.date);
 		const mod = isNaN(date.getTime()) ? undefined : date.toISOString().slice(0, 10);
 		urls.push(url(`/news/${post.slug}`, '0.6', 'monthly', mod));
 	}

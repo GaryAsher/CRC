@@ -429,6 +429,9 @@
 					<span class="admin-panel__text">Games</span>
 					{#if adminCounts.pendingGames > 0}<span class="admin-panel__badge">{adminCounts.pendingGames}</span>{/if}
 				</a>
+				<a href="/admin/news" class="admin-panel__item" class:is-active={isAdminActive('/admin/news')} onclick={closeAdminPanel}>
+					<span class="admin-panel__icon">📰</span><span class="admin-panel__text">News</span>
+				</a>
 			{/if}
 
 			{#if sidebarIsModerator}

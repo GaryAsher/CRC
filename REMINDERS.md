@@ -32,10 +32,12 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
     - [ ] Update how the runs are displayed when you click into a game.
 
 - Edit Profile:
-  - If I open a different tab, it refreshes the info I put in. How do we fix it so this doesn't happen?
   - Customize:
-    - [ ] Show/Hide button should have a sticky header. so it stays at the top of the page even when the user scrolls down.
-- [ ] **Add "Home" button in nav** — Aves recommends alongside logo
+    - [ ] Show/Hide button should have a sticky header. Last time we needed to have the sticky part start 20px above where it is now.
+      - Here is what you should see if you scroll down:
+        - Profile Preview ... Show/Hide button
+        - Preview of Profile
+        - Navigation tabs (Basic Info, Customize, Socials, Goals, Highlights)
 
 ### 2. Content & Polish
 - [ ] Fill glossary definitions (hit, damage, death, hitless vs damageless, etc.)

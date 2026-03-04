@@ -1,19 +1,22 @@
-import { getPosts } from '$lib/server/data';
 import type { RequestHandler } from './$types';
 
-export const prerender = true;
+export const prerender = false;
 
-export const GET: RequestHandler = async () => {
-	const posts = getPosts();
+export const GET: RequestHandler = async ({ locals }) => {
+	const { data: posts } = await locals.supabase
+		.from('news_posts')
+		.select('slug, title, date, excerpt, content, author')
+		.eq('published', true)
+		.order('date', { ascending: false })
+		.limit(20);
+
 	const siteUrl = 'https://www.challengerun.net';
 
-	const items = posts
-		.slice(0, 20)
+	const items = (posts || [])
 		.map((post) => {
-			const date = post.date instanceof Date ? post.date : new Date(post.date);
+			const date = new Date(post.date);
 			const pubDate = isNaN(date.getTime()) ? new Date().toUTCString() : date.toUTCString();
 			const excerpt = post.excerpt
-				|| post.description
 				|| post.content?.replace(/<[^>]*>/g, '').replace(/[#*_`~]/g, '').slice(0, 200).trim();
 			return `
     <item>

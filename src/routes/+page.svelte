@@ -71,9 +71,9 @@
 									<h3 class="news-slide__title">
 										<a href="/news/{post.slug}">{post.title}</a>
 									</h3>
-									{#if post.excerpt || post.description}
+									{#if post.excerpt}
 										<p class="news-slide__excerpt muted">
-											{(post.excerpt || post.description || '').slice(0, 120)}
+											{(post.excerpt || '').slice(0, 120)}
 										</p>
 									{/if}
 								</div>
