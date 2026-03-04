@@ -78,8 +78,6 @@
 			bannerUrl = ''; // clear custom URL when choosing a preset
 		}
 	}
-
-
 	type Tab = 'basic' | 'customize' | 'socials' | 'goals' | 'highlights';
 
 	interface Goal {
@@ -255,8 +253,12 @@
 	});
 
 	// ── Load existing profile ───────────────────────────────────
+	let profileLoadedOnce = false;
 	$effect(() => {
-		if ($user) loadProfile();
+		if ($user && !profileLoadedOnce) {
+			profileLoadedOnce = true;
+			loadProfile();
+		}
 	});
 
 	async function loadProfile() {
@@ -760,23 +762,23 @@
 				{@const effectiveBgPos = bannerPosition === 'top' ? 'top' : bannerPosition === 'bottom' ? 'bottom' : 'center'}
 
 				<!-- Profile Preview — in normal flow, not sticky -->
+				<div class="preview-bar">
+					<p class="preview-label">Profile Preview</p>
+					<button
+						type="button"
+						class="preview-toggle"
+						onclick={() => previewOpen = !previewOpen}
+						title={previewOpen ? 'Collapse preview' : 'Expand preview'}
+					>
+						{previewOpen ? '▲ Hide' : '▼ Show'}
+					</button>
+				</div>
+				{#if previewOpen}
 				<div class="preview-card" class:preview-card--bg-mode={effectiveBannerCss && bannerMode === 'background'}>
 					{#if effectiveBannerCss && bannerMode === 'background'}
 						<div class="preview-bg-banner" style="background:{effectiveBannerCss}; background-size:{effectiveBgSize}; background-position:{effectiveBgPos}; opacity:{bannerOpacity};"></div>
 					{/if}
-					<div class="preview-card__header">
-						<p class="preview-label">Profile Preview</p>
-						<button
-							type="button"
-							class="preview-toggle"
-							onclick={() => previewOpen = !previewOpen}
-							title={previewOpen ? 'Collapse preview' : 'Expand preview'}
-						>
-							{previewOpen ? '▲ Hide' : '▼ Show'}
-						</button>
-					</div>
-						{#if previewOpen}
-						<div class="preview-shell" style="--preview-opacity:{bannerOpacity}">
+					<div class="preview-shell" style="--preview-opacity:{bannerOpacity}">
 							{#if effectiveBannerCss && bannerMode !== 'background'}
 								<div class="pv-banner">
 									<div class="pv-banner__img" style="background:{effectiveBannerCss}; background-size:{effectiveBgSize}; background-position:{effectiveBgPos}; opacity:{bannerOpacity};"></div>
@@ -852,9 +854,8 @@
 								{/if}
 							</section>
 						</div>
-						{/if}
 					</div>
-
+					{/if}
 					<!-- Sticky header: tabs only -->
 					<div class="edit-sticky-header">
 						<nav class="edit-tabs">
@@ -1498,6 +1499,12 @@
 	.edit-page { margin: 2rem auto; }
 
 	/* Preview card — in normal flow above sticky tabs */
+	.preview-bar {
+		position: sticky; top: calc(4rem - 8px); z-index: 11;
+		display: flex; align-items: center; justify-content: space-between;
+		padding: 0.5rem 1rem;
+		background: var(--bg); border-bottom: 1px solid var(--border);
+	}
 	.preview-card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 0.75rem; position: relative; }
 
 	/* Sticky header: tabs only */
@@ -1525,12 +1532,7 @@
 	.alert--warning { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24; }
 
 	/* Preview card — inside sticky header */
-	.preview-card--bg-mode .preview-card__header { position: relative; z-index: 1; }
 	.preview-card--bg-mode .preview-shell { background: transparent; }
-	.preview-card__header {
-		display: flex; align-items: center; justify-content: space-between;
-		padding: 0.5rem 1rem 0;
-	}
 	.preview-label { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 0; }
 	.preview-toggle {
 		background: none; border: 1px solid var(--border); cursor: pointer;

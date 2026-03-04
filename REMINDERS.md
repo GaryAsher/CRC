@@ -18,7 +18,6 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ## QA Feedback (Aves — 2/27/2026)
 ### Still To Do — UX Polish
 - [ ] **News container on homepage** — only shows News/Date/Title headers with no content visible. May need posts or a different empty state.
-- [ ] **Add "Home" button in nav** — Aves recommends alongside logo
 - [ ] **Nav layout rebalance** — Aves suggests tabs on left next to logo, search on right
 
 ---
@@ -28,28 +27,20 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ### 1. Small fixes
 - Submit Page (https://www.challengerun.net/submit):
   - Can we transform this to populate the respective game? or is that too much work?
-
-- Edit Profile:
-  - Leaving the page resets everything? why?
-  - For "Save Changes", give it the big button that is used for game/submit. It should bg-btn style put it on the right. To the left of that button, add "reset". Remove the "Cancel" button
-  - Customize:
-    - [ ] Show/Hide button covers the settings? It should push the settings down. Show/Hide is just so half the screen isnt covered with the profile preview.
-  - Highlights:
-    - [ ] Remove the text that says "World's First". I do not want to reference World's First in any fashion
-
 - Runner Page:
   - Run Statistics:
     - [ ] Update how the runs are displayed when you click into a game.
 
-### 1b. Deferred Features
-- [ ] **Claim enforcement on run approval** — currently cosmetic only. Worker doesn't check `claimed_by` before allowing approve/reject. Add check so only the claimer (or admin override) can act.
-- [ ] **History tab — wire up audit events** — UI is built (`/games/[game_id]/history`) but server returns empty array. Needs: `game_history` table + writes in `handleApproveRun`, `handleGameEditorSave`, `handleAssignRole`, etc.
+- Edit Profile:
+  - If I open a different tab, it refreshes the info I put in. How do we fix it so this doesn't happen?
+  - Customize:
+    - [ ] Show/Hide button should have a sticky header. so it stays at the top of the page even when the user scrolls down.
+- [ ] **Add "Home" button in nav** — Aves recommends alongside logo
 
 ### 2. Content & Polish
 - [ ] Fill glossary definitions (hit, damage, death, hitless vs damageless, etc.)
 - [ ] Fill support page (FAQ, staff section, privacy request form)
 - [ ] Test Discord webhooks (run submission, game submission)
-- [ ] Audit SCSS for dead code — known unused selectors: `.legal-page h3` (guidelines, terms), `.btn--sm` / `.mt-3` (debug), `.fh a` (profile edit), `.mt-section` (submit), `section` (rules)
 
 ### 3. Legal & Compliance
 - [ ] Review Terms of Service line-by-line

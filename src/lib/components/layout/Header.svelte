@@ -262,6 +262,7 @@
 
 	<nav class="nav" class:nav--open={mobileOpen} aria-label="Primary navigation">
 		<div class="nav-group nav-links">
+			<a href="/" class:active={$page.url.pathname === '/'}>Home</a>
 			<a href="/games" class:active={isActive('/games')}>Games</a>
 			<a href="/runners" class:active={isActive('/runners')}>Runners</a>
 			<a href="/teams" class:active={isActive('/teams')}>Teams</a>
