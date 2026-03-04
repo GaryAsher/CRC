@@ -68,9 +68,6 @@
 	// Selected gradient (stored separately from bannerUrl)
 	let bannerGradient = $state('');
 
-	// Derived: effective background for drag frame
-	let dragBg = $derived(bannerIsGradient && bannerGradient ? bannerGradient : bannerUrl ? `url(${bannerUrl})` : '');
-
 	function selectPreset(gradient: string) {
 		if (bannerGradient === gradient) {
 			// deselect
@@ -186,6 +183,9 @@
 	let bannerUrl = $state('');
 	let uploading = $state(false);
 	let uploadMsg = $state('');
+
+	// Derived: effective background for banner drag frame
+	let dragBg = $derived(bannerIsGradient && bannerGradient ? bannerGradient : bannerUrl ? `url(${bannerUrl})` : '');
 
 	// Socials
 	let socialTwitch = $state('');
@@ -1095,6 +1095,7 @@
 										}}
 										role="slider"
 										aria-label="Avatar crop position"
+										aria-valuenow={avatarPosY}
 										tabindex="0"
 										onkeydown={(e) => {
 											if (e.key === 'ArrowUp') { avatarPosY = Math.max(0, avatarPosY - 2); markDirty(); e.preventDefault(); }

@@ -199,11 +199,16 @@ export interface RunnerSocials {
 	representing?: string;
 	banner_opts?: {
 		size?: 'cover' | 'contain' | 'fill';
-		position?: 'center' | 'top' | 'bottom';
+		position?: 'center' | 'top' | 'bottom' | 'custom';
+		custom_y?: number;
 		opacity?: number;
 		mode?: 'above' | 'background';
 		gradient?: string;
 		container_opacity?: number;
+	};
+	avatar_opts?: {
+		x?: number;
+		y?: number;
 	};
 	hide_activity?: boolean;
 }
