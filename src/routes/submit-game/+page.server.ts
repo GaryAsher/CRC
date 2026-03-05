@@ -10,16 +10,16 @@ import { getGenres, getPlatforms } from '$lib/server/data';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-	const genresData = getGenres() as Record<string, { label: string }>;
+	const genresData = getGenres() as Record<string, { label: string; aliases?: string[] }>;
 	const genres = Object.entries(genresData)
 		.filter(([, v]) => v && typeof v === 'object' && v.label)
-		.map(([slug, data]) => ({ slug, label: data.label }))
+		.map(([slug, data]) => ({ slug, label: data.label, aliases: data.aliases || [] }))
 		.sort((a, b) => a.label.localeCompare(b.label));
 
-	const platformsData = getPlatforms() as Record<string, { label: string }>;
+	const platformsData = getPlatforms() as Record<string, { label: string; aliases?: string[] }>;
 	const platforms = Object.entries(platformsData)
 		.filter(([, v]) => v && typeof v === 'object' && v.label)
-		.map(([slug, data]) => ({ slug, label: data.label }))
+		.map(([slug, data]) => ({ slug, label: data.label, aliases: data.aliases || [] }))
 		.sort((a, b) => a.label.localeCompare(b.label));
 
 	return { genres, platforms };

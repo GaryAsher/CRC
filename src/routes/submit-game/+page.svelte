@@ -36,12 +36,15 @@
 			selectedPlatforms = [...selectedPlatforms, slug];
 		}
 	}
-	function addCustomPlatform() { customPlatforms = [...customPlatforms, '']; }
+	function addCustomPlatform() { if (customPlatforms.length < 2) customPlatforms = [...customPlatforms, '']; }
 	function removeCustomPlatform(i: number) { customPlatforms = customPlatforms.filter((_, idx) => idx !== i); }
 	function customPlatformDuplicate(value: string): string | null {
 		if (!value.trim()) return null;
 		const q = value.trim().toLowerCase();
-		const match = platforms.find((p: any) => p.label.toLowerCase() === q || p.slug === q);
+		const match = platforms.find((p: any) =>
+			p.label.toLowerCase() === q || p.slug === q ||
+			(p.aliases || []).some((a: string) => a.toLowerCase() === q)
+		);
 		return match ? `"${match.label}" already exists as an option.` : null;
 	}
 
@@ -69,7 +72,7 @@
 		}
 	}
 	function addCustomGenre() {
-		if (totalGenreCount < 5) customGenres = [...customGenres, ''];
+		if (totalGenreCount < 5 && customGenres.length < 3) customGenres = [...customGenres, ''];
 	}
 	function removeCustomGenre(i: number) {
 		customGenres = customGenres.filter((_, idx) => idx !== i);
@@ -77,13 +80,17 @@
 	function customGenreDuplicate(value: string): string | null {
 		if (!value.trim()) return null;
 		const q = value.trim().toLowerCase();
-		const match = genres.find((g: any) => g.label.toLowerCase() === q || g.slug === q);
+		const match = genres.find((g: any) =>
+			g.label.toLowerCase() === q || g.slug === q ||
+			(g.aliases || []).some((a: string) => a.toLowerCase() === q)
+		);
 		return match ? `"${match.label}" already exists as an option.` : null;
 	}
 
 	// Section 4: Run Categories
 	interface FullRunEntry {
-		name: string;
+		slug: string;
+		label: string;
 		description: string;
 		hasExceptions: boolean;
 		exceptions: string;
@@ -91,7 +98,8 @@
 	let fullRunCategories = $state<FullRunEntry[]>([]);
 
 	interface MiniChild {
-		name: string;
+		slug: string;
+		label: string;
 		description: string;
 		hasExceptions: boolean;
 		exceptions: string;
@@ -99,7 +107,8 @@
 		fixedRestriction: string;
 	}
 	interface MiniChallengeGroup {
-		parent: string;
+		slug: string;
+		label: string;
 		description: string;
 		hasExceptions: boolean;
 		exceptions: string;
@@ -107,18 +116,27 @@
 	}
 	let miniChallengeGroups = $state<MiniChallengeGroup[]>([]);
 
+	const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+	function addFullRun() {
+		fullRunCategories = [...fullRunCategories, { slug: '', label: '', description: '', hasExceptions: false, exceptions: '' }];
+		editingSection = 'fr'; editingIndex = fullRunCategories.length - 1;
+	}
+	function removeFullRun(i: number) { fullRunCategories = fullRunCategories.filter((_, idx) => idx !== i); }
+
 	function addFullRun() { fullRunCategories = [...fullRunCategories, { name: '', description: '', hasExceptions: false, exceptions: '' }]; }
 	function removeFullRun(i: number) { fullRunCategories = fullRunCategories.filter((_, idx) => idx !== i); }
 
 	function addMiniGroup() {
-		miniChallengeGroups = [...miniChallengeGroups, { parent: '', description: '', hasExceptions: false, exceptions: '', children: [] }];
+		miniChallengeGroups = [...miniChallengeGroups, { slug: '', label: '', description: '', hasExceptions: false, exceptions: '', children: [] }];
+		editingSection = 'mc'; editingIndex = miniChallengeGroups.length - 1;
 	}
 	function removeMiniGroup(i: number) {
 		miniChallengeGroups = miniChallengeGroups.filter((_, idx) => idx !== i);
 	}
 	function addMiniChild(groupIdx: number) {
 		miniChallengeGroups = miniChallengeGroups.map((g, i) =>
-			i === groupIdx ? { ...g, children: [...g.children, { name: '', description: '', hasExceptions: false, exceptions: '', fixedCharacter: '', fixedRestriction: '' }] } : g
+			i === groupIdx ? { ...g, children: [...g.children, { slug: '', label: '', description: '', hasExceptions: false, exceptions: '', fixedCharacter: '', fixedRestriction: '' }] } : g
 		);
 	}
 	function removeMiniChild(groupIdx: number, childIdx: number) {
@@ -128,8 +146,8 @@
 	}
 
 	let hasAtLeastOneCategory = $derived.by(() => {
-		const hasFullRun = fullRunCategories.some(c => c.name.trim());
-		const hasMini = miniChallengeGroups.some(g => g.parent.trim());
+		const hasFullRun = fullRunCategories.some(c => c.label.trim());
+		const hasMini = miniChallengeGroups.some(g => g.label.trim());
 		return hasFullRun || hasMini;
 	});
 
@@ -168,24 +186,29 @@
 
 	// Section 7: Restrictions (parent-child with descriptions and exceptions)
 	interface RestrictionChild {
-		name: string;
+		slug: string;
+		label: string;
 		description: string;
 		hasExceptions: boolean;
 		exceptions: string;
 	}
 	interface RestrictionGroup {
-		name: string;
+		slug: string;
+		label: string;
 		description: string;
 		hasExceptions: boolean;
 		exceptions: string;
 		children: RestrictionChild[];
 	}
 	let restrictions = $state<RestrictionGroup[]>([]);
-	function addRestriction() { restrictions = [...restrictions, { name: '', description: '', hasExceptions: false, exceptions: '', children: [] }]; }
+	function addRestriction() {
+		restrictions = [...restrictions, { slug: '', label: '', description: '', hasExceptions: false, exceptions: '', children: [] }];
+		editingSection = 'rs'; editingIndex = restrictions.length - 1;
+	}
 	function removeRestriction(i: number) { restrictions = restrictions.filter((_, idx) => idx !== i); }
 	function addRestrictionChild(parentIdx: number) {
 		restrictions = restrictions.map((r, i) =>
-			i === parentIdx ? { ...r, children: [...r.children, { name: '', description: '', hasExceptions: false, exceptions: '' }] } : r
+			i === parentIdx ? { ...r, children: [...r.children, { slug: '', label: '', description: '', hasExceptions: false, exceptions: '' }] } : r
 		);
 	}
 	function removeRestrictionChild(parentIdx: number, childIdx: number) {
@@ -438,6 +461,21 @@
 		!bannedTermsWarning
 	);
 
+	// ── Item card editing (game-editor pattern) ─────────────
+	let editingSection = $state<string | null>(null);
+	let editingIndex = $state<number | null>(null);
+
+	function toggleEdit(section: string, idx: number) {
+		if (editingSection === section && editingIndex === idx) { editingSection = null; editingIndex = null; }
+		else { editingSection = section; editingIndex = idx; }
+	}
+	function isEditing(section: string, idx: number) { return editingSection === section && editingIndex === idx; }
+
+	function isDuplicateSlug(slug: string, list: any[], excludeIndex: number) {
+		if (!slug) return false;
+		return list.some((item: any, i: number) => i !== excludeIndex && item.slug === slug);
+	}
+
 	// ── Collapsible sections ──────────────────────────────────
 	// Required sections open, optional closed, except Involvement (open).
 	let openSections = $state<Record<string, boolean>>({
@@ -477,7 +515,6 @@
 		result = null;
 
 		const clean = (arr: string[]) => arr.map(s => s.trim()).filter(Boolean);
-		const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 		const allChallenges = [
 			...selectedChallenges.map(c => ({
@@ -506,21 +543,21 @@
 		];
 
 		const fullRunPayload = fullRunCategories
-			.filter(c => c.name.trim())
+			.filter(c => c.label.trim())
 			.map(c => ({
-				slug: slugify(c.name), label: c.name.trim(),
+				slug: c.slug || slugify(c.label), label: c.label.trim(),
 				description: c.description.trim() || null,
 				exceptions: c.hasExceptions && c.exceptions.trim() ? c.exceptions.trim() : null,
 			}));
 
 		const miniChallengesPayload = miniChallengeGroups
-			.filter(g => g.parent.trim())
+			.filter(g => g.label.trim())
 			.map(g => ({
-				slug: slugify(g.parent), label: g.parent.trim(),
+				slug: g.slug || slugify(g.label), label: g.label.trim(),
 				description: g.description.trim() || null,
 				exceptions: g.hasExceptions && g.exceptions.trim() ? g.exceptions.trim() : null,
-				children: g.children.filter(c => c.name.trim()).map(c => ({
-					slug: slugify(c.name), label: c.name.trim(),
+				children: g.children.filter(c => c.label.trim()).map(c => ({
+					slug: c.slug || slugify(c.label), label: c.label.trim(),
 					description: c.description.trim() || null,
 					exceptions: c.hasExceptions && c.exceptions.trim() ? c.exceptions.trim() : null,
 					fixed_loadout: (c.fixedCharacter || c.fixedRestriction) ? {
@@ -531,13 +568,13 @@
 			}));
 
 		const restrictionsPayload = restrictions
-			.filter(r => r.name.trim())
+			.filter(r => r.label.trim())
 			.map(r => ({
-				slug: slugify(r.name), label: r.name.trim(),
+				slug: r.slug || slugify(r.label), label: r.label.trim(),
 				description: r.description.trim() || null,
 				exceptions: r.hasExceptions && r.exceptions.trim() ? r.exceptions.trim() : null,
-				children: r.children.filter(c => c.name.trim()).map(c => ({
-					slug: slugify(c.name), label: c.name.trim(),
+				children: r.children.filter(c => c.label.trim()).map(c => ({
+					slug: c.slug || slugify(c.label), label: c.label.trim(),
 					description: c.description.trim() || null,
 					exceptions: c.hasExceptions && c.exceptions.trim() ? c.exceptions.trim() : null,
 				})),
@@ -687,7 +724,7 @@
 								</div>
 								<div class="fg">
 									<label class="fl">Other Platforms</label>
-									<p class="fh mb-2">Don't see your platform? Add it here. These will be reviewed by our team.</p>
+									<p class="fh mb-2">Don't see your platform? Add up to 2 here. These will be reviewed by our team.</p>
 									{#each customPlatforms as _, i}
 										<div class="list-row">
 											<input type="text" class="fi" bind:value={customPlatforms[i]} placeholder="e.g. Amiga" maxlength="60" />
@@ -697,7 +734,9 @@
 											<p class="fh" style="color: #ef4444;">{customPlatformDuplicate(customPlatforms[i])}</p>
 										{/if}
 									{/each}
-									<button type="button" class="btn btn--small mt-2" onclick={addCustomPlatform}>+ Add Platform</button>
+									{#if customPlatforms.length < 2}
+										<button type="button" class="btn btn--small mt-2" onclick={addCustomPlatform}>+ Add Platform</button>
+									{/if}
 								</div>
 							</div>
 						{/if}
@@ -742,7 +781,7 @@
 								</div>
 								<div class="fg">
 									<label class="fl">Other Genres</label>
-									<p class="fh mb-2">Don't see a genre that fits? Add custom genres (counts toward the 5 max). These will be reviewed by our team.</p>
+									<p class="fh mb-2">Don't see a genre that fits? Add up to 3 custom genres (counts toward the 5 max). These will be reviewed by our team.</p>
 									{#each customGenres as _, i}
 										<div class="list-row">
 											<input type="text" class="fi" bind:value={customGenres[i]} placeholder="e.g. Tower Defense" maxlength="60" />
@@ -752,7 +791,7 @@
 											<p class="fh" style="color: #ef4444;">{customGenreDuplicate(customGenres[i])}</p>
 										{/if}
 									{/each}
-									{#if totalGenreCount < 5}
+									{#if totalGenreCount < 5 && customGenres.length < 3}
 										<button type="button" class="btn btn--small mt-2" onclick={addCustomGenre}>+ Add Genre</button>
 									{/if}
 								</div>
@@ -769,90 +808,112 @@
 						{#if openSections.categories}
 							<div class="section-body">
 								<p class="fh mb-2">At least 1 category is required.</p>
-
-								<div class="fg">
-									<label class="fl">Full Run Categories</label>
-									<p class="fh mb-2">Full runs typically involve completing the game through to the credits.</p>
-									{#each fullRunCategories as entry, i}
-										<div class="entry-card">
-											<div class="list-row">
-												<input type="text" class="fi" bind:value={fullRunCategories[i].name} placeholder="e.g. Any%, All Bosses" maxlength="100" />
-												<button type="button" class="list-row__remove" onclick={() => removeFullRun(i)}>✕</button>
-											</div>
-											<textarea class="fi entry-desc" bind:value={fullRunCategories[i].description} placeholder="Brief description of this category (optional)" rows="2" maxlength="500"></textarea>
-											<label class="check-item check-item--sm mt-2">
-												<input type="checkbox" bind:checked={fullRunCategories[i].hasExceptions} />
-												<span>Has exceptions</span>
-											</label>
-											{#if fullRunCategories[i].hasExceptions}
-												<textarea class="fi entry-desc mt-2" bind:value={fullRunCategories[i].exceptions} placeholder="e.g. This category requires the player to die 3 times. These 3 deaths must be when there are no enemies nearby..." rows="2" maxlength="1000"></textarea>
-											{/if}
-										</div>
-									{/each}
-									<button type="button" class="btn btn--small mt-2" onclick={addFullRun}>+ Add Full Run</button>
-								</div>
-
-								<div class="fg">
-									<label class="fl">Mini-Challenge Categories</label>
-									<p class="fh mb-2">Smaller challenges like individual boss fights, individual levels, or small gauntlets that exist in game. Add a group (e.g. "Bosses") and then add specific entries within it.</p>
-									{#each miniChallengeGroups as group, gi}
-										<div class="mini-group">
-											<div class="list-row">
-												<input type="text" class="fi" bind:value={miniChallengeGroups[gi].parent} placeholder="e.g. Pantheon of the Artist, Individual Bosses, Individual Levels" maxlength="100" />
-												<button type="button" class="list-row__remove" onclick={() => removeMiniGroup(gi)}>✕</button>
-											</div>
-											<textarea class="fi entry-desc" bind:value={miniChallengeGroups[gi].description} placeholder="Describe this group (optional)" rows="2" maxlength="500"></textarea>
-											<label class="check-item check-item--sm mt-2">
-												<input type="checkbox" bind:checked={miniChallengeGroups[gi].hasExceptions} />
-												<span>Has exceptions</span>
-											</label>
-											{#if group.hasExceptions}
-												<textarea class="fi entry-desc mt-2" bind:value={miniChallengeGroups[gi].exceptions} placeholder="e.g. This category requires the player to die 3 times. These 3 deaths must be when there are no enemies nearby..." rows="2" maxlength="1000"></textarea>
-											{/if}
-											<div class="mini-children">
-												<p class="fh mb-2" style="font-size: 0.78rem;">Sub-categories are specific entries within this group (e.g. individual boss names within a "Bosses" group).</p>
-												{#each group.children as child, ci}
-													<div class="entry-card entry-card--child">
-														<div class="list-row">
-															<input type="text" class="fi" bind:value={miniChallengeGroups[gi].children[ci].name} placeholder="e.g. Margit, Godrick" maxlength="100" />
-															<button type="button" class="list-row__remove" onclick={() => removeMiniChild(gi, ci)}>✕</button>
+								<div class="game-editor">
+									<div class="editor-section">
+										<h3 class="subsection-title">Full Run Categories</h3>
+										<p class="subsection-desc">Full runs typically involve completing the game through to the credits.</p>
+										<div class="item-list">
+											{#each fullRunCategories as item, i}
+												<div class="item-card" class:item-card--open={isEditing('fr', i)}>
+													<div class="item-card__header">
+														<button class="item-card__toggle" onclick={() => toggleEdit('fr', i)}>
+															<span class="item-card__slug">{item.slug || '(new)'}</span>
+															<span class="item-card__label">{item.label || 'Untitled'}</span>
+														</button>
+														<div class="item-card__actions">
+															<button class="item-btn item-btn--danger" onclick={() => { fullRunCategories = fullRunCategories.filter((_, idx) => idx !== i); }}>✕</button>
 														</div>
-														<textarea class="fi entry-desc" bind:value={miniChallengeGroups[gi].children[ci].description} placeholder="Description (optional)" rows="2" maxlength="500"></textarea>
-														<label class="check-item check-item--sm mt-2">
-															<input type="checkbox" bind:checked={miniChallengeGroups[gi].children[ci].hasExceptions} />
-															<span>Has exceptions</span>
-														</label>
-														{#if child.hasExceptions}
-															<textarea class="fi entry-desc mt-2" bind:value={miniChallengeGroups[gi].children[ci].exceptions} placeholder="Exceptions..." rows="2" maxlength="1000"></textarea>
-														{/if}
-														{#if characterEnabled || restrictions.length > 0}
-															<div class="fixed-loadout-row mt-2">
-																<span class="fh">Fixed Loadout:</span>
-																{#if characterEnabled && characterOptions.filter(c => c.trim()).length > 0}
-																	<select class="fi fi--sm" bind:value={miniChallengeGroups[gi].children[ci].fixedCharacter}>
-																		<option value="">— {characterLabel} —</option>
-																		{#each characterOptions.filter(c => c.trim()) as ch}
-																			<option value={ch}>{ch}</option>
-																		{/each}
-																	</select>
-																{/if}
-																{#if restrictions.filter(r => r.name.trim()).length > 0}
-																	<select class="fi fi--sm" bind:value={miniChallengeGroups[gi].children[ci].fixedRestriction}>
-																		<option value="">— Restriction —</option>
-																		{#each restrictions.filter(r => r.name.trim()) as r}
-																			<option value={r.name}>{r.name}</option>
-																		{/each}
-																	</select>
-																{/if}
-															</div>
-														{/if}
 													</div>
-												{/each}
-												<button type="button" class="btn btn--small btn--sub mt-2" onclick={() => addMiniChild(gi)}>+ Add Sub-Category</button>
-											</div>
+													{#if isEditing('fr', i)}
+														<div class="item-card__body">
+															<div class="field-row--compact"><label>Slug</label><input type="text" value={item.slug} disabled class="slug-auto" /></div>
+															<div class="field-row--compact"><label>Label</label><input type="text" bind:value={item.label} oninput={() => { item.slug = slugify(item.label); }} /></div>
+															<div class="field-row--compact"><label>Description</label><textarea rows="2" bind:value={item.description}></textarea></div>
+															<span class="field-hint">Markdown supported</span>
+															<label class="toggle-row"><input type="checkbox" bind:checked={item.hasExceptions} /> Has Exceptions</label>
+															{#if item.hasExceptions}
+																<textarea class="exceptions-textarea" rows="2" bind:value={item.exceptions} placeholder="e.g. This category requires the player to die 3 times. These 3 deaths must be when there are no enemies nearby..."></textarea>
+															{/if}
+														</div>
+													{/if}
+												</div>
+											{/each}
 										</div>
-									{/each}
-									<button type="button" class="btn btn--small mt-2" onclick={addMiniGroup}>+ Add Mini-Challenge Group</button>
+										<button class="btn btn--add" onclick={addFullRun}>+ Add Full Run Category</button>
+
+										<h3 class="subsection-title mt-2">Mini-Challenges</h3>
+										<p class="subsection-desc">Smaller challenges like individual boss fights, individual levels, or small gauntlets. Groups can have child categories.</p>
+										<div class="item-list">
+											{#each miniChallengeGroups as group, gi}
+												<div class="item-card item-card--group" class:item-card--open={isEditing('mc', gi)}>
+													<div class="item-card__header">
+														<button class="item-card__toggle" onclick={() => toggleEdit('mc', gi)}>
+															<span class="item-card__slug">{group.slug || '(new)'}</span>
+															<span class="item-card__label">{group.label || 'Untitled Group'}</span>
+															<span class="item-card__count">{group.children?.length || 0} children</span>
+														</button>
+														<div class="item-card__actions">
+															<button class="item-btn item-btn--danger" onclick={() => removeMiniGroup(gi)}>✕</button>
+														</div>
+													</div>
+													{#if isEditing('mc', gi)}
+														<div class="item-card__body">
+															<div class="field-row--compact"><label>Slug</label><input type="text" value={group.slug} disabled class="slug-auto" /></div>
+															<div class="field-row--compact"><label>Label</label><input type="text" bind:value={miniChallengeGroups[gi].label} oninput={() => { group.slug = slugify(group.label); miniChallengeGroups = [...miniChallengeGroups]; }} /></div>
+															<div class="field-row--compact"><label>Description</label><textarea rows="2" bind:value={miniChallengeGroups[gi].description}></textarea></div>
+															<span class="field-hint">Markdown supported</span>
+															<label class="toggle-row"><input type="checkbox" bind:checked={miniChallengeGroups[gi].hasExceptions} /> Has Exceptions</label>
+															{#if group.hasExceptions}
+																<textarea class="exceptions-textarea" rows="2" bind:value={miniChallengeGroups[gi].exceptions} placeholder="Describe exceptions (Markdown supported)..."></textarea>
+															{/if}
+															<details class="children-section">
+																<summary class="children-title">Children <span class="muted">({group.children.length})</span> <span class="children-chevron">▶</span></summary>
+																{#each group.children as child, ci}
+																	<details class="child-card">
+																		<summary class="child-card__header">
+																			<span class="child-card__chevron">▶</span>
+																			<span class="child-card__arrow">└</span>
+																			<span class="child-card__slug-text">{child.slug || '(new)'}</span>
+																			<span class="child-card__label-text">{child.label || 'Untitled'}</span>
+																			<button class="item-btn item-btn--danger" onclick={(e) => { e.stopPropagation(); removeMiniChild(gi, ci); }}>✕</button>
+																		</summary>
+																		<div class="child-card__body">
+																			<div class="child-card__fields">
+																				<div class="field-row--compact"><label>Slug</label><input type="text" value={child.slug} disabled class="slug-auto" /></div>
+																				<div class="field-row--compact"><label>Label</label><input type="text" bind:value={miniChallengeGroups[gi].children[ci].label} oninput={() => { child.slug = slugify(child.label); miniChallengeGroups = [...miniChallengeGroups]; }} /></div>
+																			</div>
+																			<div class="child-card__desc">
+																				<textarea rows="2" bind:value={miniChallengeGroups[gi].children[ci].description} placeholder="Description (Markdown supported)..."></textarea>
+																			</div>
+																			<label class="toggle-row toggle-row--child"><input type="checkbox" bind:checked={miniChallengeGroups[gi].children[ci].hasExceptions} /> Has Exceptions</label>
+																			{#if child.hasExceptions}
+																				<textarea class="exceptions-textarea" rows="2" bind:value={miniChallengeGroups[gi].children[ci].exceptions} placeholder="Exceptions (Markdown supported)..."></textarea>
+																			{/if}
+																			{#if (characterEnabled && characterOptions.filter(c => c.trim()).length > 0) || restrictions.filter(r => r.label.trim()).length > 0}
+																				<label class="toggle-row toggle-row--child"><input type="checkbox" checked={!!(child.fixedCharacter || child.fixedRestriction)} onchange={(e) => { if (!e.currentTarget.checked) { miniChallengeGroups[gi].children[ci].fixedCharacter = ''; miniChallengeGroups[gi].children[ci].fixedRestriction = ''; } miniChallengeGroups = [...miniChallengeGroups]; }} /> Fixed Loadout</label>
+																				{#if child.fixedCharacter || child.fixedRestriction || false}
+																					<div class="fixed-loadout-fields">
+																						{#if characterEnabled && characterOptions.filter(c => c.trim()).length > 0}
+																							<div class="field-row--compact"><label>{characterLabel}</label><select bind:value={miniChallengeGroups[gi].children[ci].fixedCharacter}><option value="">— Not fixed —</option>{#each characterOptions.filter(c => c.trim()) as ch}<option value={ch}>{ch}</option>{/each}</select></div>
+																						{/if}
+																						{#if restrictions.filter(r => r.label.trim()).length > 0}
+																							<div class="field-row--compact"><label>Restriction</label><select bind:value={miniChallengeGroups[gi].children[ci].fixedRestriction}><option value="">— Not fixed —</option>{#each restrictions.filter(r => r.label.trim()) as r}<option value={r.label}>{r.label}</option>{/each}</select></div>
+																						{/if}
+																					</div>
+																				{/if}
+																			{/if}
+																		</div>
+																	</details>
+																{/each}
+																<button class="btn btn--add btn--add-sm" onclick={() => addMiniChild(gi)}>+ Add Child</button>
+															</details>
+														</div>
+													{/if}
+												</div>
+											{/each}
+										</div>
+										<button class="btn btn--add" onclick={addMiniGroup}>+ Add Mini-Challenge Group</button>
+									</div>
 								</div>
 							</div>
 						{/if}
@@ -866,22 +927,30 @@
 						</button>
 						{#if openSections.challenges}
 							<div class="section-body">
-								<div class="fg">
-									<label class="fl">Standard Challenges</label>
-									<p class="fh mb-2">Select all challenge types that apply to this game. You can add exceptions for each.</p>
-									<div class="challenge-list">
-										{#each STANDARD_CHALLENGES as c}
-											<div class="challenge-entry">
-												<label class="check-item">
-													<input type="checkbox" checked={selectedChallenges.includes(c)} onchange={() => toggleChallenge(c)} />
-													<span>{c}</span>
-												</label>
-												{#if selectedChallenges.includes(c)}
-													<textarea class="fi entry-desc mt-2" bind:value={challengeExceptions[c]} placeholder="e.g. Health lost from swimming underwater does not count as damage..." rows="2" maxlength="1000"></textarea>
-													<p class="fh">Exceptions for {c} (optional)</p>
-												{/if}
-											</div>
-										{/each}
+								<div class="game-editor">
+									<div class="editor-section">
+										<h3 class="subsection-title">Standard Challenges</h3>
+										<p class="subsection-desc">Select challenge types that apply. You can add exceptions for each. Descriptions support Markdown.</p>
+										<div class="item-list">
+											{#each STANDARD_CHALLENGES as c}
+												<div class="item-card" class:item-card--open={selectedChallenges.includes(c)}>
+													<div class="item-card__header">
+														<label class="item-card__toggle" style="cursor:pointer;">
+															<input type="checkbox" checked={selectedChallenges.includes(c)} onchange={() => toggleChallenge(c)} style="width:18px;height:18px;accent-color:var(--accent);margin-right:0.5rem;" />
+															<span class="item-card__label">{c}</span>
+														</label>
+													</div>
+													{#if selectedChallenges.includes(c)}
+														<div class="item-card__body">
+															<label class="toggle-row"><input type="checkbox" checked={!!challengeExceptions[c]} onchange={(e) => { if (e.currentTarget.checked) challengeExceptions[c] = challengeExceptions[c] || ''; else { const { [c]: _, ...rest } = challengeExceptions; challengeExceptions = rest; } }} /> Has Exceptions</label>
+															{#if challengeExceptions[c] != null}
+																<textarea class="exceptions-textarea" rows="2" bind:value={challengeExceptions[c]} placeholder="e.g. Health lost from swimming underwater does not count as damage..."></textarea>
+															{/if}
+														</div>
+													{/if}
+												</div>
+											{/each}
+										</div>
 									</div>
 								</div>
 								<div class="fg">
@@ -951,46 +1020,68 @@
 						</button>
 						{#if openSections.restrictions}
 							<div class="section-body">
-								<p class="fh mb-2">Restrictions specific to this game. Add sub-restrictions if needed (e.g. "No Bone Charm" could have children like "No Quick Focus", "No Steady Body").</p>
-								{#each restrictions as group, ri}
-									<div class="mini-group">
-										<div class="list-row">
-											<input type="text" class="fi" bind:value={restrictions[ri].name} placeholder="e.g. No Bone Charm, Base Kit Only" maxlength="100" />
-											<button type="button" class="list-row__remove" onclick={() => removeRestriction(ri)}>✕</button>
-										</div>
-										<textarea class="fi entry-desc" bind:value={restrictions[ri].description} placeholder="Describe this restriction (optional)" rows="2" maxlength="500"></textarea>
-										<label class="check-item check-item--sm mt-2">
-											<input type="checkbox" bind:checked={restrictions[ri].hasExceptions} />
-											<span>Has exceptions</span>
-										</label>
-										{#if group.hasExceptions}
-											<textarea class="fi entry-desc mt-2" bind:value={restrictions[ri].exceptions} placeholder="Exceptions..." rows="2" maxlength="1000"></textarea>
-										{/if}
-										<div class="mini-children">
-											{#if group.children.length > 0}
-												<p class="fh mb-2" style="font-size: 0.78rem;">Sub-restrictions within this group.</p>
-											{/if}
-											{#each group.children as child, ci}
-												<div class="entry-card entry-card--child">
-													<div class="list-row">
-														<input type="text" class="fi" bind:value={restrictions[ri].children[ci].name} placeholder="e.g. No Quick Focus" maxlength="100" />
-														<button type="button" class="list-row__remove" onclick={() => removeRestrictionChild(ri, ci)}>✕</button>
+								<div class="game-editor">
+									<div class="editor-section">
+										<p class="subsection-desc">Optional restrictions. A restriction can have children (e.g. "No Bone Charm" → "No Quick Focus"). Descriptions support Markdown.</p>
+										<div class="item-list">
+											{#each restrictions as item, i}
+												<div class="item-card" class:item-card--group={(item.children?.length ?? 0) > 0} class:item-card--open={isEditing('rs', i)}>
+													<div class="item-card__header">
+														<button class="item-card__toggle" onclick={() => toggleEdit('rs', i)}>
+															<span class="item-card__slug">{item.slug || '(new)'}</span>
+															<span class="item-card__label">{item.label || 'Untitled'}</span>
+															{#if item.children?.length}<span class="item-card__count">{item.children.length} children</span>{/if}
+														</button>
+														<div class="item-card__actions">
+															<button class="item-btn item-btn--danger" onclick={() => removeRestriction(i)}>✕</button>
+														</div>
 													</div>
-													<textarea class="fi entry-desc" bind:value={restrictions[ri].children[ci].description} placeholder="Description (optional)" rows="2" maxlength="500"></textarea>
-													<label class="check-item check-item--sm mt-2">
-														<input type="checkbox" bind:checked={restrictions[ri].children[ci].hasExceptions} />
-														<span>Has exceptions</span>
-													</label>
-													{#if child.hasExceptions}
-														<textarea class="fi entry-desc mt-2" bind:value={restrictions[ri].children[ci].exceptions} placeholder="Exceptions..." rows="2" maxlength="1000"></textarea>
+													{#if isEditing('rs', i)}
+														<div class="item-card__body">
+															<div class="field-row--compact"><label>Slug</label><input type="text" value={item.slug} disabled class="slug-auto" /></div>
+															<div class="field-row--compact"><label>Label</label><input type="text" bind:value={restrictions[i].label} oninput={() => { item.slug = slugify(item.label); restrictions = [...restrictions]; }} /></div>
+															<div class="field-row--compact"><label>Description</label><textarea rows="3" bind:value={restrictions[i].description}></textarea></div>
+															<span class="field-hint">Markdown supported</span>
+															<label class="toggle-row"><input type="checkbox" bind:checked={restrictions[i].hasExceptions} /> Has Exceptions</label>
+															{#if item.hasExceptions}
+																<textarea class="exceptions-textarea" rows="2" bind:value={restrictions[i].exceptions} placeholder="Describe exceptions (Markdown supported)..."></textarea>
+															{/if}
+															<details class="children-section">
+																<summary class="children-title">Children <span class="muted">({(item.children || []).length})</span> <span class="children-chevron">▶</span></summary>
+																{#each item.children || [] as child, ci}
+																	<details class="child-card">
+																		<summary class="child-card__header">
+																			<span class="child-card__chevron">▶</span>
+																			<span class="child-card__arrow">└</span>
+																			<span class="child-card__slug-text">{child.slug || '(new)'}</span>
+																			<span class="child-card__label-text">{child.label || 'Untitled'}</span>
+																			<button class="item-btn item-btn--danger" onclick={(e) => { e.stopPropagation(); removeRestrictionChild(i, ci); }}>✕</button>
+																		</summary>
+																		<div class="child-card__body">
+																			<div class="child-card__fields">
+																				<div class="field-row--compact"><label>Slug</label><input type="text" value={child.slug} disabled class="slug-auto" /></div>
+																				<div class="field-row--compact"><label>Label</label><input type="text" bind:value={restrictions[i].children[ci].label} oninput={() => { child.slug = slugify(child.label); restrictions = [...restrictions]; }} /></div>
+																			</div>
+																			<div class="child-card__desc">
+																				<textarea rows="2" bind:value={restrictions[i].children[ci].description} placeholder="Description (Markdown supported)..."></textarea>
+																			</div>
+																			<label class="toggle-row toggle-row--child"><input type="checkbox" bind:checked={restrictions[i].children[ci].hasExceptions} /> Has Exceptions</label>
+																			{#if child.hasExceptions}
+																				<textarea class="exceptions-textarea" rows="2" bind:value={restrictions[i].children[ci].exceptions} placeholder="Exceptions (Markdown supported)..."></textarea>
+																			{/if}
+																		</div>
+																	</details>
+																{/each}
+																<button class="btn btn--add btn--add-sm" onclick={() => addRestrictionChild(i)}>+ Add Child Restriction</button>
+															</details>
+														</div>
 													{/if}
 												</div>
 											{/each}
-											<button type="button" class="btn btn--small btn--sub mt-2" onclick={() => addRestrictionChild(ri)}>+ Add Sub-Restriction</button>
 										</div>
+										<button class="btn btn--add" onclick={addRestriction}>+ Add Restriction</button>
 									</div>
-								{/each}
-								<button type="button" class="btn btn--small mt-2" onclick={addRestriction}>+ Add Restriction</button>
+								</div>
 							</div>
 						{/if}
 					</section>
@@ -1026,45 +1117,61 @@
 						</button>
 						{#if openSections.glitches}
 							<div class="section-body">
-								<div class="fg">
-									<label class="fl">Glitch Structure</label>
-									<p class="fh mb-2">Select all that apply to this game.</p>
-									<div class="glitch-options">
-										{#each GLITCH_PRESETS as g}
-											<label class="check-item">
-												<input type="checkbox" checked={selectedGlitches.includes(g.slug)} onchange={() => toggleGlitch(g.slug)} />
-												<span>{g.label}</span>
-												{#if g.hint}
-													<span class="glitch-hint">— {g.hint}</span>
-												{/if}
-											</label>
-										{/each}
+								<div class="game-editor">
+									<div class="editor-section">
+										<h3 class="subsection-title">Glitch Presets</h3>
+										<p class="subsection-desc">Select glitch policies that apply to this game.</p>
+										<div class="item-list">
+											{#each GLITCH_PRESETS as g}
+												<div class="item-card" class:item-card--open={selectedGlitches.includes(g.slug)}>
+													<div class="item-card__header">
+														<label class="item-card__toggle" style="cursor:pointer;">
+															<input type="checkbox" checked={selectedGlitches.includes(g.slug)} onchange={() => toggleGlitch(g.slug)} style="width:18px;height:18px;accent-color:var(--accent);margin-right:0.5rem;" />
+															<span class="item-card__label">{g.label}</span>
+															{#if g.hint}<span class="item-card__count">— {g.hint}</span>{/if}
+														</label>
+													</div>
+													{#if selectedGlitches.includes(g.slug) && g.slug === 'nmg'}
+														<div class="item-card__body">
+															<div class="field-row--compact"><label>NMG Rules</label><textarea rows="3" bind:value={nmgRules} placeholder="Describe what qualifies as a 'major glitch' for this game and what is/isn't allowed under NMG..."></textarea></div>
+															<span class="field-hint">Help our team understand what NMG means for this specific game.</span>
+														</div>
+													{/if}
+												</div>
+											{/each}
+										</div>
+
+										<h3 class="subsection-title mt-2">Game-Specific Glitch Categories</h3>
+										<p class="subsection-desc">Custom glitch policies unique to this game. Descriptions support Markdown.</p>
+										<div class="item-list">
+											{#each customGlitches as item, i}
+												<div class="item-card" class:item-card--open={isEditing('gl', i)}>
+													<div class="item-card__header">
+														<button class="item-card__toggle" onclick={() => toggleEdit('gl', i)}>
+															<span class="item-card__slug">{slugify(item.name) || '(new)'}</span>
+															<span class="item-card__label">{item.name || 'Untitled'}</span>
+														</button>
+														<div class="item-card__actions">
+															<button class="item-btn item-btn--danger" onclick={() => removeCustomGlitch(i)}>✕</button>
+														</div>
+													</div>
+													{#if isEditing('gl', i)}
+														<div class="item-card__body">
+															<div class="field-row--compact"><label>Label</label><input type="text" bind:value={customGlitches[i].name} placeholder="e.g. No Wrong Warp" /></div>
+															<div class="field-row--compact"><label>Description</label><textarea rows="3" bind:value={customGlitches[i].description} placeholder="Describe what this glitch category allows or restricts..."></textarea></div>
+															<span class="field-hint">Markdown supported</span>
+														</div>
+													{/if}
+												</div>
+											{/each}
+										</div>
+										<button class="btn btn--add" onclick={addCustomGlitch}>+ Add Glitch Category</button>
+
+										<div class="fg mt-2">
+											<label class="fl" for="glitchDocs">Glitch Documentation Links</label>
+											<textarea id="glitchDocs" class="fi" bind:value={glitchDocLinks} placeholder="Links to glitch guides, wikis, or documentation..." rows="2" maxlength="2000"></textarea>
+										</div>
 									</div>
-									{#if selectedGlitches.includes('nmg')}
-										<div class="nmg-rules-box mt-2">
-											<label class="fl" for="nmgRules">NMG Rules</label>
-											<textarea id="nmgRules" class="fi" bind:value={nmgRules} placeholder="Describe what qualifies as a 'major glitch' for this game and what is/isn't allowed under NMG..." rows="3" maxlength="3000"></textarea>
-											<p class="fh">Help our team understand what NMG means for this specific game.</p>
-										</div>
-									{/if}
-								</div>
-								<div class="fg">
-									<label class="fl">Game-Specific Glitch Categories</label>
-									<p class="fh mb-2">Add categories unique to this game. Include a description so our team understands the rules.</p>
-									{#each customGlitches as glitch, i}
-										<div class="custom-glitch-entry">
-											<div class="list-row">
-												<input type="text" class="fi" bind:value={customGlitches[i].name} placeholder="e.g. No Wrong Warp" maxlength="100" />
-												<button type="button" class="list-row__remove" onclick={() => removeCustomGlitch(i)}>✕</button>
-											</div>
-											<textarea class="fi custom-glitch-desc" bind:value={customGlitches[i].description} placeholder="Describe what this glitch category allows or restricts..." rows="2" maxlength="1000"></textarea>
-										</div>
-									{/each}
-									<button type="button" class="btn btn--small mt-2" onclick={addCustomGlitch}>+ Add Glitch Category</button>
-								</div>
-								<div class="fg">
-									<label class="fl" for="glitchDocs">Glitch Documentation Links</label>
-									<textarea id="glitchDocs" class="fi" bind:value={glitchDocLinks} placeholder="Links to glitch guides, wikis, or documentation..." rows="2" maxlength="2000"></textarea>
 								</div>
 							</div>
 						{/if}
@@ -1215,10 +1322,6 @@
 	.check-item input[type="checkbox"] { accent-color: var(--accent); }
 	.check-item--disabled { opacity: 0.4; cursor: not-allowed; }
 
-	/* Glitch options (vertical for hints) */
-	.glitch-options { display: flex; flex-direction: column; gap: 0.25rem; }
-	.glitch-hint { font-size: 0.8rem; color: var(--muted); font-style: italic; }
-
 	/* Radio group */
 	.radio-group { display: flex; flex-direction: column; gap: 0.25rem; }
 	.radio-item {
@@ -1236,40 +1339,16 @@
 	}
 	.list-row__remove:hover { color: #ef4444; border-color: #ef4444; background: rgba(239, 68, 68, 0.08); }
 
-	/* Mini-challenge groups */
+	/* Mini-challenge groups — only needed for platforms/genres sections now */
 	.mini-group {
 		background: rgba(255,255,255,0.015); border: 1px solid var(--border);
 		border-radius: 8px; padding: 0.85rem; margin-bottom: 0.75rem;
 	}
 	.mini-children { padding-left: 1rem; margin-top: 0.5rem; border-left: 2px solid var(--border); }
-	.btn--sub { font-size: 0.8rem; padding: 0.25rem 0.6rem; }
-
-	/* Entry cards (categories, restrictions, mini-children) */
-	.entry-card { margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
-	.entry-card--child { padding-left: 0; margin-bottom: 0.5rem; padding-bottom: 0.35rem; }
-	.entry-desc { font-size: 0.88rem; margin-top: 0.25rem; }
-
-	/* Challenge list (vertical with exceptions) */
-	.challenge-list { display: flex; flex-direction: column; gap: 0.25rem; }
-	.challenge-entry { padding: 0.35rem 0; }
-
-	/* Fixed loadout row */
-	.fixed-loadout-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-	.fi--sm { padding: 0.35rem 0.5rem; font-size: 0.85rem; max-width: 200px; }
-
-	/* Small checkbox */
-	.check-item--sm { font-size: 0.82rem; }
 
 	/* Custom challenge fields */
 	.custom-challenge-toggle { font-weight: 500; padding: 0.5rem 0.5rem; }
 	.custom-challenge-fields { padding: 0.75rem 0 0 1.5rem; border-left: 2px solid var(--accent); margin-top: 0.5rem; }
-
-	/* NMG rules box */
-	.nmg-rules-box { padding-left: 1.5rem; border-left: 2px solid var(--accent); }
-
-	/* Custom glitch entries */
-	.custom-glitch-entry { margin-bottom: 0.75rem; }
-	.custom-glitch-desc { margin-top: 0.25rem; font-size: 0.88rem; }
 
 	/* Validation links */
 	.validation-link {
