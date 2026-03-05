@@ -603,6 +603,18 @@
 	];
 	let activeTab = $state('general');
 
+	// Accordion state for sub-sections within tabs
+	let openSubs = $state<Record<string, boolean>>({
+		info: true,
+		platforms: false,
+		genres: false,
+		timing: true,
+		glitches: false,
+		rules: true,
+		involvement: true,
+	});
+	function toggleSub(key: string) { openSubs = { ...openSubs, [key]: !openSubs[key] }; }
+
 	// Map old section keys to tab IDs for validation links
 	const sectionToTab: Record<string, string> = {
 		info: 'general', platforms: 'general', genres: 'general',
@@ -801,7 +813,13 @@
 					<!-- ═══ Tab: General ═══ -->
 					{#if activeTab === 'general'}
 						<div class="tab-content">
-							<h3 class="tab-heading">🎮 Game Info</h3>
+							<div class="sub-section" class:sub-section--open={openSubs.info}>
+								<button class="sub-toggle" onclick={() => toggleSub('info')}>
+									<span>🎮 Game Info</span>
+									<span class="sub-toggle__chevron">{openSubs.info ? '▲' : '▼'}</span>
+								</button>
+								{#if openSubs.info}
+								<div class="sub-body">
 
 								<div class="fg">
 									<label class="fl" for="gameName">Game Name <span class="req">*</span></label>
@@ -848,8 +866,17 @@
 									</details>
 								</div>
 
+							</div>
+							{/if}
+							</div>
 
-						<h3 class="tab-heading">🖥️ Platforms</h3>
+							<div class="sub-section" class:sub-section--open={openSubs.platforms}>
+								<button class="sub-toggle" onclick={() => toggleSub('platforms')}>
+									<span>🖥️ Platforms</span>
+									<span class="sub-toggle__chevron">{openSubs.platforms ? '▲' : '▼'}</span>
+								</button>
+								{#if openSubs.platforms}
+								<div class="sub-body">
 								<div class="fg">
 									<label class="fl">Platforms</label>
 									<p class="fh mb-2">Only the top {PLATFORM_DISPLAY_LIMIT} platforms are shown. If you don't see your platform, try searching for it.</p>
@@ -888,7 +915,17 @@
 									{/if}
 								</div>
 
-						<h3 class="tab-heading">🏷️ Genres</h3>
+							</div>
+							{/if}
+							</div>
+
+							<div class="sub-section" class:sub-section--open={openSubs.genres}>
+								<button class="sub-toggle" onclick={() => toggleSub('genres')}>
+									<span>🏷️ Genres</span>
+									<span class="sub-toggle__chevron">{openSubs.genres ? '▲' : '▼'}</span>
+								</button>
+								{#if openSubs.genres}
+								<div class="sub-body">
 								<div class="fg">
 									<label class="fl">Genres</label>
 									<p class="fh mb-2">Add up to 5 genres total (including custom). Only the top {GENRE_DISPLAY_LIMIT} genres are shown. If you don't see your genre, try searching for it.</p>
@@ -934,6 +971,11 @@
 										<button type="button" class="btn btn--small mt-2" onclick={addCustomGenre}>+ Add Genre</button>
 									{/if}
 								</div>
+
+							</div>
+							{/if}
+							</div>
+
 						</div>
 					{/if}
 
@@ -1208,7 +1250,13 @@
 					<!-- ═══ Tab: Timing & Glitches ═══ -->
 					{#if activeTab === 'timing-glitches'}
 						<div class="tab-content">
-							<h3 class="tab-heading">⏱️ Timing</h3>
+							<div class="sub-section" class:sub-section--open={openSubs.timing}>
+								<button class="sub-toggle" onclick={() => toggleSub('timing')}>
+									<span>⏱️ Timing</span>
+									<span class="sub-toggle__chevron">{openSubs.timing ? '▲' : '▼'}</span>
+								</button>
+								{#if openSubs.timing}
+								<div class="sub-body">
 								<div class="fg">
 									<label class="fl">Primary Timing Method</label>
 									<div class="radio-group">
@@ -1220,8 +1268,17 @@
 										{/each}
 									</div>
 								</div>
+								</div>
+								{/if}
+							</div>
 
-							<h3 class="tab-heading mt-section">🎲 Glitches</h3>
+							<div class="sub-section" class:sub-section--open={openSubs.glitches}>
+								<button class="sub-toggle" onclick={() => toggleSub('glitches')}>
+									<span>🎲 Glitches</span>
+									<span class="sub-toggle__chevron">{openSubs.glitches ? '▲' : '▼'}</span>
+								</button>
+								{#if openSubs.glitches}
+								<div class="sub-body">
 						
 								<div class="game-editor">
 									<div class="editor-section">
@@ -1279,21 +1336,40 @@
 										</div>
 									</div>
 								</div>
+								</div>
+								{/if}
+								</div>
+
 						</div>
 					{/if}
 
 					<!-- ═══ Tab: Rules & Notes ═══ -->
 					{#if activeTab === 'rules-notes'}
 						<div class="tab-content">
-							<h3 class="tab-heading">📜 General Rules</h3>
+							<div class="sub-section" class:sub-section--open={openSubs.rules}>
+								<button class="sub-toggle" onclick={() => toggleSub('rules')}>
+									<span>📜 General Rules</span>
+									<span class="sub-toggle__chevron">{openSubs.rules ? '▲' : '▼'}</span>
+								</button>
+								{#if openSubs.rules}
+								<div class="sub-body">
 								<div class="fg">
 									<label class="fl" for="rules">Suggested Rules</label>
 									<p class="fh mb-2">These should be rules that apply to any and all challenges.</p>
 									<textarea id="rules" class="fi" bind:value={generalRules} placeholder="e.g. For Unseeded runs, show previous death or..." rows="4" maxlength="5000"></textarea>
 									<p class="fh">These will be reviewed and refined by our team.</p>
 								</div>
+								</div>
+								{/if}
+							</div>
 
-							<h3 class="tab-heading mt-section">📝 Involvement & Notes</h3>
+							<div class="sub-section" class:sub-section--open={openSubs.involvement}>
+								<button class="sub-toggle" onclick={() => toggleSub('involvement')}>
+									<span>📝 Involvement & Notes</span>
+									<span class="sub-toggle__chevron">{openSubs.involvement ? '▲' : '▼'}</span>
+								</button>
+								{#if openSubs.involvement}
+								<div class="sub-body">
 								<div class="fg">
 									<label class="fl">How would you like to be involved?</label>
 									{#each INVOLVEMENT_OPTIONS as opt}
@@ -1307,6 +1383,9 @@
 									<label class="fl" for="notes">Additional Notes</label>
 									<textarea id="notes" class="fi" bind:value={additionalNotes} placeholder="Let us know any thoughts, ideas, suggestions, or frustrations with the game submission form. Please be respectful in this reply if you have criticisms." rows="3" maxlength="2000"></textarea>
 								</div>
+								</div>
+								{/if}
+							</div>
 						</div>
 					{/if}
 
@@ -1417,26 +1496,24 @@
 	.tab-heading { margin: 0 0 1rem; font-size: 1.05rem; font-weight: 600; }
 	.mt-section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
 
+	/* Sub-section accordions within tabs */
+	.sub-section { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 0.75rem; overflow: hidden; }
+	.sub-section--open { border-color: rgba(99, 102, 241, 0.35); }
+	.sub-toggle {
+		display: flex; justify-content: space-between; align-items: center;
+		width: 100%; padding: 0.85rem 1.1rem; background: none; border: none;
+		cursor: pointer; font-size: 0.95rem; font-weight: 600; color: var(--fg);
+		text-align: left; font-family: inherit;
+	}
+	.sub-toggle:hover { background: rgba(255,255,255,0.02); }
+	.sub-toggle__chevron { font-size: 0.7rem; color: var(--muted); }
+	.sub-body { padding: 0 1.1rem 1.1rem; }
+
 	/* URL fallback for cover */
 	.url-fallback { margin-top: 0.5rem; }
 	.url-fallback__toggle { font-size: 0.82rem; color: var(--muted); cursor: pointer; }
 	.url-fallback__toggle:hover { color: var(--accent); }
 
-	.form-sections { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }
-	.form-section {
-		background: var(--surface); border: 1px solid var(--border);
-		border-radius: 12px; overflow: hidden;
-	}
-	.form-section.open { border-color: var(--accent); }
-	.section-toggle {
-		display: flex; justify-content: space-between; align-items: center;
-		width: 100%; padding: 1rem 1.25rem; background: none; border: none;
-		cursor: pointer; font-size: 1rem; font-weight: 600; color: var(--fg);
-		text-align: left; font-family: inherit;
-	}
-	.section-toggle:hover { background: rgba(255,255,255,0.02); }
-	.section-toggle__chevron { font-size: 0.75rem; color: var(--muted); }
-	.section-body { padding: 0 1.25rem 1.25rem; }
 
 	/* Form elements */
 	.fg { margin-bottom: 1.25rem; }
@@ -1482,12 +1559,6 @@
 	}
 	.list-row__remove:hover { color: #ef4444; border-color: #ef4444; background: rgba(239, 68, 68, 0.08); }
 
-	/* Mini-challenge groups — only needed for platforms/genres sections now */
-	.mini-group {
-		background: rgba(255,255,255,0.015); border: 1px solid var(--border);
-		border-radius: 8px; padding: 0.85rem; margin-bottom: 0.75rem;
-	}
-	.mini-children { padding-left: 1rem; margin-top: 0.5rem; border-left: 2px solid var(--border); }
 
 	/* Custom challenge fields */
 	.custom-challenge-toggle { font-weight: 500; padding: 0.5rem 0.5rem; }

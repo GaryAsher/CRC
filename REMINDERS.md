@@ -19,6 +19,8 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - Runner Page:
   - Run Statistics:
     - [ ] Update how the runs are displayed when you click into a game.
+- Game Submit:
+  - [ ] Allow multiple people to work on a new game submission.
 
 ---
 
@@ -29,9 +31,6 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
       - Banner Display Options:
         - [ ] Above Profile option not working correctly with "Show/Hide". It is covering everything below it, when it needs to function like a sticky header.
 
-- Game Submit:
-  - [ ] Set up reminder to have multiple people work on one new game.
-    - Maybe have a "Game in Progress" section for people looking for a new game?
   - Run Categories:
     - [ ] For the child of Mini-Categories, have a "Fixed Loadout" option where Character and Restriction have options for the user to pick.
 
