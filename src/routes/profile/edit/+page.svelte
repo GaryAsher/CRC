@@ -1123,7 +1123,7 @@
 						<!-- Banner: Upload Image -->
 						<div class="fg">
 							<label class="fl">Banner Image</label>
-							<p class="fh mb-3">Uses 2:1 aspect ratio (e.g. 1200×600 or 1920×960). PNG, JPG, or WebP, max 5MB.</p>
+							<p class="fh mb-3">Uses 3:1 aspect ratio (e.g. 1200×400 or 1920×640). PNG, JPG, or WebP, max 5MB.</p>
 							<div class="banner-upload-controls">
 								<label class="btn btn--small btn--upload">
 									📤 Upload Image
@@ -1690,7 +1690,7 @@
 	.preview-bg-banner { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: 0; }
 
 	/* Banner — matches .runner-banner on runner page */
-	.pv-banner { position: relative; aspect-ratio: 2/1; border-radius: 12px 12px 0 0; overflow: hidden; margin-bottom: 0; }
+	.pv-banner { position: relative; aspect-ratio: 3/1; border-radius: 12px 12px 0 0; overflow: hidden; margin-bottom: 0; }
 	.pv-banner--empty { background: var(--surface); }
 	.pv-banner__img { position: absolute; inset: 0; background-size: cover; background-position: center; }
 	.pv-banner__gradient { position: absolute; inset: 0; background: linear-gradient(135deg, var(--accent), #1a1a2e); opacity: 0.6; }
@@ -1744,7 +1744,7 @@
 	.preset-swatch { display: flex; flex-direction: column; gap: 0.3rem; border: 2px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer; background: none; padding: 0; transition: border-color 0.15s; }
 	.preset-swatch:hover { border-color: var(--accent); }
 	.preset-swatch--active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-	.preset-swatch__preview { width: 100%; aspect-ratio: 5/2; }
+	.preset-swatch__preview { width: 100%; aspect-ratio: 3/1; }
 	.preset-swatch__label { font-size: 0.7rem; color: var(--fg); text-align: center; padding: 0.2rem 0.3rem 0.35rem; }
 	.preset-swatch--active .preset-swatch__label { color: var(--accent); font-weight: 600; }
 
@@ -1953,7 +1953,7 @@
 	.banner-upload-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 	.banner-upload-preview {
 		border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
-		aspect-ratio: 16/9; max-width: 320px;
+		aspect-ratio: 3/1; max-width: 360px;
 	}
 	.banner-upload-preview img { width: 100%; height: 100%; object-fit: cover; }
 </style>

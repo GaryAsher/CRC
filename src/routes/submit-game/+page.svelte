@@ -1019,7 +1019,7 @@
 							<div class="section-body">
 								<div class="game-editor">
 									<div class="editor-section">
-										<p class="subsection-desc">Optional restrictions. A restriction can have children (e.g. "No Bone Charm" → "No Quick Focus"). Descriptions support Markdown.</p>
+										<p class="subsection-desc">Optional restrictions. A restriction can have children (e.g. "One God Only" → "Zeus Only"). Descriptions support Markdown.</p>
 										<div class="item-list">
 											{#each restrictions as item, i}
 												<div class="item-card" class:item-card--group={(item.children?.length ?? 0) > 0} class:item-card--open={isEditing('rs', i)}>

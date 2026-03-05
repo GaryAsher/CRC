@@ -26,26 +26,12 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ### 1 Small fixes
 - Profile Edit:
   - Customize:
-    - Banner Image:
-      - [ ] Change ratio to 3:1
-        - update "Wide banner image (recommended ~1200×600 or wider). PNG, JPG, or WebP, max 5MB." text according to these changes.
       - Banner Display Options:
         - [ ] Above Profile option not working correctly with "Show/Hide". It is covering everything below it, when it needs to function like a sticky header.
 
 - Game Submit:
-  - Platforms:
-    - [ ] Have platforms include aliases in validation check.
-    - [ ] Allow max of 2 Other Platforms
-  - Genres:
-    - [ ] Have genres include aliases in validation check.
-    - [ ] Allow max of 3 Other Platforms
-
-  - [ ] Run Categories, Challenges, Game-Specific Restrictions, and Glitch Categories should look identical to how it appears in game-editor. The styling, the options, the format.
-    - Right now there are some styling differences that were already taken care of in the game editor. Instead of creating the same CSS and format twice, we should just reuse the existing one that works for game editor.
-
   - Run Categories:
     - [ ] For the child of Mini-Categories, have a "Fixed Loadout" option where Character and Restriction have options for the user to pick.
-    - Add the same separators that https://www.challengerun.net/admin/game-editor/hades-2 has.
 
 - News Section:
   - [ ] Review entire process
