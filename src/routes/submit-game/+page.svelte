@@ -1411,7 +1411,7 @@
 	.draft-hint { display: flex; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; margin-top: 1.5rem; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; font-size: 0.88rem; color: var(--fg); }
 
 	/* Tab layout */
-	.submit-tabs { margin-top: 1.5rem; }
+	.submit-tabs { margin-top: 1.5rem; margin-bottom: 0; flex-wrap: wrap; overflow-x: visible; }
 	.tab-panel { margin-top: 0; }
 	.tab-content { padding: 1.25rem; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; }
 	.tab-heading { margin: 0 0 1rem; font-size: 1.05rem; font-weight: 600; }
