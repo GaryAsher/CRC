@@ -19,8 +19,6 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - Runner Page:
   - Run Statistics:
     - [ ] Update how the runs are displayed when you click into a game.
-- Game Submit:
-  - [ ] Allow multiple people to work on a new game submission.
 
 ---
 
@@ -28,7 +26,6 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ### 1 Small fixes
 - News Section:
   - [ ] Add system patch notes as first 3 news pieces.
-  - [ ] Review entire process
 
 ### 2. Content & Polish
 - [ ] Fill glossary definitions (hit, damage, death, hitless vs damageless, etc.)
@@ -54,8 +51,42 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - [ ] Add language toggle to header
 - [ ] Request community translation help early
 
-### 5. User Report & Request Systems
-- [ ] **Report system** — "Report" button on runner profiles, game pages, runs. `reports` table (reporter, target_type, target_id, reason, status). Admin queue tab to review.
+### 5. Notifications & Messaging System
+**Tier 1 — Notifications (build first):**
+- [ ] `notifications` table in Supabase (id, user_id, type, title, message, link, metadata, read, created_at)
+- [ ] Bell icon in site header with unread count badge
+- [ ] Dropdown or `/notifications` page to view/mark-read
+- [ ] Wire into: game review changes, run approvals/rejections, profile approvals, report updates
+- [ ] RLS: users can only read/update their own notifications
+
+**Tier 2 — Messaging (build after Tier 1):**
+- [ ] `messages` table with conversation threads (sender_id, recipient_id, thread_id, content, read_at)
+- [ ] Inbox UI at `/messages` with conversation list + thread view
+- [ ] Staff-to-user messaging (for review feedback, moderation)
+- [ ] User-to-user messaging (for co-op run verification, team coordination)
+- [ ] Real-time updates via Supabase Realtime (optional, nice-to-have)
+- [ ] Unread message count in header alongside notification bell
+
+**SQL for notifications table (ready to run):**
+```sql
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  type text NOT NULL,
+  title text NOT NULL,
+  message text,
+  link text,
+  metadata jsonb DEFAULT '{}',
+  read boolean DEFAULT false,
+  created_at timestamptz DEFAULT now(),
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE INDEX idx_notifications_user_unread ON public.notifications (user_id, read) WHERE read = false;
+```
+
+### 6. User Report & Request Systems
+- [ ] **Report buttons** — "Report" button on runner profiles, game pages, runs (table exists, needs frontend buttons)
 - [ ] **User requests** — feature requests, game suggestions, corrections. Could reuse `support_tickets` or a new `user_requests` table.
 - [ ] **Content moderation queue** — flag uploaded avatars/banners for review (graphic/sexual content). Consider automated image moderation (Cloudflare Images or similar) when budget allows.
 

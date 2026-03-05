@@ -153,7 +153,7 @@
 			.from('pending_games')
 			.update({
 				game_name: gameName.trim(),
-				game_name_aliases: aliases.split(',').map(a => a.trim()).filter(Boolean),
+				game_name_aliases: aliases.split(',').map((a: string) => a.trim()).filter(Boolean),
 				description: description.trim() || null,
 				platforms: selectedPlatforms,
 				genres: selectedGenres,
