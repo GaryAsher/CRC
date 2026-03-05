@@ -637,6 +637,7 @@
 			allChallenges.push({
 				slug: slugify(customChallengeName),
 				label: customChallengeName.trim(),
+				description: customChallengeDescription.trim() || null,
 				exceptions: null,
 			});
 		}
