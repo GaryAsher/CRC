@@ -31,9 +31,6 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 
 - Game Submit:
   - [ ] Add a note saying "You can save a draft of this submission at the bottom of the screen if you want to return to it later."
-  - [ ] Add area for people to upload a picture of the game.
-    - [ ] Include text saying "Recommended: 460×215px (Steam capsule). Accepts JPEG, PNG, WebP — max 5MB."
-      - Copy how it works in Game Editor.
   - [ ] Set up reminder to have multiple people work on one new game.
     - Maybe have a "Game in Progress" section for people looking for a new game?
   - Run Categories:
@@ -42,15 +39,9 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
     - [ ] Add section for someone to write in a description.
 
 - Admin Section:
-  - Admin Sidebar:
-    - [ ] New Game Submissions are not appearing in the sidebar. Needs to be fixed.
-  - Admin Dashboard:
-    - [ ] Swap "Game Editor" redirect button with "Users & Roles" redirect button.
   - Games page (admin/games):
     - [ ] Add Edit/Request changes similar to Runs, where the Edit/Request change button opens options using the same elements as the game.
-    - [ ] In Pending, show runner-id instead of user-id.
     - [ ] Show descriptions and exceptions listed by the runner.
-
 
 - News Section:
   - [ ] Review entire process

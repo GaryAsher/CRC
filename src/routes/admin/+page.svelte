@@ -43,17 +43,19 @@
 	async function loadCounts() {
 		countsLoading = true;
 		try {
-			const [profiles, games, runs, gameUpdates] = await Promise.all([
+			const [profiles, games, runs, gameUpdates, reports] = await Promise.all([
 				supabase.from('pending_profiles').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
 				supabase.from('pending_games').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
 				supabase.from('pending_runs').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-				supabase.from('game_update_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending')
+				supabase.from('game_update_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+				supabase.from('user_reports').select('id', { count: 'exact', head: true }).eq('status', 'pending')
 			]);
 			counts = {
 				pendingProfiles: profiles.count ?? 0,
 				pendingGames: games.count ?? 0,
 				pendingRuns: runs.count ?? 0,
-				pendingUpdates: gameUpdates.count ?? 0
+				pendingUpdates: gameUpdates.count ?? 0,
+				pendingReports: reports.count ?? 0
 			};
 		} catch (err) {
 			console.error('Failed to load counts:', err);
@@ -76,6 +78,7 @@
 		// Verifier (left = game updates, right = runs)
 		{ key: 'game-updates', icon: '📝', title: 'Game Updates',     desc: 'Review pending updates and manage approved corrections.', href: '/admin/game-updates', countKey: 'pendingUpdates' },
 		{ key: 'runs',         icon: '🏃', title: 'Runs',             desc: 'Review pending runs and manage approved runs.',            href: '/admin/runs',        countKey: 'pendingRuns' },
+		{ key: 'reports',      icon: '🚩', title: 'Reports',          desc: 'Review user-submitted reports on runners, runs, and games.', href: '/admin/reports',    countKey: 'pendingReports' },
 		// All staff
 		{ key: 'staff-guides', icon: '📖', title: 'Staff Guides',     desc: 'Internal documentation for staff.',                       href: '/admin/staff-guides' },
 		{ key: 'debug',        icon: '🔧', title: 'Debug Tools',      desc: 'Role simulation, system diagnostics.',                    href: '/admin/debug' },

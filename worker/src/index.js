@@ -379,11 +379,22 @@ function generateSubmissionId() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// TOKEN EXTRACTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Extract Bearer token from Authorization header */
+function extractBearerToken(request) {
+  const auth = request?.headers?.get('Authorization') || '';
+  if (auth.startsWith('Bearer ')) return auth.slice(7);
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ADMIN AUTH MIDDLEWARE
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function authenticateAdmin(env, body) {
-  const token = body.token;
+async function authenticateAdmin(env, body, request) {
+  const token = extractBearerToken(request) || body.token;
   if (!token) return { error: 'Missing token', status: 401 };
 
   const user = await verifySupabaseToken(env, token);
@@ -401,8 +412,8 @@ async function authenticateAdmin(env, body) {
 // AUTH HELPER: Authenticate any signed-in user (no role required)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function authenticateUser(env, body) {
-  const token = body.token;
+async function authenticateUser(env, body, request) {
+  const token = extractBearerToken(request) || body.token;
   if (!token) return { error: 'Missing token', status: 401 };
 
   const user = await verifySupabaseToken(env, token);
@@ -417,7 +428,7 @@ async function authenticateUser(env, body) {
 
 async function handleRunSubmission(body, env, request) {
   // ── 1. Authenticate user ──────────────────────────────────────────────────
-  const auth = await authenticateUser(env, body);
+  const auth = await authenticateUser(env, body, request);
   if (auth.error) {
     return jsonResponse({ error: auth.error }, auth.status, env, request);
   }
@@ -533,7 +544,7 @@ async function handleRunSubmission(body, env, request) {
 
 async function handleGameSubmission(body, env, request) {
   // ── 1. Authenticate user ────────────────────────────────────────────────
-  const auth = await authenticateUser(env, body);
+  const auth = await authenticateUser(env, body, request);
   if (auth.error) {
     return jsonResponse({ error: auth.error }, auth.status, env, request);
   }
@@ -731,7 +742,7 @@ async function writeGameHistory(env, { game_id, action, target, note, actor_id }
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleApproveRun(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
 
   const runId = body.run_id;
@@ -850,7 +861,7 @@ async function handleApproveRun(body, env, request) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleApproveProfile(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
   if (!auth.role.admin) return jsonResponse({ error: 'Admin required' }, 403, env, request);
 
@@ -940,7 +951,7 @@ async function handleApproveProfile(body, env, request) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleRejectProfile(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
   if (!auth.role.admin) return jsonResponse({ error: 'Admin required' }, 403, env, request);
 
@@ -984,7 +995,7 @@ async function handleRejectProfile(body, env, request) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleRequestProfileChanges(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
   if (!auth.role.admin) return jsonResponse({ error: 'Admin required' }, 403, env, request);
 
@@ -1026,7 +1037,7 @@ async function handleRequestProfileChanges(body, env, request) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleApproveGame(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
   if (!auth.role.admin) return jsonResponse({ error: 'Admin required' }, 403, env, request);
 
@@ -1136,6 +1147,15 @@ async function handleApproveGame(body, env, request) {
     timestamp: now,
   });
 
+  // History audit
+  writeGameHistory(env, {
+    game_id: game.game_id,
+    action: 'game_approved',
+    note: `Game "${game.game_name}" approved and published`,
+    actor_id: auth.user.id,
+
+  });
+
   return jsonResponse({
     ok: true,
     message: 'Game approved — visible on site immediately',
@@ -1147,7 +1167,7 @@ async function handleApproveGame(body, env, request) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleRejectRun(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
 
   const runId = body.run_id;
@@ -1219,7 +1239,7 @@ async function handleRejectRun(body, env, request) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleRequestRunChanges(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
 
   const runId = body.run_id;
@@ -1290,7 +1310,7 @@ async function handleRequestRunChanges(body, env, request) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleEditApprovedRun(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
 
   const runId = body.run_id;
@@ -1393,7 +1413,7 @@ async function handleEditApprovedRun(body, env, request) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleVerifyRun(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
 
   // Verifiers + admins can verify runs
@@ -1460,7 +1480,7 @@ async function handleVerifyRun(body, env, request) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleUnverifyRun(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
 
   // Verifiers + admins can unverify runs
@@ -1530,7 +1550,7 @@ async function handleUnverifyRun(body, env, request) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleRejectGame(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
   if (!auth.role.admin) return jsonResponse({ error: 'Admin required' }, 403, env, request);
 
@@ -1574,7 +1594,7 @@ async function handleRejectGame(body, env, request) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleRequestGameChanges(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
   if (!auth.role.admin) return jsonResponse({ error: 'Admin required' }, 403, env, request);
 
@@ -1771,7 +1791,7 @@ async function handleAssignRole(body, env, request) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function handleNotify(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
 
   const { action, entity_type, entity_name, entity_id, reason, notes } = body;
@@ -1846,7 +1866,7 @@ async function checkGameEditorAccess(env, userId, gameId) {
 
 async function handleGameEditorSave(body, env, request) {
   // 1. Authenticate
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
 
   const { game_id, section_name, updates } = body;
@@ -1944,13 +1964,24 @@ async function handleGameEditorSave(body, env, request) {
   });
 
   const updatedGame = Array.isArray(updateResult.data) ? updateResult.data[0] : updateResult.data;
+
+  // History audit
+  writeGameHistory(env, {
+    game_id,
+    action: 'game_edited',
+    target: section_name,
+    note: `${section_name} updated`,
+    actor_id: auth.user.id,
+
+  });
+
   return jsonResponse({ ok: true, message: `${section_name} saved`, game: updatedGame }, 200, env, request);
 }
 
 // ── POST /game-editor/freeze ────────────────────────────────────────────────
 
 async function handleGameEditorFreeze(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
 
   // Only admins can freeze/unfreeze
@@ -2018,6 +2049,15 @@ async function handleGameEditorFreeze(body, env, request) {
     });
   } catch { /* best-effort */ }
 
+  // History audit
+  writeGameHistory(env, {
+    game_id,
+    action: freeze ? 'game_frozen' : 'game_unfrozen',
+    note: freeze ? 'Game frozen — edits disabled' : 'Game unfrozen — edits re-enabled',
+    actor_id: auth.user.id,
+
+  });
+
   return jsonResponse({
     ok: true,
     message: freeze ? 'Game frozen' : 'Game unfrozen',
@@ -2029,7 +2069,7 @@ async function handleGameEditorFreeze(body, env, request) {
 // ── POST /game-editor/delete ────────────────────────────────────────────────
 
 async function handleGameEditorDelete(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
 
   // Only super admins can delete games
@@ -2095,7 +2135,7 @@ async function handleGameEditorDelete(body, env, request) {
 // ── POST /game-editor/rollback ──────────────────────────────────────────────
 
 async function handleGameEditorRollback(body, env, request) {
-  const auth = await authenticateAdmin(env, body);
+  const auth = await authenticateAdmin(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
 
   const { game_id, snapshot_id } = body;
@@ -2174,6 +2214,16 @@ async function handleGameEditorRollback(body, env, request) {
   } catch { /* best-effort */ }
 
   const updatedGame = Array.isArray(updateResult.data) ? updateResult.data[0] : updateResult.data;
+
+  // History audit
+  writeGameHistory(env, {
+    game_id,
+    action: 'game_rollback',
+    note: `Rolled back to snapshot ${snapshot_id.slice(0, 8)}…`,
+    actor_id: auth.user.id,
+
+  });
+
   return jsonResponse({ ok: true, message: 'Rollback successful', game: updatedGame }, 200, env, request);
 }
 
@@ -2183,7 +2233,7 @@ async function handleGameEditorRollback(body, env, request) {
 
 async function handleDataExport(body, env, request) {
   // Authenticate — any signed-in user can export their own data
-  const auth = await authenticateUser(env, body);
+  const auth = await authenticateUser(env, body, request);
   if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
 
   const userId = auth.user.id;

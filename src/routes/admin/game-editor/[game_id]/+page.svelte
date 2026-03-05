@@ -134,8 +134,11 @@
 		try {
 			const res = await fetch(`${PUBLIC_WORKER_URL}${endpoint}`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ ...payload, token })
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`
+				},
+				body: JSON.stringify(payload)
 			});
 			const data = await res.json();
 			if (res.ok && data.ok) return { ok: true, data };

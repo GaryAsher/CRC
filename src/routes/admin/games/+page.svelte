@@ -228,18 +228,26 @@
 
 								{#if gd.full_runs?.length}
 									<div class="detail mt-2"><span class="detail__label">Full Run Categories</span>
-										<div class="chips">{#each gd.full_runs as c}<span class="chip">{c.label || c.slug}</span>{/each}</div>
+										{#each gd.full_runs as c}
+											<div class="data-item"><span class="chip">{c.label || c.slug}</span>{#if c.description}<p class="data-item__desc">{c.description}</p>{/if}{#if c.exceptions}<p class="data-item__exc">⚠ {c.exceptions}</p>{/if}</div>
+										{/each}
 									</div>
 								{/if}
 								{#if gd.mini_challenges?.length}
 									<div class="detail mt-2"><span class="detail__label">Mini-Challenge Categories</span>
-										<div class="chips">{#each gd.mini_challenges as c}<span class="chip">{c.label || c.slug}</span>{/each}</div>
+										{#each gd.mini_challenges as c}
+											<div class="data-item"><span class="chip">{c.label || c.slug}</span>{#if c.description}<p class="data-item__desc">{c.description}</p>{/if}{#if c.exceptions}<p class="data-item__exc">⚠ {c.exceptions}</p>{/if}
+												{#if c.children?.length}<div class="data-item__children">{#each c.children as ch}<div class="data-item"><span class="chip chip--sm">└ {ch.label || ch.slug}</span>{#if ch.description}<p class="data-item__desc">{ch.description}</p>{/if}{#if ch.exceptions}<p class="data-item__exc">⚠ {ch.exceptions}</p>{/if}{#if ch.fixed_loadout}<span class="data-item__fixed">Fixed: {ch.fixed_loadout.character || ''}{ch.fixed_loadout.character && ch.fixed_loadout.restriction ? ' / ' : ''}{ch.fixed_loadout.restriction || ''}</span>{/if}</div>{/each}</div>{/if}
+											</div>
+										{/each}
 									</div>
 								{/if}
 
 								{#if gd.challenges_data?.length}
 									<div class="detail mt-2"><span class="detail__label">Challenges</span>
-										<div class="chips">{#each gd.challenges_data as c}<span class="chip chip--accent">{c.label || c.slug}</span>{/each}</div>
+										{#each gd.challenges_data as c}
+											<div class="data-item"><span class="chip chip--accent">{c.label || c.slug}</span>{#if c.description}<p class="data-item__desc">{c.description}</p>{/if}{#if c.exceptions}<p class="data-item__exc">⚠ {c.exceptions}</p>{/if}</div>
+										{/each}
 									</div>
 								{/if}
 
@@ -255,7 +263,11 @@
 
 								{#if gd.restrictions_data?.length}
 									<div class="detail mt-2"><span class="detail__label">Restrictions</span>
-										<div class="chips">{#each gd.restrictions_data as r}<span class="chip">{r.label || r.slug}</span>{/each}</div>
+										{#each gd.restrictions_data as r}
+											<div class="data-item"><span class="chip">{r.label || r.slug}</span>{#if r.description}<p class="data-item__desc">{r.description}</p>{/if}{#if r.exceptions}<p class="data-item__exc">⚠ {r.exceptions}</p>{/if}
+												{#if r.children?.length}<div class="data-item__children">{#each r.children as ch}<div class="data-item"><span class="chip chip--sm">└ {ch.label || ch.slug}</span>{#if ch.description}<p class="data-item__desc">{ch.description}</p>{/if}{#if ch.exceptions}<p class="data-item__exc">⚠ {ch.exceptions}</p>{/if}</div>{/each}</div>{/if}
+											</div>
+										{/each}
 									</div>
 								{/if}
 
@@ -292,6 +304,11 @@
 										<button class="btn btn--approve" onclick={() => approveGame(g.id)} disabled={processingId === g.id}>{processingId === g.id ? '...' : '✅ Approve'}</button>
 										<button class="btn btn--changes" onclick={() => openChangesModal(g)} disabled={processingId === g.id}>✏️ Request Changes</button>
 										<button class="btn btn--reject" onclick={() => openRejectModal(g)} disabled={processingId === g.id}>❌ Reject</button>
+									</div>
+								{/if}
+								{#if g.status === 'approved' && g.game_id}
+									<div class="actions mt-2">
+										<a href="/admin/game-editor/{g.game_id}" class="btn btn--changes">🛠️ Edit in Game Editor</a>
 									</div>
 								{/if}
 							</div>
@@ -387,6 +404,12 @@
 	.required { color: #dc3545; }
 
 	.chip--accent { background: rgba(99, 102, 241, 0.15); color: var(--accent); }
+	.chip--sm { font-size: 0.75rem; padding: 0.15rem 0.45rem; }
+	.data-item { margin-top: 0.5rem; }
+	.data-item__desc { margin: 0.15rem 0 0 0.6rem; font-size: 0.85rem; color: var(--muted); line-height: 1.4; white-space: pre-wrap; }
+	.data-item__exc { margin: 0.1rem 0 0 0.6rem; font-size: 0.8rem; color: #f59e0b; line-height: 1.4; }
+	.data-item__fixed { display: inline-block; margin-left: 0.6rem; font-size: 0.75rem; color: var(--accent); }
+	.data-item__children { margin-left: 1rem; border-left: 2px solid var(--border); padding-left: 0.75rem; }
 	.involve-list { margin: 0.35rem 0 0; padding-left: 1.25rem; font-size: 0.85rem; line-height: 1.6; }
 	.status-bar--info { background: rgba(59, 130, 246, 0.08); color: #3b82f6; }
 </style>

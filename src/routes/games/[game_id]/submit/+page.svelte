@@ -261,7 +261,6 @@
 			}
 
 			const payload: Record<string, any> = {
-				token: sess.access_token,
 				turnstile_token: turnstileToken,
 				schema_version: 7,
 				game_id: game.game_id,
@@ -287,7 +286,10 @@
 
 			const res = await fetch(`${PUBLIC_WORKER_URL}/submit`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${sess.access_token}`
+				},
 				body: JSON.stringify(payload)
 			});
 			const data = await res.json();

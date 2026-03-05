@@ -209,6 +209,7 @@
 		description: string;
 		hasExceptions: boolean;
 		exceptions: string;
+		fixedLoadoutEnabled: boolean;
 		fixedCharacter: string;
 		fixedRestriction: string;
 	}
@@ -239,7 +240,7 @@
 	}
 	function addMiniChild(groupIdx: number) {
 		miniChallengeGroups = miniChallengeGroups.map((g, i) =>
-			i === groupIdx ? { ...g, children: [...g.children, { slug: '', label: '', description: '', hasExceptions: false, exceptions: '', fixedCharacter: '', fixedRestriction: '' }] } : g
+			i === groupIdx ? { ...g, children: [...g.children, { slug: '', label: '', description: '', hasExceptions: false, exceptions: '', fixedLoadoutEnabled: false, fixedCharacter: '', fixedRestriction: '' }] } : g
 		);
 	}
 	function removeMiniChild(groupIdx: number, childIdx: number) {
@@ -261,6 +262,7 @@
 	];
 	let selectedChallenges = $state<string[]>([]);
 	let challengeExceptions = $state<Record<string, string>>({});
+	let challengeDescriptions = $state<Record<string, string>>({});
 	let customChallengeEnabled = $state(false);
 	let customChallengeName = $state('');
 	let customChallengeDescription = $state('');
@@ -268,8 +270,10 @@
 	function toggleChallenge(c: string) {
 		if (selectedChallenges.includes(c)) {
 			selectedChallenges = selectedChallenges.filter(s => s !== c);
-			const { [c]: _, ...rest } = challengeExceptions;
-			challengeExceptions = rest;
+			const { [c]: _, ...restExc } = challengeExceptions;
+			challengeExceptions = restExc;
+			const { [c]: __, ...restDesc } = challengeDescriptions;
+			challengeDescriptions = restDesc;
 		} else {
 			selectedChallenges = [...selectedChallenges, c];
 		}
@@ -381,7 +385,7 @@
 			gameName, aliases, description, coverUrl,
 			selectedPlatforms, customPlatforms, selectedGenres, customGenres,
 			fullRunCategories, miniChallengeGroups,
-			selectedChallenges, challengeExceptions, customChallengeEnabled, customChallengeName, customChallengeDescription,
+			selectedChallenges, challengeExceptions, challengeDescriptions, customChallengeEnabled, customChallengeName, customChallengeDescription,
 			characterEnabled, characterLabel, characterOptions,
 			restrictions, timingMethod,
 			selectedGlitches, nmgRules, customGlitches, glitchDocLinks,
@@ -400,9 +404,16 @@
 		selectedGenres = d.selectedGenres ?? [];
 		customGenres = d.customGenres ?? [];
 		fullRunCategories = d.fullRunCategories ?? [];
-		miniChallengeGroups = d.miniChallengeGroups ?? [];
+		miniChallengeGroups = (d.miniChallengeGroups ?? []).map((g: any) => ({
+			...g,
+			children: (g.children || []).map((c: any) => ({
+				...c,
+				fixedLoadoutEnabled: c.fixedLoadoutEnabled ?? !!(c.fixedCharacter || c.fixedRestriction),
+			})),
+		}));
 		selectedChallenges = d.selectedChallenges ?? [];
 		challengeExceptions = d.challengeExceptions ?? {};
+		challengeDescriptions = d.challengeDescriptions ?? {};
 		customChallengeEnabled = d.customChallengeEnabled ?? false;
 		customChallengeName = d.customChallengeName ?? '';
 		customChallengeDescription = d.customChallengeDescription ?? '';
@@ -623,6 +634,7 @@
 		const allChallenges = [
 			...selectedChallenges.map(c => ({
 				slug: slugify(c), label: c,
+				description: challengeDescriptions[c]?.trim() || null,
 				exceptions: challengeExceptions[c]?.trim() || null,
 			})),
 		];
@@ -717,8 +729,11 @@
 
 			const res = await fetch(`${PUBLIC_WORKER_URL}/submit-game`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ ...payload, token: sess.access_token })
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${sess.access_token}`
+				},
+				body: JSON.stringify(payload)
 			});
 			const data = await res.json();
 			if (res.ok && data.ok) {
@@ -770,6 +785,10 @@
 			{/if}
 
 			{#if !result?.ok}
+				<div class="draft-hint">
+					<span>💾</span>
+					<span>You can save a draft of this submission at the bottom of the screen if you want to return to it later.</span>
+				</div>
 				<div class="form-sections">
 
 					<!-- ═══ Section 1: Game Info (REQUIRED) ═══ -->
@@ -1019,8 +1038,8 @@
 																				<textarea class="exceptions-textarea" rows="2" bind:value={miniChallengeGroups[gi].children[ci].exceptions} placeholder="Exceptions (Markdown supported)..."></textarea>
 																			{/if}
 																			{#if (characterEnabled && characterOptions.filter(c => c.trim()).length > 0) || restrictions.filter(r => r.label.trim()).length > 0}
-																				<label class="toggle-row toggle-row--child"><input type="checkbox" checked={!!(child.fixedCharacter || child.fixedRestriction)} onchange={(e) => { if (!e.currentTarget.checked) { miniChallengeGroups[gi].children[ci].fixedCharacter = ''; miniChallengeGroups[gi].children[ci].fixedRestriction = ''; } miniChallengeGroups = [...miniChallengeGroups]; }} /> Fixed Loadout</label>
-																				{#if child.fixedCharacter || child.fixedRestriction || false}
+																				<label class="toggle-row toggle-row--child"><input type="checkbox" bind:checked={miniChallengeGroups[gi].children[ci].fixedLoadoutEnabled} onchange={(e) => { if (!e.currentTarget.checked) { miniChallengeGroups[gi].children[ci].fixedCharacter = ''; miniChallengeGroups[gi].children[ci].fixedRestriction = ''; } miniChallengeGroups = [...miniChallengeGroups]; }} /> Fixed Loadout</label>
+																				{#if child.fixedLoadoutEnabled}
 																					<div class="fixed-loadout-fields">
 																						{#if characterEnabled && characterOptions.filter(c => c.trim()).length > 0}
 																							<div class="field-row--compact"><label>{characterLabel}</label><select bind:value={miniChallengeGroups[gi].children[ci].fixedCharacter}><option value="">— Not fixed —</option>{#each characterOptions.filter(c => c.trim()) as ch}<option value={ch}>{ch}</option>{/each}</select></div>
@@ -1071,6 +1090,7 @@
 													</div>
 													{#if selectedChallenges.includes(c)}
 														<div class="item-card__body">
+															<div class="field-row--compact"><label>Description <span class="muted" style="font-weight:normal;font-size:0.8rem;">(optional)</span></label><textarea rows="2" value={challengeDescriptions[c] || ''} oninput={(e) => { challengeDescriptions[c] = e.currentTarget.value; challengeDescriptions = { ...challengeDescriptions }; }} placeholder="What does this challenge mean for this game? (Markdown supported)"></textarea></div>
 															<label class="toggle-row"><input type="checkbox" checked={!!challengeExceptions[c]} onchange={(e) => { if (e.currentTarget.checked) challengeExceptions[c] = challengeExceptions[c] || ''; else { const { [c]: _, ...rest } = challengeExceptions; challengeExceptions = rest; } }} /> Has Exceptions</label>
 															{#if challengeExceptions[c] != null}
 																<textarea class="exceptions-textarea" rows="2" bind:value={challengeExceptions[c]} placeholder="e.g. Health lost from swimming underwater does not count as damage..."></textarea>
@@ -1448,6 +1468,7 @@
 	.draft-banner__actions { display: flex; gap: 0.5rem; }
 
 	/* Section accordion */
+	.draft-hint { display: flex; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; margin-top: 1.5rem; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; font-size: 0.88rem; color: var(--fg); }
 	.form-sections { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }
 	.form-section {
 		background: var(--surface); border: 1px solid var(--border);
