@@ -494,7 +494,7 @@ async function handleRunSubmission(body, env, request) {
     glitch_id:            body.glitch_id ? sanitizeInput(body.glitch_id, 50) : null,
     restrictions:         sanitizeArray(body.restrictions),
     platform:             body.platform ? sanitizeInput(body.platform, 50) : null,
-    video_url:            body.video_url,
+    video_url:            sanitizeInput(body.video_url, 500),
     run_date:             body.run_date ? sanitizeInput(body.run_date, 10) : null,
     time_rta:             body.time_rta ? sanitizeInput(body.time_rta, 20) : null,
     time_primary:         body.time_primary ? sanitizeInput(body.time_primary, 20) : null,
@@ -1883,7 +1883,7 @@ const GAME_ALLOWED_FIELDS = [
   'general_rules', 'challenges_data', 'glitches_data',
   'restrictions_data', 'character_column', 'characters_data',
   'additional_tabs', 'community_achievements', 'credits',
-  'is_modded', 'base_game', 'tabs', 'layout', 'reviewers',
+  'is_modded', 'base_game', 'tabs', 'reviewers',
   'nmg_rules', 'glitch_doc_links'
 ];
 

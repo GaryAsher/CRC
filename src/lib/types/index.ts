@@ -123,7 +123,6 @@ export interface Game {
 	game_name: string;
 	game_name_aliases?: string[];
 	status: 'Active' | 'Inactive' | 'Coming Soon';
-	layout: string;
 	reviewers: string[];
 
 	// Modded game support
