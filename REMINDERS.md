@@ -26,14 +26,6 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 
 ## Short-Term Priorities
 ### 1 Small fixes
-- Profile Edit:
-  - Customize:
-      - Banner Display Options:
-        - [ ] Above Profile option not working correctly with "Show/Hide". It is covering everything below it, when it needs to function like a sticky header.
-
-  - Run Categories:
-    - [ ] For the child of Mini-Categories, have a "Fixed Loadout" option where Character and Restriction have options for the user to pick.
-
 - Admin Section:
   - Games page (admin/games):
     - [ ] Add Edit/Request changes similar to Runs, where the Edit/Request change button opens options using the same elements as the game.

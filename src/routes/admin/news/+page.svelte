@@ -10,39 +10,63 @@
 	let loading = $state(false);
 	let posts = $state<any[]>([]);
 	let msg = $state<{ type: 'success' | 'error'; text: string } | null>(null);
+	let currentUserName = $state('');
 
 	// Editor state
 	let editing = $state(false);
 	let editId = $state<string | null>(null);
 	let title = $state('');
-	let slug = $state('');
 	let excerpt = $state('');
 	let content = $state('');
 	let author = $state('');
-	let tags = $state('');
+	let tags = $state<string[]>([]);
+	let tagInput = $state('');
 	let featured = $state(false);
 	let published = $state(true);
 	let postDate = $state('');
+	let imageUrl = $state('');
 	let saving = $state(false);
 	let previewing = $state(false);
-	let slugManual = $state(false);
 
-	// Auto-generate slug from title (unless manually edited)
+	// Image upload state
+	let imageUploading = $state(false);
+	let imageTab = $state<'upload' | 'url'>('upload');
+
+	// Tag presets
+	const TAG_PRESETS = [
+		'announcement', 'patch-notes', 'new-game', 'community',
+		'feature', 'maintenance', 'event', 'milestone', 'guide'
+	];
+	let tagSuggestions = $derived.by(() => {
+		if (!tagInput.trim()) return [];
+		const q = tagInput.toLowerCase();
+		return TAG_PRESETS.filter(t => t.includes(q) && !tags.includes(t));
+	});
+
+	function addTag(tag: string) {
+		const t = tag.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+		if (t && !tags.includes(t)) tags = [...tags, t];
+		tagInput = '';
+	}
+	function removeTag(tag: string) { tags = tags.filter(t => t !== tag); }
+	function handleTagKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' || e.key === ',') {
+			e.preventDefault();
+			if (tagInput.trim()) addTag(tagInput);
+		} else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+			tags = tags.slice(0, -1);
+		}
+	}
+
+	// Auto-generate slug from title
 	function autoSlug(t: string): string {
 		return t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
-	}
-
-	function handleTitleInput() {
-		if (!slugManual) slug = autoSlug(title);
-	}
-
-	function handleSlugInput() {
-		slugManual = true;
 	}
 
 	onMount(async () => {
 		const role = await checkAdminRole();
 		authorized = !!(role?.admin || role?.superAdmin);
+		if (role?.runnerId) currentUserName = role.runnerId;
 		checking = false;
 		if (authorized) await loadPosts();
 	});
@@ -54,22 +78,24 @@
 			.select('*')
 			.order('date', { ascending: false });
 		if (!error && data) posts = data;
+		else if (error) console.error('Failed to load news posts:', error.message);
 		loading = false;
 	}
 
 	function resetForm() {
 		editId = null;
 		title = '';
-		slug = '';
 		excerpt = '';
 		content = '';
-		author = '';
-		tags = '';
+		author = currentUserName;
+		tags = [];
+		tagInput = '';
 		featured = false;
 		published = true;
 		postDate = new Date().toISOString().slice(0, 16);
-		slugManual = false;
+		imageUrl = '';
 		previewing = false;
+		imageTab = 'upload';
 	}
 
 	function openNew() {
@@ -80,15 +106,15 @@
 	function openEdit(post: any) {
 		editId = post.id;
 		title = post.title || '';
-		slug = post.slug || '';
 		excerpt = post.excerpt || '';
 		content = post.content || '';
 		author = post.author || '';
-		tags = (post.tags || []).join(', ');
+		tags = post.tags || [];
+		tagInput = '';
 		featured = post.featured || false;
 		published = post.published ?? true;
 		postDate = post.date ? new Date(post.date).toISOString().slice(0, 16) : '';
-		slugManual = true;
+		imageUrl = post.image_url || '';
 		previewing = false;
 		editing = true;
 	}
@@ -98,23 +124,63 @@
 		resetForm();
 	}
 
+	async function handleImageUpload(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+		if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+			msg = { type: 'error', text: 'Only JPEG, PNG, and WebP images are allowed.' };
+			setTimeout(() => msg = null, 3000);
+			return;
+		}
+		if (file.size > 5 * 1024 * 1024) {
+			msg = { type: 'error', text: 'File must be under 5MB.' };
+			setTimeout(() => msg = null, 3000);
+			return;
+		}
+
+		imageUploading = true;
+		try {
+			const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+			const fileName = `news-${Date.now()}.${ext}`;
+			const { error: uploadErr } = await supabase.storage
+				.from('news-images')
+				.upload(fileName, file, { contentType: file.type, upsert: true });
+
+			if (uploadErr) {
+				msg = { type: 'error', text: `Upload failed: ${uploadErr.message}` };
+			} else {
+				const { data: urlData } = supabase.storage.from('news-images').getPublicUrl(fileName);
+				imageUrl = urlData.publicUrl;
+				msg = { type: 'success', text: 'Image uploaded!' };
+			}
+		} catch (err: any) {
+			msg = { type: 'error', text: `Upload error: ${err?.message || 'Unknown'}` };
+		}
+		imageUploading = false;
+		setTimeout(() => msg = null, 3000);
+		input.value = '';
+	}
+
 	async function handleSave() {
-		if (!title.trim() || !slug.trim()) {
-			msg = { type: 'error', text: 'Title and slug are required.' };
+		if (!title.trim()) {
+			msg = { type: 'error', text: 'Title is required.' };
 			setTimeout(() => msg = null, 3000);
 			return;
 		}
 
 		saving = true;
+		const slug = autoSlug(title);
 		const payload = {
 			title: title.trim(),
-			slug: slug.trim(),
-			excerpt: excerpt.trim(),
+			slug,
+			excerpt: excerpt.trim() || null,
 			content,
-			author: author.trim(),
-			tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+			author: author.trim() || currentUserName || null,
+			tags,
 			featured,
 			published,
+			image_url: imageUrl.trim() || null,
 			date: postDate ? new Date(postDate).toISOString() : new Date().toISOString(),
 			updated_at: new Date().toISOString()
 		};
@@ -154,6 +220,7 @@
 <svelte:head><title>News Manager | Admin</title></svelte:head>
 
 <div class="admin-news page-width">
+	<p class="back"><a href="/admin">← Dashboard</a></p>
 	<h1>📰 News Manager</h1>
 
 	{#if checking}
@@ -211,12 +278,10 @@
 
 				<div class="editor__field">
 					<label for="ed-title">Title *</label>
-					<input id="ed-title" type="text" bind:value={title} oninput={handleTitleInput} placeholder="Post title" />
-				</div>
-
-				<div class="editor__field">
-					<label for="ed-slug">Slug *</label>
-					<input id="ed-slug" type="text" bind:value={slug} oninput={handleSlugInput} placeholder="url-friendly-slug" />
+					<input id="ed-title" type="text" bind:value={title} placeholder="Post title" />
+					{#if title.trim()}
+						<span class="slug-preview muted">Slug: {autoSlug(title)}</span>
+					{/if}
 				</div>
 
 				<div class="editor__row">
@@ -226,18 +291,74 @@
 					</div>
 					<div class="editor__field editor__field--grow">
 						<label for="ed-author">Author</label>
-						<input id="ed-author" type="text" bind:value={author} placeholder="Author name" />
+						<input id="ed-author" type="text" bind:value={author} placeholder={currentUserName || 'Author name'} />
+						<span class="field-hint">Defaults to your runner ID if left blank.</span>
 					</div>
 				</div>
 
+				<!-- Tags with typeahead -->
 				<div class="editor__field">
-					<label for="ed-tags">Tags <span class="muted">(comma-separated)</span></label>
-					<input id="ed-tags" type="text" bind:value={tags} placeholder="patch-notes, release" />
+					<label>Tags</label>
+					<div class="tag-input-wrapper">
+						{#each tags as tag}
+							<span class="tag-pill">{tag} <button type="button" class="tag-pill__x" onclick={() => removeTag(tag)}>✕</button></span>
+						{/each}
+						<input
+							type="text"
+							class="tag-input"
+							bind:value={tagInput}
+							onkeydown={handleTagKeydown}
+							placeholder={tags.length === 0 ? 'Type and press Enter to add tags...' : 'Add more...'}
+						/>
+					</div>
+					{#if tagSuggestions.length > 0}
+						<div class="tag-suggestions">
+							{#each tagSuggestions as suggestion}
+								<button type="button" class="tag-suggestion" onclick={() => addTag(suggestion)}>{suggestion}</button>
+							{/each}
+						</div>
+					{/if}
+					{#if tags.length === 0}
+						<div class="tag-presets">
+							{#each TAG_PRESETS as preset}
+								<button type="button" class="tag-preset" onclick={() => addTag(preset)}>{preset}</button>
+							{/each}
+						</div>
+					{/if}
 				</div>
 
 				<div class="editor__field">
 					<label for="ed-excerpt">Excerpt</label>
-					<input id="ed-excerpt" type="text" bind:value={excerpt} placeholder="Short description for the homepage carousel" />
+					<input id="ed-excerpt" type="text" bind:value={excerpt} placeholder="A short summary shown on the news listing and homepage carousel" maxlength="300" />
+					<span class="field-hint">Brief description shown in the news feed and homepage carousel. Keep it under 1-2 sentences.</span>
+				</div>
+
+				<!-- Image section -->
+				<div class="editor__field">
+					<label>Post Image</label>
+					{#if imageUrl}
+						<div class="image-preview">
+							<img src={imageUrl} alt="Post image" class="image-preview__img" />
+							<div class="image-preview__actions">
+								<button type="button" class="btn btn--sm btn--danger" onclick={() => imageUrl = ''}>✕ Remove</button>
+							</div>
+						</div>
+					{/if}
+					<div class="image-tabs">
+						<button type="button" class="image-tab" class:image-tab--active={imageTab === 'upload'} onclick={() => imageTab = 'upload'}>📷 Upload</button>
+						<button type="button" class="image-tab" class:image-tab--active={imageTab === 'url'} onclick={() => imageTab = 'url'}>🔗 URL</button>
+					</div>
+					{#if imageTab === 'upload'}
+						<label class="image-upload-area">
+							<span class="image-upload-area__icon">📷</span>
+							<span>{imageUploading ? 'Uploading...' : 'Click to upload an image'}</span>
+							<input type="file" accept="image/jpeg,image/png,image/webp" onchange={handleImageUpload} hidden disabled={imageUploading} />
+						</label>
+						<span class="field-hint">JPEG, PNG, or WebP — max 5MB. Used as the post header image.</span>
+					{:else if imageTab === 'url'}
+						<input type="text" bind:value={imageUrl} placeholder="https://..." />
+						<span class="field-hint">Paste an external image URL.</span>
+					{/if}
 				</div>
 
 				<div class="editor__field">
@@ -280,21 +401,18 @@
 
 <style>
 	.admin-news h1 { margin: 0 0 1rem; }
+	.back { margin: 0 0 0.5rem; } .back a { color: var(--muted); text-decoration: none; } .back a:hover { color: var(--fg); }
 
-	/* Alerts */
 	.alert { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
 	.alert--success { background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #22c55e; }
 	.alert--error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; }
 
-	/* Toolbar */
 	.news-toolbar { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
 
-	/* Post list */
 	.news-list { display: flex; flex-direction: column; gap: 0.5rem; }
 	.news-row {
 		display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
-		padding: 0.75rem 1rem; background: var(--surface); border: 1px solid var(--border);
-		border-radius: 8px;
+		padding: 0.75rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
 	}
 	.news-row--draft { opacity: 0.65; }
 	.news-row__main { flex: 1; min-width: 0; }
@@ -303,22 +421,11 @@
 	.news-row__excerpt { font-size: 0.85rem; margin-top: 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.news-row__actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
 
-	/* Badges */
-	.badge {
-		display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px;
-		font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
-		margin-left: 0.5rem; vertical-align: middle;
-	}
+	.badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; margin-left: 0.5rem; vertical-align: middle; }
 	.badge--featured { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
 	.badge--draft { background: rgba(107, 114, 128, 0.15); color: #9ca3af; }
 
-	/* Buttons */
-	.btn {
-		display: inline-flex; align-items: center; padding: 0.4rem 0.85rem;
-		border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
-		color: var(--fg); font-size: 0.85rem; font-weight: 600; cursor: pointer;
-		transition: border-color 0.15s, background 0.15s;
-	}
+	.btn { display: inline-flex; align-items: center; padding: 0.4rem 0.85rem; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--fg); font-size: 0.85rem; font-weight: 600; cursor: pointer; }
 	.btn:hover { border-color: var(--accent); }
 	.btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 	.btn--primary:hover { opacity: 0.9; }
@@ -327,15 +434,13 @@
 	.btn--danger:hover { border-color: #ef4444; background: rgba(239, 68, 68, 0.08); }
 	.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-	/* Editor */
 	.editor { max-width: 800px; }
 	.editor h2 { margin: 0 0 1rem; font-size: 1.25rem; }
 	.editor__field { margin-bottom: 1rem; }
-	.editor__field label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; }
-	.editor__field input, .editor__field textarea {
+	.editor__field > label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; }
+	.editor__field input[type="text"], .editor__field input[type="datetime-local"], .editor__field textarea {
 		width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border);
-		border-radius: 6px; background: var(--surface); color: var(--fg);
-		font-size: 0.9rem; font-family: inherit;
+		border-radius: 6px; background: var(--surface); color: var(--fg); font-size: 0.9rem; font-family: inherit;
 	}
 	.editor__field input:focus, .editor__field textarea:focus { outline: none; border-color: var(--accent); }
 	.editor__field textarea { resize: vertical; min-height: 200px; font-family: 'Courier New', monospace; font-size: 0.85rem; line-height: 1.5; }
@@ -346,7 +451,53 @@
 	.check-label input { width: auto; cursor: pointer; }
 	.editor__actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
 
-	/* Preview */
+	.slug-preview { display: block; font-size: 0.78rem; margin-top: 0.25rem; }
+	.field-hint { display: block; font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+
+	/* Tag input */
+	.tag-input-wrapper {
+		display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0.4rem 0.6rem;
+		border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
+		min-height: 38px; align-items: center;
+	}
+	.tag-input-wrapper:focus-within { border-color: var(--accent); }
+	.tag-input { border: none; background: transparent; color: var(--fg); font-size: 0.88rem; outline: none; flex: 1; min-width: 120px; padding: 0.15rem 0; }
+	.tag-pill {
+		display: inline-flex; align-items: center; gap: 0.25rem;
+		padding: 0.15rem 0.5rem; background: var(--accent); color: #fff;
+		border-radius: 4px; font-size: 0.78rem; font-weight: 600;
+	}
+	.tag-pill__x { background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 0.85rem; padding: 0 0.15rem; }
+	.tag-pill__x:hover { color: #fff; }
+	.tag-suggestions { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.35rem; }
+	.tag-suggestion {
+		padding: 0.2rem 0.5rem; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.25);
+		border-radius: 4px; font-size: 0.78rem; color: var(--accent); cursor: pointer;
+	}
+	.tag-suggestion:hover { background: rgba(99, 102, 241, 0.2); }
+	.tag-presets { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.35rem; }
+	.tag-preset {
+		padding: 0.15rem 0.45rem; background: none; border: 1px dashed var(--border);
+		border-radius: 4px; font-size: 0.75rem; color: var(--muted); cursor: pointer;
+	}
+	.tag-preset:hover { border-color: var(--accent); color: var(--accent); }
+
+	/* Image section */
+	.image-preview { margin-bottom: 0.75rem; }
+	.image-preview__img { max-width: 100%; max-height: 200px; border-radius: 6px; border: 1px solid var(--border); display: block; }
+	.image-preview__actions { margin-top: 0.5rem; }
+	.image-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; }
+	.image-tab { padding: 0.3rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; background: none; color: var(--muted); font-size: 0.8rem; cursor: pointer; }
+	.image-tab:hover { border-color: var(--fg); color: var(--fg); }
+	.image-tab--active { background: var(--accent); color: #fff; border-color: var(--accent); }
+	.image-upload-area {
+		display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+		padding: 1.5rem; border: 2px dashed var(--border); border-radius: 8px;
+		cursor: pointer; color: var(--muted); font-size: 0.88rem;
+	}
+	.image-upload-area:hover { border-color: var(--accent); color: var(--accent); }
+	.image-upload-area__icon { font-size: 1.5rem; }
+
 	.preview-btn { margin-left: auto; }
 	.editor__preview {
 		padding: 1rem; border: 1px solid var(--border); border-radius: 6px;
