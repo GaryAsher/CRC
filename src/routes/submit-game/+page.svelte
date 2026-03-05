@@ -1065,7 +1065,6 @@
 																			{#if child.hasExceptions}
 																				<textarea class="exceptions-textarea" rows="2" bind:value={miniChallengeGroups[gi].children[ci].exceptions} placeholder="Exceptions (Markdown supported)..."></textarea>
 																			{/if}
-																			{#if (characterEnabled && characterOptions.filter(c => c.trim()).length > 0) || restrictions.filter(r => r.label.trim()).length > 0}
 																				<label class="toggle-row toggle-row--child"><input type="checkbox" bind:checked={miniChallengeGroups[gi].children[ci].fixedLoadoutEnabled} onchange={(e) => { if (!e.currentTarget.checked) { miniChallengeGroups[gi].children[ci].fixedCharacter = ''; miniChallengeGroups[gi].children[ci].fixedRestriction = ''; } miniChallengeGroups = [...miniChallengeGroups]; }} /> Fixed Loadout</label>
 																				{#if child.fixedLoadoutEnabled}
 																					<div class="fixed-loadout-fields">
@@ -1075,9 +1074,11 @@
 																						{#if restrictions.filter(r => r.label.trim()).length > 0}
 																							<div class="field-row--compact"><label>Restriction</label><select bind:value={miniChallengeGroups[gi].children[ci].fixedRestriction}><option value="">— Not fixed —</option>{#each restrictions.filter(r => r.label.trim()) as r}<option value={r.label}>{r.label}</option>{/each}</select></div>
 																						{/if}
+																						{#if !(characterEnabled && characterOptions.filter(c => c.trim()).length > 0) && !(restrictions.filter(r => r.label.trim()).length > 0)}
+																							<p class="fh" style="color: var(--muted); font-style: italic;">Add characters in the Characters tab or restrictions in the Restrictions tab to select fixed loadout options here.</p>
+																						{/if}
 																					</div>
 																				{/if}
-																			{/if}
 																		</div>
 																	</details>
 																{/each}
