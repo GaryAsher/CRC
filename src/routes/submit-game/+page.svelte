@@ -796,7 +796,7 @@
 					{/each}
 				</nav>
 
-				<div class="tab-panel">
+				<div class="submit-panel">
 
 					<!-- ═══ Tab: General ═══ -->
 					{#if activeTab === 'general'}
@@ -1310,7 +1310,7 @@
 						</div>
 					{/if}
 
-				</div> <!-- end tab-panel -->
+				</div> <!-- end submit-panel -->
 
 				<!-- Submit section (always visible below tabs) -->
 				<div class="submit-section">
@@ -1412,7 +1412,7 @@
 
 	/* Tab layout */
 	.submit-tabs { margin-top: 1.5rem; margin-bottom: 0; flex-wrap: wrap; overflow-x: visible; }
-	.tab-panel { margin-top: 0; }
+	.submit-panel { margin-top: 0; display: block; }
 	.tab-content { padding: 1.25rem; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; }
 	.tab-heading { margin: 0 0 1rem; font-size: 1.05rem; font-weight: 600; }
 	.mt-section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
