@@ -591,36 +591,31 @@
 		return list.some((item: any, i: number) => i !== excludeIndex && item.slug === slug);
 	}
 
-	// ── Collapsible sections ──────────────────────────────────
-	// Required sections open, optional closed, except Involvement (open).
-	let openSections = $state<Record<string, boolean>>({
-		info: true,
-		platforms: false,
-		genres: false,
-		categories: true,
-		challenges: true,
-		characters: true,
-		restrictions: false,
-		timing: false,
-		glitches: false,
-		rules: false,
-		involvement: true,
-	});
+	// ── Tab navigation (matches game-editor pattern) ─────────
+	const SUBMIT_TABS = [
+		{ id: 'general', label: 'General', icon: '🎮', required: true },
+		{ id: 'categories', label: 'Categories', icon: '📂', required: true },
+		{ id: 'challenges', label: 'Challenges', icon: '⚔️', required: true },
+		{ id: 'characters', label: 'Characters', icon: '🧙' },
+		{ id: 'restrictions', label: 'Restrictions', icon: '🔒' },
+		{ id: 'timing-glitches', label: 'Timing & Glitches', icon: '⏱️' },
+		{ id: 'rules-notes', label: 'Rules & Notes', icon: '📜' },
+	];
+	let activeTab = $state('general');
 
-	function toggleSection(key: string) {
-		openSections = { ...openSections, [key]: !openSections[key] };
-	}
+	// Map old section keys to tab IDs for validation links
+	const sectionToTab: Record<string, string> = {
+		info: 'general', platforms: 'general', genres: 'general',
+		categories: 'categories', challenges: 'challenges',
+		characters: 'characters', restrictions: 'restrictions',
+		timing: 'timing-glitches', glitches: 'timing-glitches',
+		rules: 'rules-notes', involvement: 'rules-notes',
+	};
 
 	function scrollToSection(key: string) {
-		openSections = { ...openSections, [key]: true };
-		requestAnimationFrame(() => {
-			const el = document.getElementById(`section-${key}`);
-			if (el) {
-				// Account for sticky site header (~70px)
-				const y = el.getBoundingClientRect().top + window.scrollY - 80;
-				window.scrollTo({ top: y, behavior: 'smooth' });
-			}
-		});
+		const tabId = sectionToTab[key] || key;
+		activeTab = tabId;
+		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 
 	// ── Submit ────────────────────────────────────────────────
@@ -789,16 +784,24 @@
 					<span>💾</span>
 					<span>You can save a draft of this submission at the bottom of the screen if you want to return to it later.</span>
 				</div>
-				<div class="form-sections">
 
-					<!-- ═══ Section 1: Game Info (REQUIRED) ═══ -->
-					<section id="section-info" class="form-section" class:open={openSections.info}>
-						<button type="button" class="section-toggle" onclick={() => toggleSection('info')}>
-							<span class="section-toggle__label">🎮 Game Info <span class="req">*</span></span>
-							<span class="section-toggle__chevron">{openSections.info ? '▲' : '▼'}</span>
+				<!-- Tab bar -->
+				<nav class="game-tabs submit-tabs">
+					{#each SUBMIT_TABS as t}
+						<button class="game-tab" class:game-tab--active={activeTab === t.id}
+							onclick={() => activeTab = t.id}>
+							<span class="tab__icon">{t.icon}</span> {t.label}{#if t.required}<span class="req">*</span>{/if}
 						</button>
-						{#if openSections.info}
-							<div class="section-body">
+					{/each}
+				</nav>
+
+				<div class="tab-panel">
+
+					<!-- ═══ Tab: General ═══ -->
+					{#if activeTab === 'general'}
+						<div class="tab-content">
+							<h3 class="tab-heading">🎮 Game Info</h3>
+
 								<div class="fg">
 									<label class="fl" for="gameName">Game Name <span class="req">*</span></label>
 									<input id="gameName" type="text" class="fi" bind:value={gameName} placeholder="e.g. Sekiro: Shadows Die Twice" maxlength="200" />
@@ -811,7 +814,7 @@
 								</div>
 								<div class="fg">
 									<label class="fl" for="description">Description</label>
-									<textarea id="description" class="fi" bind:value={description} placeholder="e.g. Sekiro: Shadows Die Twice is a 2019 action-adventure game developed by FromSoftware. It was released in Japan..." rows="3" maxlength="2000"></textarea>
+									<textarea id="description" class="fi" bind:value={description} placeholder="e.g. Sekiro: Shadows Die Twice is a 2019 action-adventure game developed by FromSoftware..." rows="3" maxlength="2000"></textarea>
 								</div>
 								<div class="fg">
 									<label class="fl">Cover Image</label>
@@ -836,19 +839,16 @@
 										</div>
 									{/if}
 									<p class="fh">Recommended: 460×215px (Steam capsule). Accepts JPEG, PNG, WebP — max 5MB.</p>
+									<details class="url-fallback">
+										<summary class="url-fallback__toggle">Or paste an external image URL</summary>
+										<div class="fg mt-2">
+											<input type="text" class="fi" bind:value={coverUrl} placeholder="https://..." />
+										</div>
+									</details>
 								</div>
-							</div>
-						{/if}
-					</section>
 
-					<!-- ═══ Section 2: Platforms ═══ -->
-					<section class="form-section" class:open={openSections.platforms}>
-						<button type="button" class="section-toggle" onclick={() => toggleSection('platforms')}>
-							<span class="section-toggle__label">🖥️ Platforms</span>
-							<span class="section-toggle__chevron">{openSections.platforms ? '▲' : '▼'}</span>
-						</button>
-						{#if openSections.platforms}
-							<div class="section-body">
+
+						<h3 class="tab-heading">🖥️ Platforms</h3>
 								<div class="fg">
 									<label class="fl">Platforms</label>
 									<p class="fh mb-2">Only the top {PLATFORM_DISPLAY_LIMIT} platforms are shown. If you don't see your platform, try searching for it.</p>
@@ -886,18 +886,8 @@
 										<button type="button" class="btn btn--small mt-2" onclick={addCustomPlatform}>+ Add Platform</button>
 									{/if}
 								</div>
-							</div>
-						{/if}
-					</section>
 
-					<!-- ═══ Section 3: Genres ═══ -->
-					<section class="form-section" class:open={openSections.genres}>
-						<button type="button" class="section-toggle" onclick={() => toggleSection('genres')}>
-							<span class="section-toggle__label">🏷️ Genres</span>
-							<span class="section-toggle__chevron">{openSections.genres ? '▲' : '▼'}</span>
-						</button>
-						{#if openSections.genres}
-							<div class="section-body">
+						<h3 class="tab-heading">🏷️ Genres</h3>
 								<div class="fg">
 									<label class="fl">Genres</label>
 									<p class="fh mb-2">Add up to 5 genres total (including custom). Only the top {GENRE_DISPLAY_LIMIT} genres are shown. If you don't see your genre, try searching for it.</p>
@@ -943,18 +933,13 @@
 										<button type="button" class="btn btn--small mt-2" onclick={addCustomGenre}>+ Add Genre</button>
 									{/if}
 								</div>
-							</div>
-						{/if}
-					</section>
+						</div>
+					{/if}
 
-					<!-- ═══ Section 4: Run Categories (REQUIRED) ═══ -->
-					<section id="section-categories" class="form-section" class:open={openSections.categories}>
-						<button type="button" class="section-toggle" onclick={() => toggleSection('categories')}>
-							<span class="section-toggle__label">📂 Run Categories <span class="req">*</span></span>
-							<span class="section-toggle__chevron">{openSections.categories ? '▲' : '▼'}</span>
-						</button>
-						{#if openSections.categories}
-							<div class="section-body">
+					<!-- ═══ Tab: Categories ═══ -->
+					{#if activeTab === 'categories'}
+						<div class="tab-content">
+							<h3 class="tab-heading">📂 Run Categories</h3>
 								<p class="fh mb-2">At least 1 category is required.</p>
 								<div class="game-editor">
 									<div class="editor-section">
@@ -1063,18 +1048,13 @@
 										<button class="btn btn--add" onclick={addMiniGroup}>+ Add Mini-Challenge Group</button>
 									</div>
 								</div>
-							</div>
-						{/if}
-					</section>
+						</div>
+					{/if}
 
-					<!-- ═══ Section 5: Challenges (REQUIRED) ═══ -->
-					<section id="section-challenges" class="form-section" class:open={openSections.challenges}>
-						<button type="button" class="section-toggle" onclick={() => toggleSection('challenges')}>
-							<span class="section-toggle__label">⚔️ Challenges <span class="req">*</span></span>
-							<span class="section-toggle__chevron">{openSections.challenges ? '▲' : '▼'}</span>
-						</button>
-						{#if openSections.challenges}
-							<div class="section-body">
+					<!-- ═══ Tab: Challenges ═══ -->
+					{#if activeTab === 'challenges'}
+						<div class="tab-content">
+							<h3 class="tab-heading">⚔️ Challenges</h3>
 								<div class="game-editor">
 									<div class="editor-section">
 										<h3 class="subsection-title">Standard Challenges</h3>
@@ -1122,18 +1102,13 @@
 										</div>
 									{/if}
 								</div>
-							</div>
-						{/if}
-					</section>
+						</div>
+					{/if}
 
-					<!-- ═══ Section 6: Characters ═══ -->
-					<section id="section-characters" class="form-section" class:open={openSections.characters}>
-						<button type="button" class="section-toggle" onclick={() => toggleSection('characters')}>
-							<span class="section-toggle__label">🧙 Characters / Weapons / Classes</span>
-							<span class="section-toggle__chevron">{openSections.characters ? '▲' : '▼'}</span>
-						</button>
-						{#if openSections.characters}
-							<div class="section-body">
+					<!-- ═══ Tab: Characters ═══ -->
+					{#if activeTab === 'characters'}
+						<div class="tab-content">
+							<h3 class="tab-heading">🧙 Characters / Weapons / Classes</h3>
 								<label class="toggle-row">
 									<input type="checkbox" class="toggle-check" bind:checked={characterEnabled} />
 									<span class="toggle-slider"></span>
@@ -1157,18 +1132,13 @@
 										<button type="button" class="btn btn--small mt-2" onclick={addCharacter}>+ Add Option</button>
 									</div>
 								{/if}
-							</div>
-						{/if}
-					</section>
+						</div>
+					{/if}
 
-					<!-- ═══ Section 7: Restrictions ═══ -->
-					<section class="form-section" class:open={openSections.restrictions}>
-						<button type="button" class="section-toggle" onclick={() => toggleSection('restrictions')}>
-							<span class="section-toggle__label">🚫 Game-Specific Restrictions</span>
-							<span class="section-toggle__chevron">{openSections.restrictions ? '▲' : '▼'}</span>
-						</button>
-						{#if openSections.restrictions}
-							<div class="section-body">
+					<!-- ═══ Tab: Restrictions ═══ -->
+					{#if activeTab === 'restrictions'}
+						<div class="tab-content">
+							<h3 class="tab-heading">🔒 Game-Specific Restrictions</h3>
 								<div class="game-editor">
 									<div class="editor-section">
 										<p class="subsection-desc">Optional restrictions. A restriction can have children (e.g. "One God Only" → "Zeus Only"). Descriptions support Markdown.</p>
@@ -1231,18 +1201,13 @@
 										<button class="btn btn--add" onclick={addRestriction}>+ Add Restriction</button>
 									</div>
 								</div>
-							</div>
-						{/if}
-					</section>
+						</div>
+					{/if}
 
-					<!-- ═══ Section 8: Timing ═══ -->
-					<section class="form-section" class:open={openSections.timing}>
-						<button type="button" class="section-toggle" onclick={() => toggleSection('timing')}>
-							<span class="section-toggle__label">⏱️ Timing Method</span>
-							<span class="section-toggle__chevron">{openSections.timing ? '▲' : '▼'}</span>
-						</button>
-						{#if openSections.timing}
-							<div class="section-body">
+					<!-- ═══ Tab: Timing & Glitches ═══ -->
+					{#if activeTab === 'timing-glitches'}
+						<div class="tab-content">
+							<h3 class="tab-heading">⏱️ Timing</h3>
 								<div class="fg">
 									<label class="fl">Primary Timing Method</label>
 									<div class="radio-group">
@@ -1254,18 +1219,9 @@
 										{/each}
 									</div>
 								</div>
-							</div>
-						{/if}
-					</section>
 
-					<!-- ═══ Section 9: Glitches ═══ -->
-					<section class="form-section" class:open={openSections.glitches}>
-						<button type="button" class="section-toggle" onclick={() => toggleSection('glitches')}>
-							<span class="section-toggle__label">🐛 Glitch Categories</span>
-							<span class="section-toggle__chevron">{openSections.glitches ? '▲' : '▼'}</span>
-						</button>
-						{#if openSections.glitches}
-							<div class="section-body">
+							<h3 class="tab-heading mt-section">🎲 Glitches</h3>
+						
 								<div class="game-editor">
 									<div class="editor-section">
 										<h3 class="subsection-title">Glitch Presets</h3>
@@ -1322,36 +1278,21 @@
 										</div>
 									</div>
 								</div>
-							</div>
-						{/if}
-					</section>
+						</div>
+					{/if}
 
-					<!-- ═══ Section 10: Rules ═══ -->
-					<section class="form-section" class:open={openSections.rules}>
-						<button type="button" class="section-toggle" onclick={() => toggleSection('rules')}>
-							<span class="section-toggle__label">📜 General Rules</span>
-							<span class="section-toggle__chevron">{openSections.rules ? '▲' : '▼'}</span>
-						</button>
-						{#if openSections.rules}
-							<div class="section-body">
+					<!-- ═══ Tab: Rules & Notes ═══ -->
+					{#if activeTab === 'rules-notes'}
+						<div class="tab-content">
+							<h3 class="tab-heading">📜 General Rules</h3>
 								<div class="fg">
 									<label class="fl" for="rules">Suggested Rules</label>
 									<p class="fh mb-2">These should be rules that apply to any and all challenges.</p>
 									<textarea id="rules" class="fi" bind:value={generalRules} placeholder="e.g. For Unseeded runs, show previous death or..." rows="4" maxlength="5000"></textarea>
 									<p class="fh">These will be reviewed and refined by our team.</p>
 								</div>
-							</div>
-						{/if}
-					</section>
 
-					<!-- ═══ Section 11: Involvement & Notes ═══ -->
-					<section class="form-section" class:open={openSections.involvement}>
-						<button type="button" class="section-toggle" onclick={() => toggleSection('involvement')}>
-							<span class="section-toggle__label">🤝 Your Involvement</span>
-							<span class="section-toggle__chevron">{openSections.involvement ? '▲' : '▼'}</span>
-						</button>
-						{#if openSections.involvement}
-							<div class="section-body">
+							<h3 class="tab-heading mt-section">📝 Involvement & Notes</h3>
 								<div class="fg">
 									<label class="fl">How would you like to be involved?</label>
 									{#each INVOLVEMENT_OPTIONS as opt}
@@ -1365,46 +1306,44 @@
 									<label class="fl" for="notes">Additional Notes</label>
 									<textarea id="notes" class="fi" bind:value={additionalNotes} placeholder="Let us know any thoughts, ideas, suggestions, or frustrations with the game submission form. Please be respectful in this reply if you have criticisms." rows="3" maxlength="2000"></textarea>
 								</div>
-							</div>
-						{/if}
-					</section>
-
-					<!-- ═══ Turnstile + Draft + Submit ═══ -->
-					<div class="submit-section">
-						<div id="turnstile-container-game" class="turnstile-container"></div>
-						{#if !turnstileReady}<p class="fh">Loading verification...</p>{/if}
-
-						{#if bannedTermsWarning}
-							<div class="alert alert--error">{bannedTermsWarning}</div>
-						{/if}
-
-						{#if !hasAtLeastOneCategory && gameName.trim()}
-							<button type="button" class="validation-link" onclick={() => scrollToSection('categories')}>
-								⚠ Please add at least 1 run category — click to go there
-							</button>
-						{/if}
-						{#if !hasAtLeastOneChallenge && gameName.trim()}
-							<button type="button" class="validation-link" onclick={() => scrollToSection('challenges')}>
-								⚠ Please select at least 1 challenge type — click to go there
-							</button>
-						{/if}
-						{#if !hasEnoughCharacters && gameName.trim()}
-							<button type="button" class="validation-link" onclick={() => scrollToSection('characters')}>
-								⚠ Characters enabled — at least 2 options required — click to go there
-							</button>
-						{/if}
-
-						<div class="submit-buttons">
-							<button class="btn btn--lg" onclick={saveDraft} disabled={!gameName.trim()}>
-								{#if draftStatus === 'saving'}Saving...{:else if draftStatus === 'saved'}✓ Draft Saved{:else if draftStatus === 'error'}Save Failed{:else}Save Draft{/if}
-							</button>
-							<button class="btn btn--accent btn--lg submit-btn" onclick={handleSubmit} disabled={!canSubmit}>
-								{submitting ? 'Submitting...' : 'Submit Game Request'}
-							</button>
 						</div>
-					</div>
+					{/if}
 
-				</div> <!-- end form-sections -->
+				</div> <!-- end tab-panel -->
+
+				<!-- Submit section (always visible below tabs) -->
+				<div class="submit-section">
+					<div id="turnstile-container-game" class="turnstile-container"></div>
+
+					{#if bannedTermsWarning}
+						<p class="alert alert--error">{bannedTermsWarning}</p>
+					{/if}
+
+					{#if !hasAtLeastOneCategory && gameName.trim()}
+						<button type="button" class="validation-link" onclick={() => scrollToSection('categories')}>
+							⚠ Please add at least 1 run category — click to go there
+						</button>
+					{/if}
+					{#if !hasAtLeastOneChallenge && gameName.trim()}
+						<button type="button" class="validation-link" onclick={() => scrollToSection('challenges')}>
+							⚠ Please select at least 1 challenge type — click to go there
+						</button>
+					{/if}
+					{#if !hasEnoughCharacters && gameName.trim()}
+						<button type="button" class="validation-link" onclick={() => scrollToSection('characters')}>
+							⚠ Characters enabled — at least 2 options required — click to go there
+						</button>
+					{/if}
+
+					<div class="submit-buttons">
+						<button class="btn btn--lg" onclick={saveDraft} disabled={!gameName.trim()}>
+							{#if draftStatus === 'saving'}Saving...{:else if draftStatus === 'saved'}✓ Draft Saved{:else if draftStatus === 'error'}Save Failed{:else}Save Draft{/if}
+						</button>
+						<button class="btn btn--accent btn--lg submit-btn" onclick={handleSubmit} disabled={!canSubmit}>
+							{submitting ? 'Submitting...' : 'Submit Game Request'}
+						</button>
+					</div>
+				</div>
 			{/if}
 
 			<div class="submit-links">
@@ -1469,6 +1408,19 @@
 
 	/* Section accordion */
 	.draft-hint { display: flex; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; margin-top: 1.5rem; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; font-size: 0.88rem; color: var(--fg); }
+
+	/* Tab layout */
+	.submit-tabs { margin-top: 1.5rem; }
+	.tab-panel { margin-top: 0; }
+	.tab-content { padding: 1.25rem; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; }
+	.tab-heading { margin: 0 0 1rem; font-size: 1.05rem; font-weight: 600; }
+	.mt-section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+
+	/* URL fallback for cover */
+	.url-fallback { margin-top: 0.5rem; }
+	.url-fallback__toggle { font-size: 0.82rem; color: var(--muted); cursor: pointer; }
+	.url-fallback__toggle:hover { color: var(--accent); }
+
 	.form-sections { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }
 	.form-section {
 		background: var(--surface); border: 1px solid var(--border);

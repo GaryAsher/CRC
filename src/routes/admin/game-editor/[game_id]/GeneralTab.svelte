@@ -225,14 +225,14 @@
 			</div>
 		{/if}
 		<span class="field-hint">Recommended: 460×215px (Steam capsule). Accepts JPEG, PNG, WebP — max 5MB.</span>
-		<div class="field-row mt-1">
-			<label class="field-label">Cover URL (or paste external URL)</label>
-			<input type="text" class="field-input" bind:value={cover} placeholder="https://..." disabled={!canEdit} />
-		</div>
-	</div>
-	<div class="field-row">
-		<label class="field-label">Cover Position</label>
-		<input type="text" class="field-input" bind:value={coverPosition} placeholder="e.g. center top" disabled={!canEdit} />
+		{#if canEdit}
+			<details class="url-fallback">
+				<summary class="url-fallback__toggle">Or paste an external image URL</summary>
+				<div class="field-row mt-1">
+					<input type="text" class="field-input" bind:value={cover} placeholder="https://..." />
+				</div>
+			</details>
+		{/if}
 	</div>
 	<div class="field-row">
 		<label class="field-label">Aliases</label>

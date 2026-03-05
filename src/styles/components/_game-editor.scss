@@ -227,4 +227,9 @@
 		.frozen-banner { flex-direction: column; text-align: center; }
 		.snapshot-row { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
 	}
+
+	/* URL fallback for cover images */
+	.url-fallback { margin-top: 0.5rem; }
+	.url-fallback__toggle { font-size: 0.82rem; color: var(--muted); cursor: pointer; }
+	.url-fallback__toggle:hover { color: var(--accent); }
 }
