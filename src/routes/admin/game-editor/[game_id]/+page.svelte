@@ -6,7 +6,7 @@
 	import { checkAdminRole, getAccessToken } from '$lib/admin';
 	import { supabase } from '$lib/supabase';
 	import { PUBLIC_WORKER_URL } from '$env/static/public';
-	import type { Game, FullRunCategory, MiniChallengeGroup, PlayerMadeChallenge, ChallengeType, GlitchCategory, Restriction, CharacterColumn, CharacterOption } from '$types';
+	import type { Game, FullRunCategory, MiniChallengeGroup, PlayerMadeChallenge, ChallengeType, GlitchCategory, Restriction, CharacterColumn, CharacterOption, DifficultyColumn, DifficultyOption } from '$types';
 	import { deepClone } from './_helpers.js';
 
 	import GeneralTab from './GeneralTab.svelte';
@@ -15,6 +15,7 @@
 	import ChallengesTab from './ChallengesTab.svelte';
 	import RestrictionsTab from './RestrictionsTab.svelte';
 	import CharactersTab from './CharactersTab.svelte';
+	import DifficultiesTab from './DifficultiesTab.svelte';
 	import CustomTabsSettings from './CustomTabsSettings.svelte';
 	import AdditionalContentTab from './AdditionalContentTab.svelte';
 	import HistoryTab from './HistoryTab.svelte';
@@ -56,6 +57,7 @@
 		{ id: 'challenges', label: 'Challenges & Glitches', icon: '⚡' },
 		{ id: 'restrictions', label: 'Restrictions', icon: '🔒' },
 		{ id: 'characters', label: 'Characters', icon: '🎭' },
+		{ id: 'difficulties', label: 'Difficulties', icon: '📊' },
 		...(additionalTabs.tab1.enabled ? [{ id: 'additional1', label: additionalTabs.tab1.title || 'Additional 1', icon: '📎' }] : []),
 		...(additionalTabs.tab2.enabled ? [{ id: 'additional2', label: additionalTabs.tab2.title || 'Additional 2', icon: '📎' }] : []),
 		{ id: 'additional-settings', label: 'Custom Tabs', icon: '➕' },
@@ -81,6 +83,8 @@
 	let restrictionsData = $state<Restriction[]>([]);
 	let characterColumn = $state<CharacterColumn>({ enabled: false, label: 'Character' });
 	let charactersData = $state<CharacterOption[]>([]);
+	let difficultyColumn = $state<DifficultyColumn>({ enabled: false, label: 'Difficulty' });
+	let difficultiesData = $state<DifficultyOption[]>([]);
 	let nmgRules = $state('');
 	let glitchDocLinks = $state('');
 
@@ -116,6 +120,8 @@
 		restrictionsData = deepClone(g.restrictions_data || []);
 		characterColumn = deepClone(g.character_column || { enabled: false, label: 'Character' });
 		charactersData = deepClone(g.characters_data || []);
+		difficultyColumn = deepClone(g.difficulty_column || { enabled: false, label: 'Difficulty' });
+		difficultiesData = deepClone(g.difficulties_data || []);
 		nmgRules = g.nmg_rules || '';
 		glitchDocLinks = g.glitch_doc_links || '';
 		additionalTabs = deepClone(g.additional_tabs || {
@@ -124,7 +130,7 @@
 		});
 
 		const slugs = new Set<string>();
-		for (const item of [...fullRuns, ...miniChallenges, ...playerMade, ...challengesData, ...glitchesData, ...restrictionsData, ...charactersData]) {
+		for (const item of [...fullRuns, ...miniChallenges, ...playerMade, ...challengesData, ...glitchesData, ...restrictionsData, ...charactersData, ...difficultiesData]) {
 			if (item.slug) slugs.add(item.slug);
 			if ('children' in item && item.children) for (const c of item.children) if (c.slug) slugs.add(c.slug);
 		}
@@ -180,6 +186,7 @@
 	async function saveChallengesGlitches() { await saveSection('challenges', { challenges_data: challengesData, glitches_data: glitchesData, nmg_rules: nmgRules || null, glitch_doc_links: glitchDocLinks || null }); }
 	async function saveRestrictions() { await saveSection('restrictions', { restrictions_data: restrictionsData }); }
 	async function saveCharacters() { await saveSection('characters', { character_column: characterColumn, characters_data: charactersData }); }
+	async function saveDifficulties() { await saveSection('difficulties', { difficulty_column: difficultyColumn, difficulties_data: difficultiesData }); }
 	async function saveAdditionalTabs() { await saveSection('additional_tabs', { additional_tabs: additionalTabs }); }
 
 	// ── Freeze / Unfreeze ────────────────────────────────────────────────────
@@ -371,6 +378,15 @@
 				bind:characterColumn bind:charactersData
 				{originalSlugs} {canEdit} {isFrozen} {isAdmin} {saving}
 				onSave={saveCharacters}
+				onReset={() => game && hydrate(game)}
+			/>
+		{/if}
+
+		{#if activeTab === 'difficulties'}
+			<DifficultiesTab
+				bind:difficultyColumn bind:difficultiesData
+				{originalSlugs} {canEdit} {isFrozen} {isAdmin} {saving}
+				onSave={saveDifficulties}
 				onReset={() => game && hydrate(game)}
 			/>
 		{/if}

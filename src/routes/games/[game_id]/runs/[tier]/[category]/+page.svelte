@@ -32,6 +32,8 @@
 	// ── Available options from game data ──
 	const hasCharacters = $derived(game.character_column?.enabled && (game.characters_data?.length ?? 0) > 0);
 	const characterLabel = $derived(game.character_column?.label || 'Character');
+	const hasDifficulties = $derived(game.difficulty_column?.enabled && (game.difficulties_data?.length ?? 0) > 0);
+	const difficultyLabel = $derived(game.difficulty_column?.label || 'Difficulty');
 	const hasChallenges = $derived((game.challenges_data?.length ?? 0) > 0);
 	const hasRestrictions = $derived((game.restrictions_data?.length ?? 0) > 0);
 	const hasGlitches = $derived((game.glitches_data?.length ?? 0) > 0);
@@ -44,6 +46,7 @@
 		...(game.restrictions_data || []).flatMap((r: any) => (r.children || []).map((c: any) => [c.slug, c.label] as [string, string]))
 	]));
 	const characterMap = $derived(new Map((game.characters_data || []).map((c: any) => [c.slug, c.label])));
+	const difficultyMap = $derived(new Map((game.difficulties_data || []).map((d: any) => [d.slug, d.label])));
 	const glitchMap = $derived(new Map((game.glitches_data || []).map((g: any) => [g.slug, g.label])));
 
 	const activeFilterCount = $derived(
@@ -344,6 +347,7 @@
 			<thead><tr>
 				<th>#</th><th>Runner</th>
 				{#if game.character_column?.enabled}<th>{game.character_column.label}</th>{/if}
+				{#if game.difficulty_column?.enabled}<th>{game.difficulty_column.label}</th>{/if}
 				<th>Challenges</th>
 				{#if showRestrictions}<th>Restrictions</th>{/if}
 				<th><button class="th-sort" class:th-sort--active={sortKey === 'time'} onclick={() => toggleSort('time')}>Time{#if game.timing_method} ({game.timing_method}){/if} {#if sortKey === 'time'}{sortDir === 'asc' ? '▲' : '▼'}{:else}<span class="th-sort__hint">⇅</span>{/if}</button></th>
@@ -358,6 +362,7 @@
 						<td class="col-rank">{showingStart + i}</td>
 						<td><a href="/runners/{run.runner_id}">{run.runner}</a></td>
 						{#if game.character_column?.enabled}<td>{characterMap.get(run.character || '') || run.character || '—'}</td>{/if}
+						{#if game.difficulty_column?.enabled}<td>{difficultyMap.get(run.difficulty || '') || run.difficulty || '—'}</td>{/if}
 						<td>{#each run.standard_challenges || [] as ch}<span class="tag tag--small">{challengeMap.get(ch) || ch}</span>{/each}{#if !run.standard_challenges?.length}—{/if}</td>
 						{#if showRestrictions}<td>{#each run.restriction_ids || run.restrictions || [] as r}<span class="tag tag--small tag--restriction">{restrictionMap.get(r) || r}</span>{/each}{#if !(run.restriction_ids?.length || run.restrictions?.length)}—{/if}</td>{/if}
 						<td class="col-time">{formatTime(run.time_primary)}</td>

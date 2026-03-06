@@ -30,6 +30,7 @@
 	let selectedChallenges = $state<string[]>([]);
 	let glitchId = $state('');
 	let selectedRestrictions = $state<string[]>([]);
+	let difficulty = $state('');
 	let runTimeRta = $state('');
 	let runTimePrimary = $state('');
 	let dateCompleted = $state('');
@@ -43,6 +44,8 @@
 	let charOpen = $state(false);
 	let glitchSearch = $state('');
 	let glitchOpen = $state(false);
+	let diffSearch = $state('');
+	let diffOpen = $state(false);
 
 	// ── Video Metadata State ──
 	let videoTitle = $state('');
@@ -177,6 +180,8 @@
 	function clearCharacter() { character = ''; charSearch = ''; }
 	function selectGlitch(g: { slug?: string; label: string }) { glitchId = g.slug || ''; glitchSearch = g.label; glitchOpen = false; }
 	function clearGlitch() { glitchId = ''; glitchSearch = ''; }
+	function selectDifficulty(d: { slug?: string; label: string }) { difficulty = d.slug || ''; diffSearch = d.label; diffOpen = false; }
+	function clearDifficulty() { difficulty = ''; diffSearch = ''; }
 
 	// ── Video Title Fetch ──
 	let fetchDebounce: ReturnType<typeof setTimeout> | null = null;
@@ -248,6 +253,13 @@
 		}
 	}
 
+	let expandedRestrictions = $state<Set<string>>(new Set());
+	function toggleRestrictionExpand(slug: string) {
+		const next = new Set(expandedRestrictions);
+		if (next.has(slug)) next.delete(slug); else next.add(slug);
+		expandedRestrictions = next;
+	}
+
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
 		submitting = true;
@@ -268,6 +280,7 @@
 				category: categorySlug,
 				standard_challenges: selectedChallenges.length > 0 ? selectedChallenges : [],
 				character: character || undefined,
+				difficulty: difficulty || undefined,
 				glitch_id: glitchId || undefined,
 				restrictions: selectedRestrictions.length > 0 ? selectedRestrictions : [],
 				platform: platform || undefined,
@@ -302,8 +315,8 @@
 			showToast('success', 'Run submitted! A verifier will review it shortly.');
 			categoryTier = ''; categorySlug = ''; selectedChallenges = []; character = '';
 			glitchId = ''; selectedRestrictions = []; videoUrl = ''; platform = ''; dateCompleted = '';
-			runTimeRta = ''; runTimePrimary = ''; submitterNotes = ''; videoTitle = '';
-			platformSearch = ''; charSearch = ''; glitchSearch = '';
+			runTimeRta = ''; runTimePrimary = ''; submitterNotes = ''; videoTitle = ''; difficulty = '';
+			platformSearch = ''; charSearch = ''; glitchSearch = ''; diffSearch = '';
 		} catch (err: any) {
 			errorMsg = err.message || 'Submission failed. Please try again.';
 			showToast('error', err.message || 'Submission failed.');
@@ -473,6 +486,25 @@
 			</div>
 		{/if}
 
+		<!-- 4b. Difficulty (typeahead) -->
+		{#if game.difficulty_column?.enabled && game.difficulties_data?.length}
+			<div class="submit-section">
+				<p class="submit-section__title">{game.difficulty_column.label}</p>
+				<div class="field">
+					<div class="ta">
+						<input type="text" class="ta__input" placeholder="Type a {game.difficulty_column.label.toLowerCase()}..." autocomplete="off" bind:value={diffSearch}
+							onclick={() => diffOpen = !diffOpen} oninput={() => { if (!diffOpen) diffOpen = true; }}
+							onblur={() => handleBlur(() => { diffOpen = false; if (difficulty) { const match = (game.difficulties_data || []).find((d: any) => d.slug === difficulty); diffSearch = match?.label || ''; } else diffSearch = ''; })} />
+						{#if difficulty}<button type="button" class="ta__clear" onclick={clearDifficulty}>✕</button>{/if}
+						{#if diffOpen}
+							{@const matches = filterItems(game.difficulties_data || [], diffSearch)}
+							<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">No matches</li>{:else}{#each matches as d}<li><button type="button" class="ta__opt" class:ta__opt--active={difficulty === d.slug} onmousedown={() => selectDifficulty(d)}>{d.label}</button></li>{/each}{/if}</ul>
+						{/if}
+					</div>
+				</div>
+			</div>
+		{/if}
+
 		<!-- 5. Challenges (chip grid) -->
 		{#if game.challenges_data?.length}
 			<div class="submit-section">
@@ -509,20 +541,32 @@
 			</div>
 		{/if}
 
-		<!-- 7. Restrictions (chip grid) -->
+		<!-- 7. Restrictions (expandable groups) -->
 		{#if game.restrictions_data?.length}
 			<div class="submit-section">
 				<p class="submit-section__title">Restrictions{#if fixedLoadout?.restriction} <span class="fixed-badge">🔒 Fixed</span>{/if}</p>
-				<p class="submit-section__sub">Select any optional restrictions applied to this run.</p>
+				<p class="submit-section__sub">Select any optional restrictions applied to this run.{#if game.restrictions_data.some((r: any) => r.children?.length)} Click a group to see options.{/if}</p>
 				<div class="chip-grid">
 					{#each game.restrictions_data as r}
 						{@const isLocked = fixedLoadout?.restriction === r.slug}
-						<button type="button" class="chip" class:chip--active={selectedRestrictions.includes(r.slug)} class:chip--locked={isLocked} onclick={() => { if (!isLocked) toggleRestriction(r.slug); }} disabled={isLocked}>{r.label}{#if isLocked} 🔒{/if}</button>
-						{#if r.children?.length}
-							{#each r.children as child}
-								{@const childLocked = fixedLoadout?.restriction === child.slug}
-								<button type="button" class="chip chip--child" class:chip--active={selectedRestrictions.includes(child.slug)} class:chip--locked={childLocked} onclick={() => { if (!childLocked) toggleRestriction(child.slug); }} disabled={childLocked}>└ {child.label}{#if childLocked} 🔒{/if}</button>
-							{/each}
+						{@const hasChildren = r.children?.length > 0}
+						{@const isExpanded = expandedRestrictions.has(r.slug)}
+						{@const childActive = hasChildren && r.children.some((c: any) => selectedRestrictions.includes(c.slug))}
+						{#if hasChildren}
+							<button type="button" class="chip chip--parent" class:chip--expanded={isExpanded} class:chip--child-active={childActive} onclick={() => toggleRestrictionExpand(r.slug)}>
+								{r.label} <span class="chip__arrow">{isExpanded ? '▲' : '▼'}</span>
+								{#if childActive}<span class="chip__count">{r.children.filter((c: any) => selectedRestrictions.includes(c.slug)).length}</span>{/if}
+							</button>
+							{#if isExpanded}
+								<div class="chip-children">
+									{#each r.children as child}
+										{@const childLocked = fixedLoadout?.restriction === child.slug}
+										<button type="button" class="chip" class:chip--active={selectedRestrictions.includes(child.slug)} class:chip--locked={childLocked} onclick={() => { if (!childLocked) toggleRestriction(child.slug); }} disabled={childLocked}>{child.label}{#if childLocked} 🔒{/if}</button>
+									{/each}
+								</div>
+							{/if}
+						{:else}
+							<button type="button" class="chip" class:chip--active={selectedRestrictions.includes(r.slug)} class:chip--locked={isLocked} onclick={() => { if (!isLocked) toggleRestriction(r.slug); }} disabled={isLocked}>{r.label}{#if isLocked} 🔒{/if}</button>
 						{/if}
 					{/each}
 				</div>
@@ -724,8 +768,14 @@
 	}
 	.chip:hover { border-color: var(--accent); }
 	.chip--active { background: var(--accent); color: #fff; border-color: var(--accent); }
-	.chip--child { font-size: 0.75rem; opacity: 0.85; margin-left: 0.5rem; }
 	.chip--locked { opacity: 0.85; cursor: not-allowed; }
+	.chip--parent { background: var(--surface); border: 1px dashed var(--border); color: var(--fg); }
+	.chip--parent:hover { border-color: var(--accent); }
+	.chip--expanded { border-style: solid; border-color: var(--accent); color: var(--accent); }
+	.chip--child-active { border-color: var(--accent); }
+	.chip__arrow { font-size: 0.6rem; margin-left: 0.15rem; }
+	.chip__count { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; border-radius: 8px; background: var(--accent); color: #fff; font-size: 0.65rem; font-weight: 700; padding: 0 4px; margin-left: 0.2rem; }
+	.chip-children { display: flex; flex-wrap: wrap; gap: 0.4rem; width: 100%; padding: 0.5rem 0.75rem; background: rgba(99, 102, 241, 0.04); border: 1px solid var(--border); border-radius: 8px; }
 	.chip--locked.chip--active { background: var(--accent); border-color: var(--accent); }
 
 	/* Fixed loadout badge */

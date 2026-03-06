@@ -493,6 +493,7 @@ async function handleRunSubmission(body, env, request) {
     standard_challenges:  sanitizeArray(body.standard_challenges),
     community_challenge:  body.community_challenge ? sanitizeInput(body.community_challenge, 200) : null,
     character:            body.character ? sanitizeInput(body.character, 100) : null,
+    difficulty:           body.difficulty ? sanitizeInput(body.difficulty, 100) : null,
     glitch_id:            body.glitch_id ? sanitizeInput(body.glitch_id, 50) : null,
     restrictions:         sanitizeArray(body.restrictions),
     platform:             body.platform ? sanitizeInput(body.platform, 50) : null,
@@ -632,6 +633,13 @@ async function handleGameSubmission(body, env, request) {
       },
       characters_data: (body.characters || []).map(c =>
         typeof c === 'string' ? { slug: slugify(c), label: sanitizeInput(c, 100) } : c
+      ),
+      difficulty_column: {
+        enabled: body.difficulty_enabled || false,
+        label: sanitizeInput(body.difficulty_label || 'Difficulty', 50),
+      },
+      difficulties_data: (body.difficulties || []).map(d =>
+        typeof d === 'string' ? { slug: slugify(d), label: sanitizeInput(d, 100) } : d
       ),
       challenges_data: (body.challenges || []).map(c =>
         typeof c === 'string' ? { slug: slugify(c), label: sanitizeInput(c, 100) } : c
@@ -825,6 +833,7 @@ async function handleApproveRun(body, env, request) {
       standard_challenges: run.standard_challenges || [],
       community_challenge: run.community_challenge || null,
       character: run.character || null,
+      difficulty: run.difficulty || null,
       glitch_id: run.glitch_id || null,
       restrictions: run.restrictions || [],
       platform: run.platform || null,
@@ -1189,6 +1198,8 @@ async function handleApproveGame(body, env, request) {
       player_made: [],
       character_column: gd.character_column || { enabled: false, label: 'Character' },
       characters_data: gd.characters_data || [],
+      difficulty_column: gd.difficulty_column || { enabled: false, label: 'Difficulty' },
+      difficulties_data: gd.difficulties_data || [],
       timing_method: gd.timing_method || 'RTA',
       nmg_rules: gd.nmg_rules || null,
       glitch_doc_links: gd.glitch_doc_links || null,
@@ -1423,7 +1434,7 @@ async function handleEditApprovedRun(body, env, request) {
   // Whitelist of allowed fields to edit on approved runs
   const ALLOWED_FIELDS = [
     'category_tier', 'category_slug', 'category',
-    'character', 'standard_challenges', 'glitch_id', 'restrictions',
+    'character', 'difficulty', 'standard_challenges', 'glitch_id', 'restrictions',
     'time_primary', 'time_rta', 'run_time', 'date_completed', 'date_submitted',
     'video_url', 'platform', 'runner_notes', 'verifier_notes'
   ];
@@ -1921,6 +1932,7 @@ const GAME_ALLOWED_FIELDS = [
   'full_runs', 'mini_challenges', 'player_made',
   'general_rules', 'challenges_data', 'glitches_data',
   'restrictions_data', 'character_column', 'characters_data',
+  'difficulty_column', 'difficulties_data',
   'additional_tabs', 'community_achievements', 'credits',
   'is_modded', 'base_game', 'tabs', 'reviewers',
   'nmg_rules', 'glitch_doc_links'

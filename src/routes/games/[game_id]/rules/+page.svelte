@@ -37,6 +37,8 @@
 
 	const hasCharacters = $derived(game.character_column?.enabled && (game.characters_data?.length ?? 0) > 0);
 	const characterLabel = $derived(game.character_column?.label || 'Character');
+	const hasDifficulties = $derived(game.difficulty_column?.enabled && (game.difficulties_data?.length ?? 0) > 0);
+	const difficultyLabel = $derived(game.difficulty_column?.label || 'Difficulty');
 	const hasChallenges = $derived((game.challenges_data?.length ?? 0) > 0);
 	const hasRestrictions = $derived((game.restrictions_data?.length ?? 0) > 0);
 	const hasGlitches = $derived((game.glitches_data?.length ?? 0) > 0);
@@ -48,6 +50,7 @@
 	let selectedChallenges = $state<{ slug: string; label: string; description?: string; exceptions?: string }[]>([]);
 	let selectedRestrictions = $state<{ slug: string; label: string; description?: string; exceptions?: string }[]>([]);
 	let selectedGlitch = $state<{ slug: string; label: string; description?: string; exceptions?: string } | null>(null);
+	let selectedDifficulty = $state<{ slug: string; label: string } | null>(null);
 
 	// Typeahead state
 	let catSearch = $state(''); let catOpen = $state(false);
@@ -55,6 +58,7 @@
 	let challengeSearch = $state(''); let challengeOpen = $state(false);
 	let restrictionSearch = $state(''); let restrictionOpen = $state(false);
 	let glitchSearch = $state(''); let glitchOpen = $state(false);
+	let diffSearch = $state(''); let diffOpen = $state(false);
 
 	function norm(s: string) { return s.trim().toLowerCase(); }
 	function handleBlur(closeFn: () => void) { setTimeout(closeFn, 180); }
@@ -85,14 +89,16 @@
 	// Glitch
 	function selectGlitchItem(g: any) { selectedGlitch = g; glitchSearch = g.label; glitchOpen = false; }
 	function clearGlitchItem() { selectedGlitch = null; glitchSearch = ''; }
+	function selectDiff(d: any) { selectedDifficulty = d; diffSearch = d.label; diffOpen = false; }
+	function clearDiff() { selectedDifficulty = null; diffSearch = ''; }
 
 	function resetAll() {
-		clearCategory(); clearChar(); clearGlitchItem();
+		clearCategory(); clearChar(); clearGlitchItem(); clearDiff();
 		selectedChallenges = []; challengeSearch = '';
 		selectedRestrictions = []; restrictionSearch = '';
 	}
 
-	const hasSelections = $derived(selectedCategory || selectedCharacter || selectedChallenges.length > 0 || selectedRestrictions.length > 0 || selectedGlitch);
+	const hasSelections = $derived(selectedCategory || selectedCharacter || selectedDifficulty || selectedChallenges.length > 0 || selectedRestrictions.length > 0 || selectedGlitch);
 
 	// Export ruleset as text
 	function exportRuleset() {
@@ -109,6 +115,10 @@
 		if (selectedCharacter) {
 			lines.push(`${characterLabel}: ${selectedCharacter.label}`);
 			if (selectedCharacter.description) lines.push(`  ${selectedCharacter.description.replace(/\n/g, '\n  ')}`);
+			lines.push('');
+		}
+		if (selectedDifficulty) {
+			lines.push(`${difficultyLabel}: ${selectedDifficulty.label}`);
 			lines.push('');
 		}
 		for (const ch of selectedChallenges) {
@@ -209,6 +219,23 @@
 						</div>
 					{/if}
 
+					<!-- Difficulty -->
+					{#if hasDifficulties}
+						<div class="rb-group">
+							<label class="rb-label">{difficultyLabel}</label>
+							<div class="ta">
+								<input type="text" class="rb-field" placeholder="Type a {difficultyLabel.toLowerCase()}..." autocomplete="off" bind:value={diffSearch}
+									onclick={() => diffOpen = !diffOpen} oninput={() => { if (!diffOpen) diffOpen = true; }}
+									onblur={() => handleBlur(() => { diffOpen = false; if (selectedDifficulty) diffSearch = selectedDifficulty.label; else diffSearch = ''; })} />
+								{#if selectedDifficulty}<button class="ta__clear" onclick={clearDiff}>✕</button>{/if}
+								{#if diffOpen}
+									{@const matches = filterItems(game.difficulties_data || [], diffSearch)}
+									<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">No matches</li>{:else}{#each matches as d}<li><button class="ta__opt" class:ta__opt--active={selectedDifficulty?.slug === d.slug} onmousedown={() => selectDiff(d)}>{d.label}</button></li>{/each}{/if}</ul>
+								{/if}
+							</div>
+						</div>
+					{/if}
+
 					<!-- Challenges -->
 					{#if hasChallenges}
 						<div class="rb-group">
@@ -265,6 +292,7 @@
 						<div class="rb-chips">
 							{#if selectedCategory}<button class="chip chip--cat" onclick={clearCategory}>{selectedCategory.label} ✕</button>{/if}
 							{#if selectedCharacter}<button class="chip" onclick={clearChar}>{selectedCharacter.label} ✕</button>{/if}
+							{#if selectedDifficulty}<button class="chip" onclick={clearDiff}>{selectedDifficulty.label} ✕</button>{/if}
 							{#each selectedChallenges as c}<button class="chip" onclick={() => removeChallenge(c.slug)}>{c.label} ✕</button>{/each}
 							{#each selectedRestrictions as r}<button class="chip chip--restriction" onclick={() => removeRestriction(r.slug)}>{r.label} ✕</button>{/each}
 							{#if selectedGlitch}<button class="chip chip--glitch" onclick={clearGlitchItem}>{selectedGlitch.label} ✕</button>{/if}
@@ -288,6 +316,11 @@
 							<div class="rb-rule">
 								<strong>{characterLabel}:</strong> {selectedCharacter.label}
 								{#if selectedCharacter.description}<div class="rb-rule__desc">{@html renderMarkdown(selectedCharacter.description)}</div>{/if}
+							</div>
+						{/if}
+						{#if selectedDifficulty}
+							<div class="rb-rule">
+								<strong>{difficultyLabel}:</strong> {selectedDifficulty.label}
 							</div>
 						{/if}
 						{#each selectedChallenges as ch}

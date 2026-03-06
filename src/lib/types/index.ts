@@ -100,6 +100,16 @@ export interface CharacterOption {
 	children?: CharacterOption[];
 }
 
+export interface DifficultyColumn {
+	enabled: boolean;
+	label: string;
+}
+
+export interface DifficultyOption {
+	slug: string;
+	label: string;
+}
+
 export interface CommunityAchievementDef {
 	slug: string;
 	title: string;
@@ -152,6 +162,10 @@ export interface Game {
 	// Characters
 	character_column?: CharacterColumn;
 	characters_data?: CharacterOption[];
+
+	// Difficulty
+	difficulty_column?: DifficultyColumn;
+	difficulties_data?: DifficultyOption[];
 
 	// Timing
 	timing_method: string;
@@ -302,6 +316,7 @@ export interface Run {
 	// Display columns
 	runner: string;
 	character?: string;
+	difficulty?: string;
 	restrictions?: string[];
 	restriction_ids?: string[];
 	platform?: string;
