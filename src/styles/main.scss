@@ -5,6 +5,9 @@
 // Imported once in +layout.svelte to apply globally.
 // =============================================================================
 
+// Fonts (self-hosted — no Google Fonts CDN, GDPR-safe)
+@import './base/fonts';
+
 // Base
 @import './base/variables';     // Theme variables (CSS custom properties)
 @import './base/themes';        // Theme color overrides

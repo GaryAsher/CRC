@@ -15,6 +15,7 @@
 		'moderator-guide': { title: 'Moderator', icon: '👁️', order: 2 },
 		'verifier-guide': { title: 'Verifier', icon: '✅', order: 3 },
 		'staff-compliance-procedures': { title: 'Compliance', icon: '📋', order: 4 },
+		'disaster-recovery': { title: 'Disaster Recovery', icon: '🚨', order: 5 },
 	};
 
 	// Build enriched guides from server data

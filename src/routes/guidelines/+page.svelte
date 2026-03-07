@@ -4,7 +4,7 @@
 <div class="page-width">
   <div class="legal-page">
     <h1>Community Guidelines</h1>
-    <p class="legal-updated">Last updated: February 11, 2026</p>
+    <p class="legal-updated">Last updated: March 7, 2026</p>
     <p>
       These guidelines describe how the CRC community operates. They are not a legal contract — they are expectations for all users. Violation of these guidelines may result in content removal, account suspension, or a permanent ban at our discretion. For legal terms, see our <a href="/legal/terms/">Terms of Service</a>.
     </p>
@@ -18,6 +18,7 @@
         <li><a href="#cheating">Cheating Policy</a></li>
         <li><a href="#verification">Verification Process</a></li>
         <li><a href="#moderation">Moderation</a></li>
+        <li><a href="#data-protection">Data Protection</a></li>
         <li><a href="#appeals">Appeals</a></li>
         <li><a href="#enforcement">Enforcement</a></li>
       </ol>
@@ -106,15 +107,31 @@
       </p>
     </section>
     
+    <section id="data-protection">
+      <h2>7. Data Protection</h2>
+      <p>
+        CRC takes user privacy seriously. All community members — especially moderators and verifiers — are expected to respect the privacy of others and handle personal data responsibly.
+      </p>
+      <ul>
+        <li>Do not share, screenshot, or discuss another user's private information (email, IP address, linked accounts) outside of moderation purposes.</li>
+        <li>Moderators must only access user data when necessary for their role and must not retain personal data beyond the scope of their moderation duties.</li>
+        <li>Do not attempt to identify anonymous or pseudonymous users through technical means, social engineering, or cross-referencing external data.</li>
+        <li>If you discover a security vulnerability or data exposure, report it to <a href="mailto:privacy@challengerun.net">privacy@challengerun.net</a> immediately. Do not exploit or publicly disclose it.</li>
+      </ul>
+      <p>
+        You can manage your own data — including exporting, editing, and deleting your account — through your <a href="/profile/settings">Account Settings</a>. For full details on how we handle your data, see our <a href="/legal/privacy/">Privacy Policy</a>.
+      </p>
+    </section>
+    
     <section id="appeals">
-      <h2>7. Appeals</h2>
+      <h2>8. Appeals</h2>
       <p>
         If your submission is rejected or your account is actioned, you may appeal by contacting us through the <a href="/support/">Support Page</a>. Appeals are reviewed by a different member of the moderation team where possible. Please include any relevant context or evidence with your appeal.
       </p>
     </section>
     
     <section id="enforcement">
-      <h2>8. Enforcement</h2>
+      <h2>9. Enforcement</h2>
       <p>
         Violations of these guidelines may result in any of the following, depending on severity:
       </p>

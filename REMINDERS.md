@@ -12,6 +12,7 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - [ ] Icons for Verifiers, Moderators, Admins, and Super Admins — attach to profiles
 - [ ] Add default profile picture and default banner
 - [ ] **Favicon** — update once we have a logo (currently empty placeholder)
+- [ ] DMCA safe harbor policy + designated agent registration ($6)
 
 ### Ideas:
 - Submit Page (https://www.challengerun.net/submit):
@@ -30,17 +31,12 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
   - For the front-page:
     - [ ] Needs more visual styling. Add later
 
-### Worker is a single 2,477-line file
-worker/src/index.js handles all endpoints in one file. This works but makes it harder to maintain. At some point, consider splitting into separate handler files (e.g., handlers/runs.js, handlers/games.js, handlers/profiles.js). Not urgent — the file is well-organized with clear section headers.
-
 ### 2. Legal & Compliance
 - [ ] Review https://www.gdpradvisor.co.uk/gdpr-countries
 - [ ] Review Terms of Service line-by-line
 - [ ] Review Privacy Policy line-by-line
-- [ ] Make email accounts for privacy and legal contacts
+- [ ]  Supabase DPA — Open a support ticket or email support@supabase.io saying something like: "Hi, I'd like to execute the Data Processing Addendum for my Supabase project. My organization is Challenge Run Community (challengerun.net). Please send me the PandaDoc to sign." Then sign it when they send it.
 - [ ] Test user data export feature (GDPR compliance)
-- [ ] Create disaster recovery plan document
-- [ ] DMCA safe harbor policy + designated agent registration ($6)
 - [ ] Fill support page (FAQ, staff section, privacy request form)
 
 ---
@@ -148,6 +144,10 @@ Decision needed: GitHub Discussions vs Discord vs embedded mini-forum
 ### Security
 - [ ] **Cloudflare WAF rate limiting** — Free plan only allows 1 rate limiting rule (currently protecting `/submit` endpoints). Worker now uses KV-backed global rate limiting (upgraded from per-isolate in-memory `Map`). Upgrade to Pro ($20/mo) for full WAF with multiple rules when budget allows.
 - [ ] **CSP `unsafe-inline` for scripts** — SvelteKit requires inline scripts for hydration. Cloudflare Pages (static adapter) can't generate per-request nonces. **Accepted risk** — mitigated by input sanitization, RLS, and Worker validation. Revisit if moving to SSR or if SvelteKit adds static nonce support.
+
+### Legal
+- EU representative
+  - optional, low priority
 
 ---
 

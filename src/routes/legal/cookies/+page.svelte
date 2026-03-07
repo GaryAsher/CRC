@@ -4,7 +4,7 @@
 <div class="page-width">
   <div class="legal-page">
     <h1>Cookie Policy</h1>
-    <p class="legal-updated">Last updated: February 11, 2026</p>
+    <p class="legal-updated">Last updated: March 7, 2026</p>
     
     <div class="legal-toc card">
       <h2>Contents</h2>
@@ -49,9 +49,15 @@
             <td>7 days</td>
           </tr>
           <tr>
-            <td><code>crc_theme</code></td>
+            <td><code>crc-theme</code></td>
             <td>CRC (localStorage)</td>
-            <td>Remembers your selected theme and accent color.</td>
+            <td>Remembers your selected theme.</td>
+            <td>Persistent until cleared</td>
+          </tr>
+          <tr>
+            <td><code>crc-custom-theme</code></td>
+            <td>CRC (localStorage)</td>
+            <td>Stores your custom theme settings (accent color, background, font).</td>
             <td>Persistent until cleared</td>
           </tr>
           <tr>
@@ -134,5 +140,3 @@
 .legal-table th { background: var(--surface); font-weight: 600; }
 .legal-table code { font-size: 0.8rem; background: var(--bg); padding: 0.1rem 0.3rem; border-radius: 3px; }
 </style>
-
-<!-- Cookie settings handler will be added when cookie consent is implemented -->

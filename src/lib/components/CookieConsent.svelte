@@ -90,7 +90,8 @@
 						<table class="cookie-detail-table">
 							<tbody>
 								<tr><td><code>sb-*-auth-token</code></td><td>Supabase authentication session</td><td>7 days</td></tr>
-								<tr><td><code>crc-theme</code></td><td>Your selected theme</td><td>1 year</td></tr>
+								<tr><td><code>crc-theme</code></td><td>Your selected theme</td><td>Persistent</td></tr>
+							<tr><td><code>crc-custom-theme</code></td><td>Custom theme settings (colors, font)</td><td>Persistent</td></tr>
 								<tr><td><code>crc_cookie_consent</code></td><td>Your cookie preferences</td><td>1 year</td></tr>
 							</tbody>
 						</table>

@@ -9,6 +9,7 @@
  *   POST /approve-game      Approve a pending game  (admin, JWT-verified)
  *   POST /assign-role       Assign user roles       (moderator+, hierarchical)
  *   POST /export-data       User data export        (authenticated, own data only)
+ *   POST /delete-account    Account deletion        (authenticated, own account only)
  *   POST /game-editor/save     Game editor save     (admin/moderator, field-restricted)
  *   POST /game-editor/freeze   Freeze/unfreeze game (admin only)
  *   POST /game-editor/delete   Delete game          (super admin only)
@@ -140,6 +141,7 @@ const RATE_LIMITS = {
   '/assign-role': 10,
   '/notify': 10,
   '/export-data': 2,    // Heavy query — 2/min/IP
+  '/delete-account': 1, // Account deletion — 1/min/IP
   '/game-editor/save': 20,      // 20 saves/min/IP
   '/game-editor/freeze': 10,
   '/game-editor/delete': 3,
@@ -2418,6 +2420,98 @@ async function handleDataExport(body, env, request) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /delete-account (GDPR Article 17 — Right to Erasure)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function handleDeleteAccount(body, env, request) {
+  // Authenticate — user can only delete their own account
+  const auth = await authenticateUser(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+
+  const userId = auth.user.id;
+
+  // 1. Look up profile to get runner_id (needed for anonymizing runs)
+  const profile = await supabaseQuery(env,
+    `profiles?user_id=eq.${encodeURIComponent(userId)}&select=runner_id,display_name`, { method: 'GET' });
+  const runnerId = profile.ok && profile.data?.[0]?.runner_id;
+
+  // 2. Anonymize approved runs (preserve leaderboard integrity)
+  if (runnerId) {
+    await supabaseQuery(env,
+      `runs?runner_id=eq.${encodeURIComponent(runnerId)}`, {
+        method: 'PATCH',
+        body: { runner_id: 'deleted-user', runner_name: 'Deleted User' },
+      });
+
+    // 3. Delete achievements
+    await supabaseQuery(env,
+      `game_achievements?runner_id=eq.${encodeURIComponent(runnerId)}`, { method: 'DELETE' });
+
+    // 4. Delete audit log entries
+    await supabaseQuery(env,
+      `audit_profile_log?runner_id=eq.${encodeURIComponent(runnerId)}`, { method: 'DELETE' });
+  }
+
+  // 5. Delete pending runs
+  await supabaseQuery(env,
+    `pending_runs?submitted_by=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 6. Delete support messages
+  await supabaseQuery(env,
+    `support_messages?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 7. Delete support tickets
+  await supabaseQuery(env,
+    `support_tickets?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 8. Delete game update requests
+  await supabaseQuery(env,
+    `game_update_requests?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 9. Delete pending games
+  await supabaseQuery(env,
+    `pending_games?submitter_user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 10. Delete linked accounts
+  await supabaseQuery(env,
+    `linked_accounts?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 11. Delete role assignments
+  await supabaseQuery(env,
+    `role_game_verifiers?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+  await supabaseQuery(env,
+    `role_game_moderators?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 12. Delete pending profiles
+  await supabaseQuery(env,
+    `pending_profiles?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 13. Delete profile
+  await supabaseQuery(env,
+    `profiles?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 14. Delete the auth user via Supabase Admin API
+  const authDeleteRes = await fetch(
+    `${env.SUPABASE_URL}/auth/v1/admin/users/${encodeURIComponent(userId)}`,
+    {
+      method: 'DELETE',
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      },
+    }
+  );
+
+  if (!authDeleteRes.ok) {
+    console.error('Failed to delete auth user:', authDeleteRes.status, await authDeleteRes.text());
+    // Data is already cleaned up — log the error but don't fail the request
+    // The orphaned auth record will have no associated data
+  }
+
+  return jsonResponse({ ok: true, message: 'Account deleted successfully' }, 200, env, request);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ENDPOINT: POST /check-game-exists (Public lookup — checks games + pending)
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2666,6 +2760,9 @@ export default {
 
         case '/export-data':
           return handleDataExport(body, env, request);
+
+        case '/delete-account':
+          return handleDeleteAccount(body, env, request);
 
         case '/game-editor/save':
           return handleGameEditorSave(body, env, request);

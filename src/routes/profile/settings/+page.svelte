@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { user, session } from '$stores/auth';
 	import { supabase } from '$lib/supabase';
-	import { PUBLIC_SITE_URL } from '$env/static/public';
+	import { PUBLIC_SITE_URL, PUBLIC_WORKER_URL } from '$env/static/public';
+	import { getAccessToken } from '$lib/admin';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
@@ -10,6 +11,8 @@
 
 	let showDeleteConfirm = $state(false);
 	let deleteConfirmText = $state('');
+	let deleting = $state(false);
+	let deleteError = $state('');
 	let exporting = $state(false);
 	let exportMessage = $state('');
 
@@ -117,16 +120,25 @@
 		exporting = true;
 		exportMessage = '';
 		try {
-			const userData = {
-				profile: {
-					id: $user?.id,
-					email: $user?.email,
-					created_at: $user?.created_at,
-					metadata: $user?.user_metadata
-				},
-				exported_at: new Date().toISOString()
-			};
+			const token = await getAccessToken();
+			if (!token) { exportMessage = 'Not authenticated. Please sign in again.'; return; }
 
+			const res = await fetch(`${PUBLIC_WORKER_URL}/export-data`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`
+				},
+				body: JSON.stringify({})
+			});
+
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({ error: 'Export failed' }));
+				exportMessage = err.error || `Export failed (${res.status})`;
+				return;
+			}
+
+			const userData = await res.json();
 			const blob = new Blob([JSON.stringify(userData, null, 2)], { type: 'application/json' });
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement('a');
@@ -145,6 +157,38 @@
 	async function signOutAllDevices() {
 		await supabase.auth.signOut({ scope: 'global' });
 		goto('/');
+	}
+
+	async function deleteAccount() {
+		deleting = true;
+		deleteError = '';
+		try {
+			const token = await getAccessToken();
+			if (!token) { deleteError = 'Not authenticated. Please sign in again.'; return; }
+
+			const res = await fetch(`${PUBLIC_WORKER_URL}/delete-account`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token}`
+				},
+				body: JSON.stringify({})
+			});
+
+			const data = await res.json().catch(() => ({ error: 'Deletion failed' }));
+			if (!res.ok || !data.ok) {
+				deleteError = data.error || `Deletion failed (${res.status})`;
+				return;
+			}
+
+			// Sign out locally and redirect
+			await supabase.auth.signOut();
+			goto('/?account_deleted=1');
+		} catch (err: any) {
+			deleteError = err?.message || 'Failed to delete account. Please try again.';
+		} finally {
+			deleting = false;
+		}
 	}
 </script>
 
@@ -222,18 +266,42 @@
 			</section>
 
 			<section class="settings-section">
-				<h2>Data Export</h2>
-				<p>Download a copy of your CRC data in JSON format. This includes your profile information and account metadata.</p>
-				<button
-					class="btn btn--outline"
-					onclick={exportData}
-					disabled={exporting}
-				>
-					{exporting ? 'Exporting...' : 'Export My Data'}
-				</button>
-				{#if exportMessage}
-					<p class="export-msg">{exportMessage}</p>
-				{/if}
+				<h2>Your Data Rights</h2>
+				<p>Under GDPR, CCPA, and other privacy laws, you can exercise the following rights directly from this page — no email needed.</p>
+				<div class="rights-grid">
+					<div class="rights-item">
+						<strong>Access & Export</strong>
+						<p>Download a full copy of your CRC data (profile, runs, achievements, support history) in JSON format.</p>
+						<button
+							class="btn btn--outline"
+							onclick={exportData}
+							disabled={exporting}
+						>
+							{exporting ? 'Exporting...' : 'Export My Data'}
+						</button>
+						{#if exportMessage}
+							<p class="export-msg">{exportMessage}</p>
+						{/if}
+					</div>
+					<div class="rights-item">
+						<strong>Correction</strong>
+						<p>Update your display name, bio, social links, and other profile info at any time.</p>
+						<a href="/profile/edit" class="btn btn--outline">Edit Profile</a>
+					</div>
+					<div class="rights-item">
+						<strong>Consent Management</strong>
+						<p>Change your cookie and analytics preferences. Analytics are only active if you've opted in.</p>
+						<button class="btn btn--outline" onclick={() => { import('$stores/consent').then(m => m.showCookieSettings.set(true)); }}>Cookie Settings</button>
+					</div>
+					<div class="rights-item">
+						<strong>Deletion</strong>
+						<p>Permanently delete your account and personal data. See the Danger Zone below.</p>
+					</div>
+				</div>
+				<p class="muted" style="margin-top: 1rem; font-size: 0.8rem;">
+					For rights not covered here (restriction, objection, or complaints), contact <a href="mailto:privacy@challengerun.net">privacy@challengerun.net</a>. We respond within 30 days.
+					See our <a href="/legal/privacy#your-rights">Privacy Policy</a> for full details.
+				</p>
 			</section>
 
 			<section class="settings-section settings-section--danger">
@@ -245,6 +313,9 @@
 					</button>
 				{:else}
 					<p>Type <strong>DELETE</strong> to confirm account deletion:</p>
+					{#if deleteError}
+						<p class="delete-error">{deleteError}</p>
+					{/if}
 					<div class="delete-confirm">
 						<input
 							type="text"
@@ -253,17 +324,17 @@
 						/>
 						<button
 							class="btn btn--danger"
-							disabled={deleteConfirmText !== 'DELETE'}
-							onclick={() => { /* Account deletion requires admin API — would go through Worker */ }}
+							disabled={deleteConfirmText !== 'DELETE' || deleting}
+							onclick={deleteAccount}
 						>
-							Permanently Delete
+							{deleting ? 'Deleting...' : 'Permanently Delete'}
 						</button>
-						<button class="btn btn--ghost" onclick={() => { showDeleteConfirm = false; deleteConfirmText = ''; }}>
+						<button class="btn btn--ghost" onclick={() => { showDeleteConfirm = false; deleteConfirmText = ''; deleteError = ''; }}>
 							Cancel
 						</button>
 					</div>
 					<p class="muted" style="margin-top: 0.5rem; font-size: 0.8rem;">
-						Account deletion is processed by our team and may take up to 48 hours.
+						Your personal data will be deleted and run records will be anonymized. This cannot be undone.
 					</p>
 				{/if}
 			</section>
@@ -407,6 +478,29 @@
 		color: var(--accent);
 		font-size: 0.85rem;
 		margin-top: 0.5rem;
+	}
+	.rights-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.75rem;
+		margin-top: 0.75rem;
+	}
+	.rights-item {
+		padding: 0.75rem 1rem;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 8px;
+	}
+	.rights-item strong { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; }
+	.rights-item p { font-size: 0.8rem; color: var(--muted); margin: 0 0 0.5rem 0; }
+	.rights-item .btn--outline { font-size: 0.8rem; padding: 0.35rem 0.75rem; }
+	@media (max-width: 500px) {
+		.rights-grid { grid-template-columns: 1fr; }
+	}
+	.delete-error {
+		color: #ef4444;
+		font-size: 0.85rem;
+		margin-bottom: 0.5rem;
 	}
 	.back-link a {
 		color: var(--muted);

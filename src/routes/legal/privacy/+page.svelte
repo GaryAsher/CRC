@@ -4,7 +4,7 @@
 <div class="page-width">
   <div class="legal-page">
     <h1>Privacy Policy</h1>
-    <p class="legal-updated">Last updated: February 11, 2026</p>
+    <p class="legal-updated">Last updated: March 7, 2026</p>
     
     <div class="legal-toc card">
       <h2>Contents</h2>
@@ -32,7 +32,7 @@
         Welcome to Challenge Run Community ("CRC", "we", "us", or "our"). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit <strong>challengerun.net</strong> (the "Website") and use our services.
       </p>
       <p>
-        By using the Website, you agree to the collection and use of information in accordance with this Privacy Policy. If you do not agree, please do not use the Website.
+        By using the Website, you acknowledge the collection and use of information as described in this Privacy Policy. Where we rely on your consent for specific processing activities (such as analytics), we will ask for it separately.
       </p>
     </section>
     
@@ -129,7 +129,7 @@
         <li><strong>Supabase (Supabase Inc.)</strong> — Database hosting and authentication. <a href="https://supabase.com/privacy" target="_blank" rel="noopener">Privacy Policy</a></li>
         <li><strong>Cloudflare (Cloudflare, Inc.)</strong> — Hosting, CDN, security, and analytics. <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Privacy Policy</a></li>
       </ul>
-      <p>These providers have their own privacy policies governing how they handle data.</p>
+      <p>These providers process data on our behalf under Data Processing Agreements (DPAs) and have their own privacy policies governing how they handle data.</p>
       
       <h3>5.3 Legal Requirements</h3>
       <p>We may disclose your information if required by law, subpoena, or court order, or if we believe in good faith that disclosure is necessary to protect rights, safety, or property, or to prevent fraud or illegal activity.</p>
@@ -148,8 +148,16 @@
     <section id="data-retention">
       <h2>7. Data Retention</h2>
       <p>
-        We retain your information for as long as your account is active, as needed to provide services to you, or as required by law. If you delete your account, we will delete or anonymize your personal data within a reasonable timeframe, except where we are required to retain it for legal or regulatory reasons.
+        We retain your information based on the following schedule:
       </p>
+      <ul>
+        <li><strong>Active account data:</strong> Retained for as long as your account is active and needed to provide services.</li>
+        <li><strong>After account deletion:</strong> Personal data is deleted or anonymized within 30 days, except where required by law.</li>
+        <li><strong>Anonymized run records:</strong> Retained indefinitely to preserve community leaderboard integrity. Anonymized data cannot be traced back to you.</li>
+        <li><strong>Support communications:</strong> Retained for up to 2 years after resolution, then deleted.</li>
+        <li><strong>Audit and moderation logs:</strong> Retained for 1 year for accountability purposes.</li>
+        <li><strong>Backup copies:</strong> Purged within 90 days of the data being deleted from live systems.</li>
+      </ul>
       <p>
         Run submissions may be <strong>anonymized</strong> (rather than deleted) to preserve the integrity of community leaderboards. Anonymized data cannot be traced back to you.
       </p>
@@ -167,16 +175,19 @@
         <li><strong>Portability:</strong> Receive your data in a commonly used, machine-readable format</li>
         <li><strong>Withdraw consent:</strong> Where processing is based on consent, withdraw it at any time</li>
       </ul>
+      <p>
+        Many of these rights can be exercised directly through your <a href="/profile/settings">Account Settings</a>, where you can export your data, manage cookie preferences, and delete your account without contacting us.
+      </p>
       
       <h3>8.2 For EU/EEA/UK Residents (GDPR)</h3>
-      <p>You additionally have the right to restrict processing, object to processing based on legitimate interests, and lodge a complaint with your local supervisory authority.</p>
+      <p>You additionally have the right to restrict processing, object to processing based on legitimate interests, and lodge a complaint with your local supervisory authority. We do not make decisions based solely on automated processing that produce legal or similarly significant effects on you.</p>
       
       <h3>8.3 For California Residents (CCPA/CPRA)</h3>
       <p>You have the right to know what personal information we collect, request deletion, opt out of the sale or sharing of personal information, request correction, and exercise your rights without discriminatory treatment. <strong>We do not sell or share personal information</strong> as defined by the CCPA/CPRA.</p>
       
       <h3>8.4 Exercising Your Rights</h3>
       <p>
-        To exercise any of these rights, please contact us at <a href="mailto:privacy@challengerun.net">privacy@challengerun.net</a>. We will verify your identity before processing your request and respond within the timeframe required by applicable law.
+        Many rights can be exercised directly through your <a href="/profile/settings">Account Settings</a>. For requests that cannot be handled through self-service, contact us at <a href="mailto:privacy@challengerun.net">privacy@challengerun.net</a>. We will verify your identity before processing your request and respond within 30 days. If a request is complex, we may extend this by an additional 60 days with prior notice.
       </p>
     </section>
     
@@ -190,21 +201,27 @@
     <section id="security">
       <h2>10. Data Security</h2>
       <p>
-        We implement appropriate technical and organizational security measures to protect your personal data, including encryption of data in transit and access controls restricting who can access user data. However, no method of transmission over the internet or electronic storage is 100% secure, and we cannot guarantee absolute security.
+        We implement appropriate technical and organizational security measures to protect your personal data, including encryption of data in transit (TLS) and at rest, access controls restricting who can access user data, and regular review of our security practices. However, no method of transmission over the internet or electronic storage is 100% secure, and we cannot guarantee absolute security.
       </p>
     </section>
     
     <section id="data-breach">
       <h2>11. Data Breach Notification</h2>
       <p>
-        In the event of a personal data breach that poses a risk to your rights, we will notify the relevant authorities and affected users as required by applicable law. Notifications will describe the nature of the breach, the likely consequences, and the measures taken to address it.
+        In the event of a personal data breach that poses a risk to your rights, we will notify the relevant supervisory authority within 72 hours of becoming aware of the breach, and will notify affected users without undue delay. Notifications will describe the nature of the breach, the likely consequences, and the measures taken to address it.
       </p>
     </section>
     
     <section id="international">
       <h2>12. International Data Transfers</h2>
       <p>
-        CRC is operated from the United States. Your information may be transferred to and processed in countries other than your own. Our service providers may process data in the United States and at data centers globally. By using the Website, you acknowledge that your information may be transferred to countries that may have different data protection laws than your country of residence.
+        CRC is operated from the United States. Your data is processed by our service providers in the United States and other locations.
+      </p>
+      <p>
+        For transfers of personal data from the EEA, UK, or Switzerland to countries without an adequacy decision from the European Commission, we rely on Standard Contractual Clauses (SCCs) as adopted by the European Commission, or our service providers' equivalent transfer mechanisms. Our primary service providers (Supabase and Cloudflare) maintain Standard Contractual Clauses and equivalent safeguards for international data transfers.
+      </p>
+      <p>
+        By using the Website, you acknowledge that your information may be transferred to countries that may have different data protection laws than your country of residence.
       </p>
     </section>
     
@@ -244,5 +261,3 @@
 .legal-table th, .legal-table td { padding: 0.75rem; text-align: left; border: 1px solid var(--border); }
 .legal-table th { background: var(--surface); font-weight: 600; }
 </style>
-
-<!-- Cookie settings handler will be added when cookie consent is implemented -->

@@ -4,7 +4,7 @@
 <div class="page-width">
   <div class="legal-page">
     <h1>Terms of Service</h1>
-    <p class="legal-updated">Last updated: February 11, 2026</p>
+    <p class="legal-updated">Last updated: March 7, 2026</p>
     
     <div class="legal-toc card">
       <h2>Contents</h2>
@@ -40,7 +40,7 @@
     <section id="eligibility">
       <h2>2. Eligibility</h2>
       <p>
-        You must be at least <strong>13 years old</strong> to use this Website (or 16 in jurisdictions where required by law). If under 18 (or the age of majority in your jurisdiction), you must have parental or guardian consent. By using the Website, you represent that you meet these requirements.
+        You must be at least <strong>13 years old</strong> to use this Website, or <strong>16 years old</strong> if you reside in the European Economic Area (unless your country has set a lower age under GDPR Article 8). If under 18 (or the age of majority in your jurisdiction), you must have parental or guardian consent. By using the Website, you represent that you meet these requirements.
       </p>
     </section>
     
@@ -50,7 +50,7 @@
         To access certain features, you may create an account using Discord or Twitch authentication. You are responsible for maintaining the security of your account and all activities that occur under it. You agree to provide accurate information and not create accounts for deceptive purposes.
       </p>
       <p>
-        You may delete your account at any time through account settings or by contacting us. Upon deletion, your personal data will be handled in accordance with our <a href="/legal/privacy/#data-retention">Privacy Policy</a>. Run submissions may be anonymized rather than deleted to preserve community leaderboard integrity.
+        You may delete your account at any time through your <a href="/profile/settings">Account Settings</a>. Upon deletion, your personal data will be deleted or anonymized in accordance with our <a href="/legal/privacy/#data-retention">Privacy Policy</a>. Run submissions will be anonymized rather than deleted to preserve community leaderboard integrity.
       </p>
       <p>
         We may suspend or terminate accounts that violate these Terms or our <a href="/guidelines/">Community Guidelines</a>, with or without prior notice depending on the severity of the violation.
@@ -153,7 +153,7 @@
     <section id="changes">
       <h2>13. Changes to Terms</h2>
       <p>
-        We reserve the right to modify these Terms at any time. Changes take effect when posted to the Website and we will update the "Last updated" date at the top of this page. For significant changes, we will make reasonable efforts to provide notice via a prominent notice on the Website. Your continued use of the Website after changes are posted constitutes acceptance.
+        We reserve the right to modify these Terms at any time. Changes take effect when posted to the Website and we will update the "Last updated" date at the top of this page. For material changes, we will provide at least 30 days' notice via a prominent notice on the Website before they take effect. Your continued use of the Website after changes take effect constitutes acceptance.
       </p>
     </section>
     
