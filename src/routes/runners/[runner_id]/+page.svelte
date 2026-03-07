@@ -160,7 +160,7 @@
 			<div class="runner-socials">
 				{#if socials.twitch}<a href={socials.twitch} target="_blank" rel="noopener" class="runner-link" title="Twitch"><span class="runner-link__icon">📺</span> Twitch</a>{/if}
 				{#if socials.youtube}<a href={socials.youtube} target="_blank" rel="noopener" class="runner-link" title="YouTube"><span class="runner-link__icon">▶️</span> YouTube</a>{/if}
-				{#if socials.discord}<span class="runner-link" title="Discord"><span class="runner-link__icon">💬</span> Discord</span>{/if}
+				{#if socials.discord}<a href={socials.discord} target="_blank" rel="noopener" class="runner-link" title="Discord"><span class="runner-link__icon">💬</span> Discord</a>{/if}
 				{#if socials.twitter}<a href={socials.twitter} target="_blank" rel="noopener" class="runner-link" title="X / Twitter"><span class="runner-link__icon">🐦</span> X</a>{/if}
 				{#if socials.bluesky}<a href={socials.bluesky} target="_blank" rel="noopener" class="runner-link" title="Bluesky"><span class="runner-link__icon">🦋</span> Bluesky</a>{/if}
 				{#if socials.instagram}<a href={socials.instagram} target="_blank" rel="noopener" class="runner-link" title="Instagram"><span class="runner-link__icon">📷</span> Instagram</a>{/if}
