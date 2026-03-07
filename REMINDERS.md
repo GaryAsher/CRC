@@ -12,7 +12,6 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - [ ] Icons for Verifiers, Moderators, Admins, and Super Admins — attach to profiles
 - [ ] Add default profile picture and default banner
 - [ ] **Favicon** — update once we have a logo (currently empty placeholder)
-- [ ] DMCA safe harbor policy + designated agent registration ($6)
 
 ### Ideas:
 - Submit Page (https://www.challengerun.net/submit):
@@ -31,10 +30,17 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
   - For the front-page:
     - [ ] Needs more visual styling. Add later
 
+2. YouTube embeds use youtube.com instead of youtube-nocookie.com. The Cookie Policy says "We load these using privacy-enhanced modes where available," but the admin runs page builds embed URLs as https://www.youtube.com/embed/.... YouTube's privacy-enhanced mode uses https://www.youtube-nocookie.com/embed/... which avoids setting cookies until the user clicks play. It's a one-line change in the embed function and would make that Cookie Policy claim accurate. This only affects the admin runs page (line 157), so low impact.
+3. Two Worker endpoints missing rate limits. /reject-game and /request-game-changes are admin-only endpoints without rate limit entries. They're authenticated so the risk is low, but for consistency with every other admin endpoint having a rate limit, adding them to the RATE_LIMITS object (something like 30/min to match the other admin actions) would be belt-and-suspenders.
+None of these are urgent or compliance-blocking. The GDPR/privacy work is done — policies are solid, data export works, account deletion works, cookie consent is wired up properly, fonts are self-hosted, security headers are correct. You're in a really good spot.
+
+- Admin Panel:
+  - Pending Game Updates:
+    - [ ] allow markdown in user's submission file.
+    - [ ] Allow super-admin to make changes.
+
 ### 2. Legal & Compliance
 - [ ] Review https://www.gdpradvisor.co.uk/gdpr-countries
-- [ ] Review Terms of Service line-by-line
-- [ ] Review Privacy Policy line-by-line
 - [ ] Test user data export feature (GDPR compliance)
 - [ ] Fill support page (FAQ, staff section, privacy request form)
 
@@ -148,6 +154,7 @@ Decision needed: GitHub Discussions vs Discord vs embedded mini-forum
 ### Legal
 - EU representative
   - optional, low priority
+- [ ] DMCA safe harbor policy + designated agent registration ($6)
 
 ---
 

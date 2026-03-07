@@ -9,10 +9,30 @@
 	import { COUNTRIES } from '$lib/data/countries';
 	import AuthGuard from '$components/auth/AuthGuard.svelte';
 
+	// ── Server Data ───────────────────────────────────────────────────────────
+	let { data } = $props();
+
 	// ── State ─────────────────────────────────────────────────────────────────
 	type PageState = 'loading' | 'has-profile' | 'has-pending' | 'create';
 	let pageState = $state<PageState>('loading');
 	let existingRunnerId = $state('');
+
+	// Hydrate from server data immediately (no client-side Supabase needed)
+	$effect(() => {
+		if ($debugRole) {
+			displayName = 'New Runner';
+			runnerId = 'new-runner';
+			pageState = 'create';
+			return;
+		}
+
+		if (data.profileState === 'has-profile' || data.profileState === 'has-pending') {
+			existingRunnerId = data.existingRunnerId || '';
+			pageState = data.profileState;
+		} else if (data.profileState === 'create') {
+			pageState = 'create';
+		}
+	});
 
 	// ── Form Fields ───────────────────────────────────────────────────────────
 	let runnerId = $state('');
@@ -91,56 +111,18 @@
 	let oauthName = $derived($user?.user_metadata?.full_name || $user?.user_metadata?.name || 'User');
 	let oauthProvider = $derived($user?.app_metadata?.provider || 'OAuth');
 
-	// ── Init ──────────────────────────────────────────────────────────────────
-	onMount(async () => {
-		// In debug mode, skip profile check and show form directly
-		if ($debugRole) {
-			displayName = 'New Runner';
-			runnerId = 'new-runner';
-			pageState = 'create';
-			return;
-		}
-
+	// ── Auto-fill from OAuth on mount ─────────────────────────────────────────
+	onMount(() => {
+		if (pageState !== 'create') return;
+		if ($debugRole) return;
 		if (!$user) return;
 
-		try {
-			// 1. Check profiles — already approved
-			const { data: approved } = await supabase
-				.from('profiles')
-				.select('runner_id, status')
-				.eq('user_id', $user.id)
-				.maybeSingle();
-
-			if (approved?.runner_id) {
-				existingRunnerId = approved.runner_id;
-				pageState = approved.status === 'pending' ? 'has-pending' : 'has-profile';
-				return;
-			}
-
-			// 2. Check pending_profiles — submitted but not yet approved
-			const { data: pending } = await supabase
-				.from('pending_profiles')
-				.select('id, requested_runner_id, has_profile, status')
-				.eq('user_id', $user.id)
-				.maybeSingle();
-
-			if (pending?.has_profile && pending.requested_runner_id) {
-				pageState = 'has-pending';
-				return;
-			}
-		} catch {
-			// No profile found — show create form
-		}
-
-		// Auto-fill from OAuth
 		const name = $user.user_metadata?.full_name || $user.user_metadata?.name || '';
 		displayName = name;
 		runnerId = generateRunnerId(name);
 		if (runnerId.length >= 3) {
 			validateRunnerId(runnerId);
 		}
-
-		pageState = 'create';
 	});
 
 	// ── Runner ID Logic ───────────────────────────────────────────────────────
@@ -251,14 +233,8 @@
 			const others = otherLinks.filter(l => l.trim());
 			if (others.length > 0) socials.other = others;
 
-			// Check if user is pre-approved (admin approved account before profile was filled out)
-			const { data: pendingRow } = await supabase
-				.from('pending_profiles')
-				.select('status')
-				.eq('user_id', $user.id)
-				.maybeSingle();
-
-			const isPreApproved = pendingRow?.status === 'approved';
+			// Use pre-approved status from server data (avoids extra client-side query)
+			const isPreApproved = data.isPreApproved === true;
 
 			// Upsert pending_profiles with form data (insert if new user, update if existing)
 			const { error } = await supabase
@@ -296,7 +272,7 @@
 						status: 'approved'
 					});
 
-				if (rpError) console.error('Failed to create profiles:', rpError);
+				if (rpError) throw rpError;
 
 				message = { type: 'success', text: 'Profile created! Redirecting...' };
 				showToast('success', 'Profile created! Redirecting to your page...');
