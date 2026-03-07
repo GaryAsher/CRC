@@ -26,19 +26,16 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ### 1 Small fixes
 - News Section:
   - For the front-page:
-    - [ ] Update Excerpt to show "..." if the excerpt is too long
-    - [ ] Put Next and Previous buttons on the left and right. Keep the bottom that shows how many articles exist.
-    - [ ] Show Content on the front page.
-    - [ ] Clicking onto the page expands it or leads a user to its' respective News page.
+    - [ ] Needs more visual styling. Add later
 
 - Parent-Child categories:
    - Rules Page:
+    - Overall:
+      - If a game does not have challenge rules defined, it should default to the global definition. This is not happening for Cuphead. why? Are global definitions not set as the fallback?
     - Definitions at bottom of page:
-      - [ ] add small visual separator between child categories.
-      - [ ] add accordion style for each child, set closed
-      - [ ] add accordion style for parent, have a number showing how many child variations there are.
-    - Rule Builder:
-      - Fix Areas with Child Categories to have either a 2nd drop-down or some way to pick the child. It is assumed that the parent is selected, but only 1 child can be selected.
+      - [ ] Show Parent Definition, even if Child categories are not showing.
+      - [ ] Add an Up/Down arrow at the end of the parent category's name.
+        - example: "Weapon Only ▲"
 
 ### Worker is a single 2,477-line file
 worker/src/index.js handles all endpoints in one file. This works but makes it harder to maintain. At some point, consider splitting into separate handler files (e.g., handlers/runs.js, handlers/games.js, handlers/profiles.js). Not urgent — the file is well-organized with clear section headers.

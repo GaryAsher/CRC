@@ -2,6 +2,14 @@
 	import { renderMarkdown } from '$lib/utils/markdown';
 	let { data } = $props();
 	const game = $derived(data.game);
+	const globalChallenges = $derived(data.globalChallenges || {});
+
+	/** Get the description for a challenge, falling back to the global definition */
+	function challengeDescription(ch: { slug: string; description?: string }): string | undefined {
+		if (ch.description) return ch.description;
+		const global = globalChallenges[ch.slug];
+		return global?.description || undefined;
+	}
 
 	// ── Rule Builder state ──
 	let rbOpen = $state(false);
@@ -143,7 +151,8 @@
 		}
 		for (const ch of selectedChallenges) {
 			lines.push(`Challenge: ${ch.label}`);
-			if (ch.description) lines.push(`  ${ch.description.replace(/\n/g, '\n  ')}`);
+			const chDesc = challengeDescription(ch);
+			if (chDesc) lines.push(`  ${chDesc.replace(/\n/g, '\n  ')}`);
 			if (ch.exceptions) lines.push(`  Exceptions: ${ch.exceptions.replace(/\n/g, '\n  ')}`);
 			lines.push('');
 		}
@@ -366,9 +375,10 @@
 							</div>
 						{/if}
 						{#each selectedChallenges as ch}
+							{@const chDesc = challengeDescription(ch)}
 							<div class="rb-rule">
 								<strong>Challenge:</strong> {ch.label}
-								{#if ch.description}<div class="rb-rule__desc">{@html renderMarkdown(ch.description)}</div>{/if}
+								{#if chDesc}<div class="rb-rule__desc">{@html renderMarkdown(chDesc)}</div>{/if}
 								{#if ch.exceptions}<div class="rb-rule__exceptions">{@html renderMarkdown(ch.exceptions)}</div>{/if}
 							</div>
 						{/each}
@@ -428,9 +438,10 @@
 		</summary>
 		<div class="rules-accordion__body">
 			{#each game.challenges_data as challenge}
+				{@const desc = challengeDescription(challenge)}
 				<div class="card rule-card">
 					<h3>{challenge.label}</h3>
-					{#if challenge.description}{@html renderMarkdown(challenge.description)}{/if}
+					{#if desc}{@html renderMarkdown(desc)}{/if}
 					{#if challenge.exceptions}<div class="rule-exceptions"><span class="rule-exceptions__label">⚠ Exceptions</span><div class="rule-exceptions__body">{@html renderMarkdown(challenge.exceptions)}</div></div>{/if}
 				</div>
 			{/each}
@@ -449,15 +460,15 @@
 			{#each game.restrictions_data as restriction}
 				<div class="card rule-card">
 					{#if restriction.children?.length}
+						<h3>{restriction.label}</h3>
+						{#if restriction.description}{@html renderMarkdown(restriction.description)}{/if}
+						{#if restriction.exceptions}<div class="rule-exceptions"><span class="rule-exceptions__label">⚠ Exceptions</span><div class="rule-exceptions__body">{@html renderMarkdown(restriction.exceptions)}</div></div>{/if}
 						<details class="rule-parent">
 							<summary class="rule-parent__header">
-								<h3>{restriction.label}</h3>
-								<span class="rule-parent__count">{restriction.children.length} variation{restriction.children.length === 1 ? '' : 's'}</span>
-								<span class="rule-parent__chevron">▶</span>
+								<span class="rule-parent__toggle">{restriction.children.length} variation{restriction.children.length === 1 ? '' : 's'}</span>
+								<span class="rule-parent__chevron">▼</span>
 							</summary>
 							<div class="rule-parent__body">
-								{#if restriction.description}{@html renderMarkdown(restriction.description)}{/if}
-								{#if restriction.exceptions}<div class="rule-exceptions"><span class="rule-exceptions__label">⚠ Exceptions</span><div class="rule-exceptions__body">{@html renderMarkdown(restriction.exceptions)}</div></div>{/if}
 								<div class="rule-children">
 									<span class="rule-children__mode">{restriction.child_select === 'multi' ? 'Select any number:' : 'Select one:'}</span>
 									{#each restriction.children as child, ci}
@@ -533,14 +544,13 @@
 	.rule-card--docs { border-left: 3px solid var(--accent); }
 
 	/* Parent accordion (restrictions with children) */
-	.rule-parent { }
+	.rule-parent { margin-top: 0.75rem; border-top: 1px dashed var(--border); padding-top: 0.75rem; }
 	.rule-parent__header { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; list-style: none; user-select: none; padding: 0; }
 	.rule-parent__header::-webkit-details-marker { display: none; }
 	.rule-parent__header::marker { display: none; content: ''; }
-	.rule-parent__header h3 { margin: 0; flex: 1; }
-	.rule-parent__count { font-size: 0.75rem; font-weight: 600; background: var(--bg); border: 1px solid var(--border); padding: 0.1rem 0.45rem; border-radius: 10px; color: var(--muted); white-space: nowrap; }
-	.rule-parent__chevron { font-size: 0.6rem; color: var(--muted); transition: transform 0.2s; }
-	.rule-parent[open] > .rule-parent__header .rule-parent__chevron { transform: rotate(90deg); }
+	.rule-parent__toggle { font-size: 0.8rem; font-weight: 600; color: var(--accent); }
+	.rule-parent__chevron { font-size: 0.65rem; color: var(--muted); transition: transform 0.2s; }
+	.rule-parent[open] > .rule-parent__header .rule-parent__chevron { transform: rotate(180deg); }
 	.rule-parent__body { margin-top: 0.5rem; }
 
 	/* Child rules */
