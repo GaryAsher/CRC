@@ -243,6 +243,7 @@
 		hasExceptions: boolean;
 		exceptions: string;
 		children: MiniChild[];
+		childSelect: 'single' | 'multi';
 	}
 	let miniChallengeGroups = $state<MiniChallengeGroup[]>([]);
 
@@ -255,7 +256,7 @@
 	function removeFullRun(i: number) { fullRunCategories = fullRunCategories.filter((_, idx) => idx !== i); }
 
 	function addMiniGroup() {
-		miniChallengeGroups = [...miniChallengeGroups, { slug: '', label: '', description: '', hasExceptions: false, exceptions: '', children: [] }];
+		miniChallengeGroups = [...miniChallengeGroups, { slug: '', label: '', description: '', hasExceptions: false, exceptions: '', childSelect: 'single', children: [] }];
 		editingSection = 'mc'; editingIndex = miniChallengeGroups.length - 1;
 	}
 	function removeMiniGroup(i: number) {
@@ -328,11 +329,12 @@
 		description: string;
 		hasExceptions: boolean;
 		exceptions: string;
+		childSelect: 'single' | 'multi';
 		children: RestrictionChild[];
 	}
 	let restrictions = $state<RestrictionGroup[]>([]);
 	function addRestriction() {
-		restrictions = [...restrictions, { slug: '', label: '', description: '', hasExceptions: false, exceptions: '', children: [] }];
+		restrictions = [...restrictions, { slug: '', label: '', description: '', hasExceptions: false, exceptions: '', childSelect: 'single', children: [] }];
 		editingSection = 'rs'; editingIndex = restrictions.length - 1;
 	}
 	function removeRestriction(i: number) { restrictions = restrictions.filter((_, idx) => idx !== i); }
@@ -429,6 +431,7 @@
 		fullRunCategories = d.fullRunCategories ?? [];
 		miniChallengeGroups = (d.miniChallengeGroups ?? []).map((g: any) => ({
 			...g,
+			childSelect: g.childSelect ?? 'single',
 			children: (g.children || []).map((c: any) => ({
 				...c,
 				fixedLoadoutEnabled: c.fixedLoadoutEnabled ?? !!(c.fixedCharacter || c.fixedRestriction),
@@ -443,7 +446,7 @@
 		characterEnabled = d.characterEnabled ?? false;
 		characterLabel = d.characterLabel ?? 'Character';
 		characterOptions = d.characterOptions ?? [];
-		restrictions = d.restrictions ?? [];
+		restrictions = (d.restrictions ?? []).map((r: any) => ({ ...r, childSelect: r.childSelect ?? 'single' }));
 		timingMethod = d.timingMethod ?? 'RTA';
 		selectedGlitches = d.selectedGlitches ?? [];
 		nmgRules = d.nmgRules ?? '';
@@ -770,6 +773,7 @@
 				slug: g.slug || slugify(g.label), label: g.label.trim(),
 				description: g.description.trim() || null,
 				exceptions: g.hasExceptions && g.exceptions.trim() ? g.exceptions.trim() : null,
+				child_select: g.childSelect || 'single',
 				children: g.children.filter(c => c.label.trim()).map(c => ({
 					slug: c.slug || slugify(c.label), label: c.label.trim(),
 					description: c.description.trim() || null,
@@ -787,6 +791,7 @@
 				slug: r.slug || slugify(r.label), label: r.label.trim(),
 				description: r.description.trim() || null,
 				exceptions: r.hasExceptions && r.exceptions.trim() ? r.exceptions.trim() : null,
+				child_select: r.childSelect || 'single',
 				children: r.children.filter(c => c.label.trim()).map(c => ({
 					slug: c.slug || slugify(c.label), label: c.label.trim(),
 					description: c.description.trim() || null,
@@ -1195,6 +1200,15 @@
 															{/if}
 															<details class="children-section">
 																<summary class="children-title">Children <span class="muted">({group.children.length})</span> <span class="children-chevron">▶</span></summary>
+																{#if group.children.length > 0}
+																	<div class="child-select-row">
+																		<label class="field-label">Child Selection Mode</label>
+																		<select class="field-input field-input--short" bind:value={miniChallengeGroups[gi].childSelect}>
+																			<option value="single">Single-select (pick one)</option>
+																			<option value="multi">Multi-select (pick any number)</option>
+																		</select>
+																	</div>
+																{/if}
 																{#each group.children as child, ci}
 																	<details class="child-card">
 																		<summary class="child-card__header">
@@ -1362,6 +1376,15 @@
 															{/if}
 															<details class="children-section">
 																<summary class="children-title">Children <span class="muted">({(item.children || []).length})</span> <span class="children-chevron">▶</span></summary>
+																{#if (item.children || []).length > 0}
+																	<div class="child-select-row">
+																		<label class="field-label">Child Selection Mode</label>
+																		<select class="field-input field-input--short" bind:value={restrictions[i].childSelect}>
+																			<option value="single">Single-select (pick one)</option>
+																			<option value="multi">Multi-select (pick any number)</option>
+																		</select>
+																	</div>
+																{/if}
 																{#each item.children || [] as child, ci}
 																	<details class="child-card">
 																		<summary class="child-card__header">
@@ -1784,6 +1807,10 @@
 	/* Utilities */
 	.mb-2 { margin-bottom: 0.5rem; }
 	.mt-2 { margin-top: 0.5rem; }
+
+	/* Child selection mode toggle */
+	.child-select-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+	.child-select-row .field-label { margin: 0; font-size: 0.8rem; white-space: nowrap; }
 
 	/* Cover image */
 	.cover-preview { display: flex; flex-direction: column; gap: 0.5rem; }

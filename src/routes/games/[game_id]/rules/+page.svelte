@@ -409,6 +409,7 @@
 					{#if restriction.exceptions}<div class="rule-exceptions"><span class="rule-exceptions__label">⚠ Exceptions</span><div class="rule-exceptions__body">{@html renderMarkdown(restriction.exceptions)}</div></div>{/if}
 					{#if restriction.children?.length}
 						<div class="rule-children">
+							<span class="rule-children__mode">{restriction.child_select === 'multi' ? 'Select any number:' : 'Select one:'}</span>
 							{#each restriction.children as child}
 								<div class="rule-child">
 									<h4>└ {child.label}</h4>
@@ -471,6 +472,7 @@
 
 	/* Child rules */
 	.rule-children { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--border); }
+	.rule-children__mode { display: block; font-size: 0.8rem; color: var(--muted); font-style: italic; margin-bottom: 0.5rem; }
 	.rule-child { margin-top: 0.5rem; padding-left: 1rem; }
 	.rule-child h4 { margin: 0 0 0.25rem; font-size: 0.95rem; color: var(--accent); }
 

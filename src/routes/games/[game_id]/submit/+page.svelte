@@ -562,13 +562,13 @@
 				<div class="chip-grid">
 					{#each game.restrictions_data as r}
 						{@const isLocked = fixedLoadout?.restriction === r.slug}
-						{@const hasChildren = r.children?.length > 0}
+						{@const hasChildren = (r.children?.length ?? 0) > 0}
 						{@const isExpanded = expandedRestrictions.has(r.slug)}
-						{@const childActive = hasChildren && r.children.some((c: any) => selectedRestrictions.includes(c.slug))}
+						{@const childActive = hasChildren && r.children?.some((c: any) => selectedRestrictions.includes(c.slug))}
 						{#if hasChildren}
 							<button type="button" class="chip chip--parent" class:chip--expanded={isExpanded} class:chip--child-active={childActive} onclick={() => toggleRestrictionExpand(r.slug)}>
 								{r.label} <span class="chip__arrow">{isExpanded ? '▲' : '▼'}</span>
-								{#if childActive}<span class="chip__count">{r.children.filter((c: any) => selectedRestrictions.includes(c.slug)).length}</span>{/if}
+								{#if childActive}<span class="chip__count">{r.children?.filter((c: any) => selectedRestrictions.includes(c.slug)).length}</span>{/if}
 							</button>
 							{#if isExpanded}
 								<div class="chip-children">

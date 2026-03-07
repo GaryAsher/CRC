@@ -29,6 +29,10 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 
 - Submit Game / Game Admin / Game Edit:
   - [ ] For parent-child categories, add the option at the parent level for the children to be single-select or multi-select.
+    - Game Editor has this, but Submit Game form needs it. Always default to Single-Select
+    - Rules and Definitions needs to too.
+
+
 
 8. Unused CSS from accordion-to-tabs conversion in submit-game
 The submit-game page still has a few CSS rules from the old accordion pattern that survived cleanup. They won't cause bugs but show up as build warnings. You already saw these in the GitHub Actions logs.

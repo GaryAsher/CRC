@@ -76,9 +76,9 @@
 							{#if (item.children || []).length > 0}
 								<div class="child-select-row">
 									<label class="field-label">Child Selection Mode</label>
-									<select class="field-input field-input--short" value={item.child_select || 'multi'} onchange={(e) => { item.child_select = e.currentTarget.value as 'single' | 'multi'; restrictionsData = [...restrictionsData]; }} disabled={!canEdit}>
-										<option value="multi">Multi-select (pick any number)</option>
+									<select class="field-input field-input--short" value={item.child_select || 'single'} onchange={(e) => { item.child_select = e.currentTarget.value as 'single' | 'multi'; restrictionsData = [...restrictionsData]; }} disabled={!canEdit}>
 										<option value="single">Single-select (pick one)</option>
+										<option value="multi">Multi-select (pick any number)</option>
 									</select>
 								</div>
 							{/if}
