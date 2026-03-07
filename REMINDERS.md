@@ -24,47 +24,36 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 
 ## Short-Term Priorities
 ### 1 Small fixes
+- [ ] Test Discord webhooks (run submission, game submission)
+- [ ] Fill glossary definitions (hit, damage, death, hitless vs damageless, etc.)
 - News Section:
   - For the front-page:
     - [ ] Needs more visual styling. Add later
 
-- Parent-Child categories:
-   - Rules Page:
-    - Overall:
-      - If a game does not have challenge rules defined, it should default to the global definition. This is not happening for Cuphead. why? Are global definitions not set as the fallback?
-    - Definitions at bottom of page:
-      - [ ] Show Parent Definition, even if Child categories are not showing.
-      - [ ] Add an Up/Down arrow at the end of the parent category's name.
-        - example: "Weapon Only ▲"
-
 ### Worker is a single 2,477-line file
 worker/src/index.js handles all endpoints in one file. This works but makes it harder to maintain. At some point, consider splitting into separate handler files (e.g., handlers/runs.js, handlers/games.js, handlers/profiles.js). Not urgent — the file is well-organized with clear section headers.
 
-### 2. Content & Polish
-- [ ] Fill glossary definitions (hit, damage, death, hitless vs damageless, etc.)
-- [ ] Fill support page (FAQ, staff section, privacy request form)
-- [ ] Test Discord webhooks (run submission, game submission)
-
-### 3. Legal & Compliance
+### 2. Legal & Compliance
+- [ ] Review https://www.gdpradvisor.co.uk/gdpr-countries
 - [ ] Review Terms of Service line-by-line
 - [ ] Review Privacy Policy line-by-line
 - [ ] Make email accounts for privacy and legal contacts
 - [ ] Test user data export feature (GDPR compliance)
 - [ ] Create disaster recovery plan document
 - [ ] DMCA safe harbor policy + designated agent registration ($6)
-- [ ] Review https://www.gdpradvisor.co.uk/gdpr-countries
+- [ ] Fill support page (FAQ, staff section, privacy request form)
 
 ---
 
 ## Medium-Term Priorities
-### 4. Spanish Language Support
+### 3. Spanish Language Support
 **PROMISED TO COMMUNITY — HIGH PRIORITY**
 - [ ] Evaluate: `paraglide-js` or `$lib/i18n` approach
 - [ ] Create translation files
 - [ ] Add language toggle to header
 - [ ] Request community translation help early
 
-### 5. Notifications & Messaging System
+### 4. Notifications & Messaging System
 **Tier 1 — Notifications (build first):**
 - [ ] `notifications` table in Supabase (id, user_id, type, title, message, link, metadata, read, created_at)
 - [ ] Bell icon in site header with unread count badge
@@ -80,25 +69,7 @@ worker/src/index.js handles all endpoints in one file. This works but makes it h
 - [ ] Real-time updates via Supabase Realtime (optional, nice-to-have)
 - [ ] Unread message count in header alongside notification bell
 
-**SQL for notifications table (ready to run):**
-```sql
-CREATE TABLE public.notifications (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  type text NOT NULL,
-  title text NOT NULL,
-  message text,
-  link text,
-  metadata jsonb DEFAULT '{}',
-  read boolean DEFAULT false,
-  created_at timestamptz DEFAULT now(),
-  CONSTRAINT notifications_pkey PRIMARY KEY (id),
-  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
-);
-CREATE INDEX idx_notifications_user_unread ON public.notifications (user_id, read) WHERE read = false;
-```
-
-### 6. User Report & Request Systems
+### 5. User Report & Request Systems
 - [ ] **Report buttons** — "Report" button on runner profiles, game pages, runs (table exists, needs frontend buttons)
 - [ ] **User requests** — feature requests, game suggestions, corrections. Could reuse `support_tickets` or a new `user_requests` table.
 - [ ] **Content moderation queue** — flag uploaded avatars/banners for review (graphic/sexual content). Consider automated image moderation (Cloudflare Images or similar) when budget allows.
@@ -106,20 +77,8 @@ CREATE INDEX idx_notifications_user_unread ON public.notifications (user_id, rea
 ### 6. Verifier CMS
 - [ ] Inline editing on game pages with diff preview
 - [ ] Require 2 verifiers to approve rule changes
-- [ ] Game submission UI in admin dashboard (replace external form)
 
-### 7. Badges & Achievements System
-- [ ] Design badge types (run count, challenge completion, community milestones)
-- [ ] Run count badges on game cards
-- [ ] Badge display on runner profiles
-- [ ] Achievement progress tracking
-
-### 8. Leaderboards
-- [ ] Per-game leaderboards
-- [ ] Per-challenge leaderboards
-- [ ] Sortable/filterable tables
-
-### 9. Multi-Runner Support
+### 7. Multi-Runner Support
 Requires messaging system to be built first (runners must verify co-op participation).
 - [ ] Runner search component (typeahead, searches `profiles` table)
 - [ ] `co_runners` column on `pending_runs` (JSONB array of user_ids)
@@ -127,16 +86,27 @@ Requires messaging system to be built first (runners must verify co-op participa
 - [ ] Co-runners displayed on approved run cards
 - [ ] Submit form: "Add Additional Runners" section (currently stubbed as Coming Soon)
 
+### 8. Modded Game Support
+- [ ] Separate game pages for modded versions (Option A from earlier discussion)
+
+### 9. Leaderboards
+- [ ] Per-game leaderboards
+- [ ] Per-challenge leaderboards
+- [ ] Sortable/filterable tables
+
 ### 10. Multi-Run Support
 For runs that span multiple games (e.g., marathon challenge runs).
 - [ ] Scope and design TBD — related to Multi-Game Run Support in Future Features
 
+### 11. Badges & Achievements System
+- [ ] Design badge types (run count, challenge completion, community milestones)
+- [ ] Run count badges on game cards
+- [ ] Badge display on runner profiles
+- [ ] Achievement progress tracking
+
 ---
 
 ## Future Features (Backlog)
-### Modded Game Support
-- [ ] Separate game pages for modded versions (Option A from earlier discussion)
-
 ### History Tab
 - [ ] **UI is built, needs backend wiring** — icons/labels defined for `run_approved`, `rule_updated`, `gm_added`, etc. Server returns empty array. Blocked on: `game_history` table + audit event writes in Worker approval/edit handlers.
 - [ ] Rule changes, discussions, community milestones

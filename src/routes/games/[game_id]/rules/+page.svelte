@@ -306,7 +306,7 @@
 									<select class="rb-field rb-field--child" value={restrictionChildSelections[parentR.slug]?.slug ?? ''} onchange={(e) => {
 										const slug = e.currentTarget.value;
 										if (!slug) { clearRestrictionChild(parentR.slug); return; }
-										const child = parentR.children.find((c: any) => c.slug === slug);
+										const child = parentR.children?.find((c: any) => c.slug === slug);
 										if (child) selectRestrictionChild(parentR.slug, child);
 									}}>
 										<option value="">— Select a variation —</option>
