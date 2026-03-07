@@ -865,7 +865,7 @@
 									<div class="pv-socials">
 										{#if socialTwitch}<span class="pv-link"><span class="pv-link__icon">📺</span> Twitch</span>{/if}
 										{#if socialYoutube}<span class="pv-link"><span class="pv-link__icon">▶️</span> YouTube</span>{/if}
-										{#if socialDiscord}<span class="pv-link"><span class="pv-link__icon">💬</span> Discord: {socialDiscord}</span>{/if}
+										{#if socialDiscord}<span class="pv-link"><span class="pv-link__icon">💬</span> Discord</span>{/if}
 										{#if socialTwitter}<span class="pv-link"><span class="pv-link__icon">🐦</span> X</span>{/if}
 										{#if socialBluesky}<span class="pv-link"><span class="pv-link__icon">🦋</span> Bluesky</span>{/if}
 										{#if socialInstagram}<span class="pv-link"><span class="pv-link__icon">📷</span> Instagram</span>{/if}

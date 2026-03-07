@@ -138,6 +138,8 @@ const RATE_LIMITS = {
   '/reject-profile': 30,
   '/request-profile-changes': 30,
   '/approve-game': 30,
+  '/reject-game': 30,
+  '/request-game-changes': 30,
   '/assign-role': 10,
   '/notify': 10,
   '/export-data': 2,    // Heavy query — 2/min/IP
