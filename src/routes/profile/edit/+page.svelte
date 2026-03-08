@@ -6,6 +6,8 @@
 	import { sanitizeText } from '$lib/utils/markdown';
 	import { checkBannedTerms } from '$lib/utils/banned-terms';
 	import { COUNTRIES, matchLocationToCode, getCountry } from '$lib/data/countries';
+	import * as m from '$lib/paraglide/messages';
+	import { localizeHref } from '$lib/paraglide/runtime';
 
 	import AuthGuard from '$components/auth/AuthGuard.svelte';
 
@@ -742,21 +744,21 @@
 
 	// ── Tabs ────────────────────────────────────────────────────
 	const TABS: { id: Tab; icon: string; label: string }[] = [
-		{ id: 'basic', icon: '👤', label: 'Basic Info' },
-		{ id: 'customize', icon: '🎨', label: 'Customize' },
-		{ id: 'socials', icon: '🔗', label: 'Socials' },
-		{ id: 'goals', icon: '🎯', label: 'Goals' },
-		{ id: 'highlights', icon: '📌', label: 'Highlights' }
+		{ id: 'basic', icon: '👤', label: m.edit_tab_basic_info() },
+		{ id: 'customize', icon: '🎨', label: m.edit_tab_customize() },
+		{ id: 'socials', icon: '🔗', label: m.edit_tab_socials() },
+		{ id: 'goals', icon: '🎯', label: m.edit_tab_goals() },
+		{ id: 'highlights', icon: '📌', label: m.edit_tab_highlights() }
 	];
 </script>
 
-<svelte:head><title>Edit Profile | Challenge Run Community</title></svelte:head>
+<svelte:head><title>{m.edit_page_title()}</title></svelte:head>
 
 <AuthGuard>
 	<div class="page-width">
 		<div class="edit-page">
 			<p class="muted mb-3">
-				<a href={runnerId ? `/runners/${runnerId}` : '/profile'}>← Back to profile</a>
+				<a href={localizeHref(runnerId ? `/runners/${runnerId}` : '/profile')}>{m.edit_back_to_profile()}</a>
 			</p>
 
 			<h1>Edit Profile</h1>
@@ -1625,13 +1627,13 @@
 						class="btn"
 						onclick={handleReset}
 						disabled={saving}
-					>Reset</button>
+					>{m.btn_reset()}</button>
 					<button
 						class="btn btn--accent btn--lg"
 						onclick={handleSave}
 						disabled={saving || !displayName.trim() || !!bannedTermsWarning || profileApprovalStatus !== 'approved'}
 					>
-						{saving ? 'Saving...' : 'Save Changes'}
+						{saving ? m.btn_saving() : m.btn_save_changes()}
 					</button>
 				</div>
 

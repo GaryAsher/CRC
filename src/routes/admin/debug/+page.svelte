@@ -7,6 +7,8 @@
 	import { getDebugableRoles, realRoleToDebugId } from '$lib/permissions';
 	import { supabase } from '$lib/supabase';
 	import type { DebugRoleId } from '$stores/debug';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let checking = $state(true);
 	let authorized = $state(false);
@@ -127,7 +129,7 @@
 	{#if checking || $isLoading}
 		<div class="center"><div class="spinner"></div><p class="muted">Checking access...</p></div>
 	{:else if !authorized}
-		<div class="center"><h2>🔒 Access Denied</h2><p class="muted">Moderator access or higher required.</p><a href="/" class="btn">Go Home</a></div>
+		<div class="center"><h2>🔒 {m.admin_access_denied()}</h2><p class="muted">{m.admin_moderator_required()}</p><a href={localizeHref("/")} class="btn">{m.error_go_home()}</a></div>
 	{:else}
 		<h1>🔧 Debug & Diagnostics</h1>
 		<p class="muted mb-3">Role simulation and system diagnostics.</p>

@@ -4,6 +4,8 @@
 	import { supabase } from '$lib/supabase';
 	import { checkBannedTerms } from '$lib/utils/banned-terms';
 	import AuthGuard from '$components/auth/AuthGuard.svelte';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	let genres = $derived(data.genres);
@@ -621,13 +623,13 @@
 
 	// ── Tab navigation (matches game-editor pattern) ─────────
 	const SUBMIT_TABS = [
-		{ id: 'general', label: 'General', icon: '🎮', required: true },
-		{ id: 'categories', label: 'Categories', icon: '📂', required: true },
-		{ id: 'challenges', label: 'Challenges', icon: '⚔️', required: true },
-		{ id: 'characters', label: 'Characters', icon: '🧙' },
-		{ id: 'restrictions', label: 'Restrictions', icon: '🔒' },
-		{ id: 'timing-glitches', label: 'Timing & Glitches', icon: '⏱️' },
-		{ id: 'rules-notes', label: 'Rules & Notes', icon: '📜' },
+		{ id: 'general', label: m.submit_game_tab_general(), icon: '🎮', required: true },
+		{ id: 'categories', label: m.submit_game_tab_categories(), icon: '📂', required: true },
+		{ id: 'challenges', label: m.submit_game_tab_challenges(), icon: '⚔️', required: true },
+		{ id: 'characters', label: m.submit_game_tab_characters(), icon: '🧙' },
+		{ id: 'restrictions', label: m.submit_game_tab_restrictions(), icon: '🔒' },
+		{ id: 'timing-glitches', label: m.submit_game_tab_timing(), icon: '⏱️' },
+		{ id: 'rules-notes', label: m.submit_game_tab_rules(), icon: '📜' },
 	];
 	let activeTab = $state('general');
 
@@ -858,21 +860,21 @@
 	}
 </script>
 
-<svelte:head><title>Request a Game | Challenge Run Community</title></svelte:head>
+<svelte:head><title>{m.submit_game_page_title()}</title></svelte:head>
 
 <AuthGuard>
 	<div class="page-width">
 		<div class="submit-page">
-			<h1>Request a Game</h1>
-			<p class="page-desc">Suggest a new game for the Challenge Run Community. Fill in as much as you can — our team will review and refine.</p>
-			<p class="page-desc muted">Fields marked <span class="req">*</span> are required. Everything else is optional but helps us set up the game faster.</p>
+			<h1>{m.submit_game_heading()}</h1>
+			<p class="page-desc">{m.submit_game_description()}</p>
+			<p class="page-desc muted">{@html m.submit_game_required_hint({ req: '<span class="req">*</span>' })}</p>
 
 			{#if draftPromptVisible}
 				<div class="draft-banner">
-					<span>📝 You have a saved draft for this form.</span>
+					<span>📝 {m.submit_game_draft_banner()}</span>
 					<div class="draft-banner__actions">
-						<button class="btn btn--small btn--accent" onclick={loadDraft}>Load Draft</button>
-						<button class="btn btn--small" onclick={dismissDraftPrompt}>Start Fresh</button>
+						<button class="btn btn--small btn--accent" onclick={loadDraft}>{m.btn_load_draft()}</button>
+						<button class="btn btn--small" onclick={dismissDraftPrompt}>{m.btn_start_fresh()}</button>
 					</div>
 				</div>
 			{/if}
@@ -881,8 +883,8 @@
 				<div class="alert alert--{result.ok ? 'success' : 'error'}">{result.message}</div>
 				{#if result.ok}
 					<div class="success-actions">
-						<a href="/games" class="btn">Browse Games</a>
-						<button class="btn btn--accent" onclick={() => { result = null; gameName = ''; }}>Submit Another</button>
+						<a href={localizeHref('/games')} class="btn">{m.btn_browse_games()}</a>
+						<button class="btn btn--accent" onclick={() => { result = null; gameName = ''; }}>{m.btn_submit_another()}</button>
 					</div>
 				{/if}
 			{/if}
@@ -891,7 +893,7 @@
 				{#if !supporterMode && !gameExistsLive}
 					<div class="draft-hint">
 						<span>💾</span>
-						<span>You can save a draft of this submission at the bottom of the screen if you want to return to it later.</span>
+						<span>{m.submit_game_draft_hint()}</span>
 					</div>
 
 					<!-- Tab bar -->
@@ -912,70 +914,70 @@
 						<div class="tab-content">
 							<div class="sub-section" class:sub-section--open={openSubs.info}>
 								<button class="sub-toggle" onclick={() => toggleSub('info')}>
-									<span>🎮 Game Info</span>
+									<span>🎮 {m.submit_game_sub_game_info()}</span>
 									<span class="sub-toggle__chevron">{openSubs.info ? '▲' : '▼'}</span>
 								</button>
 								{#if openSubs.info}
 								<div class="sub-body">
 
 								<div class="fg">
-									<label class="fl" for="gameName">Game Name <span class="req">*</span></label>
+									<label class="fl" for="gameName">{m.submit_game_game_name()} <span class="req">*</span></label>
 									<input id="gameName" type="text" class="fi" bind:value={gameName}
 										placeholder="e.g. Sekiro: Shadows Die Twice" maxlength="200"
 										onblur={checkGameName}
 										oninput={() => { gameCheckResult = null; supporterResult = null; }} />
-									<p class="fh"><em>Please use the full game name.</em></p>
+									<p class="fh"><em>{m.submit_game_game_name_hint()}</em></p>
 
 									{#if gameCheckLoading}
-										<p class="game-check game-check--loading">⏳ Checking if this game already exists…</p>
+										<p class="game-check game-check--loading">⏳ {m.submit_game_checking()}</p>
 									{:else if gameExistsLive}
 										<div class="game-check game-check--live">
-											<p>✅ <strong>{gameCheckResult?.game_name}</strong> already exists on CRC!</p>
-											<a href="/games/{gameCheckResult?.game_id}" class="btn btn--small btn--accent">View Game Page →</a>
+											<p>✅ <strong>{m.submit_game_exists_live({ name: gameCheckResult?.game_name ?? '' })}</strong></p>
+											<a href={localizeHref(`/games/${gameCheckResult?.game_id}`)} class="btn btn--small btn--accent">{m.submit_game_view_game_page()}</a>
 										</div>
 									{:else if supporterMode}
 										<div class="game-check game-check--pending">
 											<p>📋 <strong>{gameCheckResult?.game_name}</strong> has already been submitted and is awaiting review{gameCheckResult?.supporter_count ? ` (${gameCheckResult.supporter_count} supporter${gameCheckResult.supporter_count === 1 ? '' : 's'} so far)` : ''}.</p>
-											<p>You can add your suggestions below to help shape the game page.</p>
+											<p>{m.submit_game_add_suggestions_desc()}</p>
 										</div>
 									{:else if gameCheckResult && !gameCheckResult.exists && gameName.trim()}
-										<p class="game-check game-check--clear">✓ This game hasn't been submitted yet — you're the first!</p>
+										<p class="game-check game-check--clear">✓ {m.submit_game_first_submit()}</p>
 									{/if}
 								</div>
 								<div class="fg">
-									<label class="fl" for="aliases">Short Names / Aliases</label>
+									<label class="fl" for="aliases">{m.submit_game_aliases()}</label>
 									<input id="aliases" type="text" class="fi" bind:value={aliases} placeholder="e.g. Sekiro, SSDT, Shadows Die Twice" maxlength="500" />
 									<p class="fh"><em>Comma-separated. Include abbreviations, acronyms, or alternate titles people commonly use for this game.</em></p>
 								</div>
 								<div class="fg">
-									<label class="fl" for="description">Description</label>
+									<label class="fl" for="description">{m.submit_game_description_label()}</label>
 									<textarea id="description" class="fi" bind:value={description} placeholder="e.g. Sekiro: Shadows Die Twice is a 2019 action-adventure game developed by FromSoftware..." rows="3" maxlength="2000"></textarea>
 								</div>
 								<div class="fg">
-									<label class="fl">Cover Image</label>
+									<label class="fl">{m.submit_game_cover_image()}</label>
 									{#if coverUrl}
 										<div class="cover-preview">
 											<div class="cover-preview__img" style="background-image: url('{coverUrl}');"></div>
 											<div class="cover-preview__actions">
 												<label class="btn btn--small cover-upload-btn">
-													📷 Replace
+													📷 {m.submit_game_cover_replace()}
 													<input type="file" accept="image/jpeg,image/png,image/webp" onchange={handleCoverFileSelect} hidden />
 												</label>
-												<button type="button" class="btn btn--small btn--reset" onclick={() => { coverUrl = ''; coverTempKey = crypto.randomUUID(); }}>✕ Remove</button>
+												<button type="button" class="btn btn--small btn--reset" onclick={() => { coverUrl = ''; coverTempKey = crypto.randomUUID(); }}>✕ {m.submit_game_cover_remove()}</button>
 											</div>
 										</div>
 									{:else}
 										<div class="cover-empty">
 											<label class="cover-empty__upload">
 												<span class="cover-empty__icon">📷</span>
-												<span>Click to upload a cover image</span>
+												<span>{m.submit_game_cover_upload()}</span>
 												<input type="file" accept="image/jpeg,image/png,image/webp" onchange={handleCoverFileSelect} hidden />
 											</label>
 										</div>
 									{/if}
-									<p class="fh">Recommended: 460×215px (Steam capsule). Accepts JPEG, PNG, WebP — max 5MB.</p>
+									<p class="fh">{m.submit_game_cover_hint()}</p>
 									<details class="url-fallback">
-										<summary class="url-fallback__toggle">Or paste an external image URL</summary>
+										<summary class="url-fallback__toggle">{m.submit_game_cover_url_fallback()}</summary>
 										<div class="fg mt-2">
 											<input type="text" class="fi" bind:value={coverUrl} placeholder="https://..." />
 										</div>
@@ -989,36 +991,36 @@
 							{#if supporterMode}
 								<!-- ── Supporter Contribution Form ── -->
 								<div class="supporter-form">
-									<h3 class="tab-heading">🤝 Add Your Suggestions</h3>
+									<h3 class="tab-heading">🤝 {m.submit_game_supporter_heading()}</h3>
 									<p class="fh mb-2">Your input will help our team build the best game page. All contributions are attributed and preserved — nobody can overwrite your suggestions.</p>
 
 									{#if supporterResult}
 										<div class="alert alert--{supporterResult.ok ? 'success' : 'error'}">{supporterResult.message}</div>
 										{#if supporterResult.ok}
 											<div class="success-actions">
-												<a href="/games" class="btn">Browse Games</a>
-												<button class="btn btn--accent" onclick={() => { supporterResult = null; gameCheckResult = null; gameName = ''; }}>Submit Another</button>
+												<a href={localizeHref('/games')} class="btn">{m.btn_browse_games()}</a>
+												<button class="btn btn--accent" onclick={() => { supporterResult = null; gameCheckResult = null; gameName = ''; }}>{m.btn_submit_another()}</button>
 											</div>
 										{/if}
 									{/if}
 
 									{#if !supporterResult?.ok}
 										<div class="fg">
-											<label class="fl" for="supporterCategories">Suggested Run Categories</label>
+											<label class="fl" for="supporterCategories">{m.submit_game_supporter_categories()}</label>
 											<input id="supporterCategories" type="text" class="fi" bind:value={supporterCategories} placeholder="e.g. Any%, All Bosses, No Hit" maxlength="500" />
 											<p class="fh"><em>Comma-separated. What categories should this game have?</em></p>
 										</div>
 										<div class="fg">
-											<label class="fl" for="supporterChallenges">Suggested Challenge Types</label>
+											<label class="fl" for="supporterChallenges">{m.submit_game_supporter_challenges()}</label>
 											<input id="supporterChallenges" type="text" class="fi" bind:value={supporterChallenges} placeholder="e.g. Hitless, Deathless, Damageless" maxlength="500" />
 											<p class="fh"><em>Comma-separated. What challenge types apply?</em></p>
 										</div>
 										<div class="fg">
-											<label class="fl" for="supporterRules">Suggested Rules</label>
+											<label class="fl" for="supporterRules">{m.submit_game_supporter_rules()}</label>
 											<textarea id="supporterRules" class="fi" bind:value={supporterRules} placeholder="Any rules or guidelines you'd suggest for this game's challenge runs..." rows="4" maxlength="3000"></textarea>
 										</div>
 										<div class="fg">
-											<label class="fl" for="supporterNotes">General Notes</label>
+											<label class="fl" for="supporterNotes">{m.submit_game_supporter_notes()}</label>
 											<textarea id="supporterNotes" class="fi" bind:value={supporterNotes} placeholder="Any other thoughts, context, or suggestions for the review team..." rows="3" maxlength="3000"></textarea>
 										</div>
 									{/if}
@@ -1028,15 +1030,15 @@
 							{#if !supporterMode && !gameExistsLive}
 							<div class="sub-section" class:sub-section--open={openSubs.platforms}>
 								<button class="sub-toggle" onclick={() => toggleSub('platforms')}>
-									<span>🖥️ Platforms</span>
+									<span>🖥️ {m.submit_game_sub_platforms()}</span>
 									<span class="sub-toggle__chevron">{openSubs.platforms ? '▲' : '▼'}</span>
 								</button>
 								{#if openSubs.platforms}
 								<div class="sub-body">
 								<div class="fg">
-									<label class="fl">Platforms</label>
+									<label class="fl">{m.submit_game_sub_platforms()}</label>
 									<p class="fh mb-2">Only the top {PLATFORM_DISPLAY_LIMIT} platforms are shown. If you don't see your platform, try searching for it.</p>
-									<input type="text" class="fi mb-2" bind:value={platformSearch} placeholder="Search platforms..." />
+									<input type="text" class="fi mb-2" bind:value={platformSearch} placeholder={m.submit_game_search_platforms()} />
 									{#if selectedPlatforms.length > 0}
 										<div class="selected-chips mb-2">
 											{#each selectedPlatforms as slug}
@@ -1055,8 +1057,8 @@
 									</div>
 								</div>
 								<div class="fg">
-									<label class="fl">Other Platforms</label>
-									<p class="fh mb-2">Don't see your platform? Add up to 2 here. These will be reviewed by our team.</p>
+									<label class="fl">{m.submit_game_other_platforms()}</label>
+									<p class="fh mb-2">{m.submit_game_other_platforms_hint()}</p>
 									{#each customPlatforms as _, i}
 										<div class="list-row">
 											<input type="text" class="fi" bind:value={customPlatforms[i]} placeholder="e.g. Amiga" maxlength="60" />
@@ -1067,7 +1069,7 @@
 										{/if}
 									{/each}
 									{#if customPlatforms.length < 2}
-										<button type="button" class="btn btn--small mt-2" onclick={addCustomPlatform}>+ Add Platform</button>
+										<button type="button" class="btn btn--small mt-2" onclick={addCustomPlatform}>{m.submit_game_add_platform()}</button>
 									{/if}
 								</div>
 
@@ -1077,15 +1079,15 @@
 
 							<div class="sub-section" class:sub-section--open={openSubs.genres}>
 								<button class="sub-toggle" onclick={() => toggleSub('genres')}>
-									<span>🏷️ Genres</span>
+									<span>🏷️ {m.submit_game_sub_genres()}</span>
 									<span class="sub-toggle__chevron">{openSubs.genres ? '▲' : '▼'}</span>
 								</button>
 								{#if openSubs.genres}
 								<div class="sub-body">
 								<div class="fg">
-									<label class="fl">Genres</label>
+									<label class="fl">{m.submit_game_sub_genres()}</label>
 									<p class="fh mb-2">Add up to 5 genres total (including custom). Only the top {GENRE_DISPLAY_LIMIT} genres are shown. If you don't see your genre, try searching for it.</p>
-									<input type="text" class="fi mb-2" bind:value={genreSearch} placeholder="Search genres..." />
+									<input type="text" class="fi mb-2" bind:value={genreSearch} placeholder={m.submit_game_search_genres()} />
 									{#if selectedGenres.length > 0}
 										<div class="selected-chips mb-2">
 											{#each selectedGenres as slug}
@@ -1112,7 +1114,7 @@
 									</div>
 								</div>
 								<div class="fg">
-									<label class="fl">Other Genres</label>
+									<label class="fl">{m.submit_game_other_genres()}</label>
 									<p class="fh mb-2">Don't see a genre that fits? Add up to 3 custom genres (counts toward the 5 max). These will be reviewed by our team.</p>
 									{#each customGenres as _, i}
 										<div class="list-row">
@@ -1124,7 +1126,7 @@
 										{/if}
 									{/each}
 									{#if totalGenreCount < 5 && customGenres.length < 3}
-										<button type="button" class="btn btn--small mt-2" onclick={addCustomGenre}>+ Add Genre</button>
+										<button type="button" class="btn btn--small mt-2" onclick={addCustomGenre}>{m.submit_game_add_genre()}</button>
 									{/if}
 								</div>
 
@@ -1138,12 +1140,12 @@
 					{/if}
 					{#if activeTab === 'categories'}
 						<div class="tab-content">
-							<h3 class="tab-heading">📂 Run Categories</h3>
-								<p class="fh mb-2">At least 1 category is required.</p>
+							<h3 class="tab-heading">📂 {m.submit_game_categories_heading()}</h3>
+								<p class="fh mb-2">{m.submit_game_categories_hint()}</p>
 								<div class="game-editor">
 									<div class="editor-section">
-										<h3 class="subsection-title">Full Run Categories</h3>
-										<p class="subsection-desc">Full runs typically involve completing the game through to the credits.</p>
+										<h3 class="subsection-title">{m.submit_game_full_runs()}</h3>
+										<p class="subsection-desc">{m.submit_game_full_runs_desc()}</p>
 										<div class="item-list">
 											{#each fullRunCategories as item, i}
 												<div class="item-card" class:item-card--open={isEditing('fr', i)}>
@@ -1171,10 +1173,10 @@
 												</div>
 											{/each}
 										</div>
-										<button class="btn btn--add" onclick={addFullRun}>+ Add Full Run Category</button>
+										<button class="btn btn--add" onclick={addFullRun}>{m.submit_game_add_full_run()}</button>
 
-										<h3 class="subsection-title mt-2">Mini-Challenges</h3>
-										<p class="subsection-desc">Smaller challenges like individual boss fights, individual levels, or small gauntlets. Groups can have child categories.</p>
+										<h3 class="subsection-title mt-2">{m.submit_game_mini_challenges()}</h3>
+										<p class="subsection-desc">{m.submit_game_mini_challenges_desc()}</p>
 										<div class="item-list">
 											{#each miniChallengeGroups as group, gi}
 												<div class="item-card item-card--group" class:item-card--open={isEditing('mc', gi)}>
@@ -1247,14 +1249,14 @@
 																		</div>
 																	</details>
 																{/each}
-																<button class="btn btn--add btn--add-sm" onclick={() => addMiniChild(gi)}>+ Add Child</button>
+																<button class="btn btn--add btn--add-sm" onclick={() => addMiniChild(gi)}>{m.submit_game_add_child()}</button>
 															</details>
 														</div>
 													{/if}
 												</div>
 											{/each}
 										</div>
-										<button class="btn btn--add" onclick={addMiniGroup}>+ Add Mini-Challenge Group</button>
+										<button class="btn btn--add" onclick={addMiniGroup}>{m.submit_game_add_mini_group()}</button>
 									</div>
 								</div>
 						</div>
@@ -1263,11 +1265,11 @@
 					<!-- ═══ Tab: Challenges ═══ -->
 					{#if activeTab === 'challenges'}
 						<div class="tab-content">
-							<h3 class="tab-heading">⚔️ Challenges</h3>
+							<h3 class="tab-heading">⚔️ {m.submit_game_challenges_heading()}</h3>
 								<div class="game-editor">
 									<div class="editor-section">
-										<h3 class="subsection-title">Standard Challenges</h3>
-										<p class="subsection-desc">Select challenge types that apply. You can add exceptions for each. Descriptions support Markdown.</p>
+										<h3 class="subsection-title">{m.submit_game_standard_challenges()}</h3>
+										<p class="subsection-desc">{m.submit_game_standard_challenges_desc()}</p>
 										<div class="item-list">
 											{#each STANDARD_CHALLENGES as c}
 												<div class="item-card" class:item-card--open={selectedChallenges.includes(c)}>
@@ -1294,17 +1296,17 @@
 								<div class="fg">
 									<label class="check-item custom-challenge-toggle">
 										<input type="checkbox" bind:checked={customChallengeEnabled} />
-										<span>My challenge is not listed here</span>
+										<span>{m.submit_game_custom_challenge_toggle()}</span>
 									</label>
 									{#if customChallengeEnabled}
 										<div class="custom-challenge-fields">
-											<p class="fh mb-2">Suggest a challenge type that would be applicable to a majority of games. Our team will review it.</p>
+											<p class="fh mb-2">{m.submit_game_custom_challenge_hint()}</p>
 											<div class="fg">
-												<label class="fl" for="customChallengeName">Challenge Name</label>
+												<label class="fl" for="customChallengeName">{m.submit_game_challenge_name()}</label>
 												<input id="customChallengeName" type="text" class="fi" bind:value={customChallengeName} placeholder="e.g. Deathless" maxlength="100" />
 											</div>
 											<div class="fg">
-												<label class="fl" for="customChallengeDesc">Challenge Description</label>
+												<label class="fl" for="customChallengeDesc">{m.submit_game_challenge_desc()}</label>
 												<textarea id="customChallengeDesc" class="fi" bind:value={customChallengeDescription} placeholder="e.g. A death is when your character fails in a way that resets progress, typically with a penalty like losing lives, items, or other resources." rows="3" maxlength="2000"></textarea>
 												<p class="fh">Markdown is supported.</p>
 											</div>
@@ -1317,28 +1319,28 @@
 					<!-- ═══ Tab: Characters ═══ -->
 					{#if activeTab === 'characters'}
 						<div class="tab-content">
-							<h3 class="tab-heading">🧙 Characters / Weapons / Classes</h3>
+							<h3 class="tab-heading">🧙 {m.submit_game_characters_heading()}</h3>
 								<label class="toggle-row">
 									<input type="checkbox" class="toggle-check" bind:checked={characterEnabled} />
 									<span class="toggle-slider"></span>
-									<span class="toggle-label">This game requires you pick a character, weapon, or class before starting the game.</span>
+									<span class="toggle-label">{m.submit_game_characters_toggle()}</span>
 								</label>
 								{#if characterEnabled}
 									<p class="fh mt-2" style="margin-left: 3.25rem;">At least 2 options are required when characters are enabled.</p>
 									<div class="fg mt-2">
-										<label class="fl" for="charLabel">Column Label</label>
+										<label class="fl" for="charLabel">{m.submit_game_column_label()}</label>
 										<input id="charLabel" type="text" class="fi" bind:value={characterLabel} placeholder="Character" maxlength="50" />
 										<p class="fh">What do you call it? "Character", "Weapon", "Weapon / Aspect", "Class", "Loadout", etc.</p>
 									</div>
 									<div class="fg">
-										<label class="fl">Options</label>
+										<label class="fl">{m.submit_game_options()}</label>
 										{#each characterOptions as _, i}
 											<div class="list-row">
 												<input type="text" class="fi" bind:value={characterOptions[i]} placeholder="e.g. Knight, Mage" maxlength="100" />
 												<button type="button" class="list-row__remove" onclick={() => removeCharacter(i)}>✕</button>
 											</div>
 										{/each}
-										<button type="button" class="btn btn--small mt-2" onclick={addCharacter}>+ Add Option</button>
+										<button type="button" class="btn btn--small mt-2" onclick={addCharacter}>{m.submit_game_add_option()}</button>
 									</div>
 								{/if}
 						</div>
@@ -1347,10 +1349,10 @@
 					<!-- ═══ Tab: Restrictions ═══ -->
 					{#if activeTab === 'restrictions'}
 						<div class="tab-content">
-							<h3 class="tab-heading">🔒 Game-Specific Restrictions</h3>
+							<h3 class="tab-heading">🔒 {m.submit_game_restrictions_heading()}</h3>
 								<div class="game-editor">
 									<div class="editor-section">
-										<p class="subsection-desc">Optional restrictions. A restriction can have children (e.g. "One God Only" → "Zeus Only"). Descriptions support Markdown.</p>
+										<p class="subsection-desc">{m.submit_game_restrictions_desc()}</p>
 										<div class="item-list">
 											{#each restrictions as item, i}
 												<div class="item-card" class:item-card--group={(item.children?.length ?? 0) > 0} class:item-card--open={isEditing('rs', i)}>
@@ -1409,14 +1411,14 @@
 																		</div>
 																	</details>
 																{/each}
-																<button class="btn btn--add btn--add-sm" onclick={() => addRestrictionChild(i)}>+ Add Child Restriction</button>
+																<button class="btn btn--add btn--add-sm" onclick={() => addRestrictionChild(i)}>{m.submit_game_add_child_restriction()}</button>
 															</details>
 														</div>
 													{/if}
 												</div>
 											{/each}
 										</div>
-										<button class="btn btn--add" onclick={addRestriction}>+ Add Restriction</button>
+										<button class="btn btn--add" onclick={addRestriction}>{m.submit_game_add_restriction()}</button>
 									</div>
 								</div>
 						</div>
@@ -1427,13 +1429,13 @@
 						<div class="tab-content">
 							<div class="sub-section" class:sub-section--open={openSubs.timing}>
 								<button class="sub-toggle" onclick={() => toggleSub('timing')}>
-									<span>⏱️ Timing</span>
+									<span>⏱️ {m.submit_game_sub_timing()}</span>
 									<span class="sub-toggle__chevron">{openSubs.timing ? '▲' : '▼'}</span>
 								</button>
 								{#if openSubs.timing}
 								<div class="sub-body">
 								<div class="fg">
-									<label class="fl">Primary Timing Method</label>
+									<label class="fl">{m.submit_game_timing_method()}</label>
 									<div class="radio-group">
 										{#each TIMING_OPTIONS as opt}
 											<label class="radio-item">
@@ -1449,7 +1451,7 @@
 
 							<div class="sub-section" class:sub-section--open={openSubs.glitches}>
 								<button class="sub-toggle" onclick={() => toggleSub('glitches')}>
-									<span>🎲 Glitches</span>
+									<span>🎲 {m.submit_game_sub_glitches()}</span>
 									<span class="sub-toggle__chevron">{openSubs.glitches ? '▲' : '▼'}</span>
 								</button>
 								{#if openSubs.glitches}
@@ -1457,8 +1459,8 @@
 						
 								<div class="game-editor">
 									<div class="editor-section">
-										<h3 class="subsection-title">Glitch Presets</h3>
-										<p class="subsection-desc">Select glitch policies that apply to this game.</p>
+										<h3 class="subsection-title">{m.submit_game_glitch_presets()}</h3>
+										<p class="subsection-desc">{m.submit_game_glitch_presets_desc()}</p>
 										<div class="item-list">
 											{#each GLITCH_PRESETS as g}
 												<div class="item-card" class:item-card--open={selectedGlitches.includes(g.slug)}>
@@ -1479,8 +1481,8 @@
 											{/each}
 										</div>
 
-										<h3 class="subsection-title mt-2">Game-Specific Glitch Categories</h3>
-										<p class="subsection-desc">Custom glitch policies unique to this game. Descriptions support Markdown.</p>
+										<h3 class="subsection-title mt-2">{m.submit_game_custom_glitches()}</h3>
+										<p class="subsection-desc">{m.submit_game_custom_glitches_desc()}</p>
 										<div class="item-list">
 											{#each customGlitches as item, i}
 												<div class="item-card" class:item-card--open={isEditing('gl', i)}>
@@ -1503,10 +1505,10 @@
 												</div>
 											{/each}
 										</div>
-										<button class="btn btn--add" onclick={addCustomGlitch}>+ Add Glitch Category</button>
+										<button class="btn btn--add" onclick={addCustomGlitch}>{m.submit_game_add_glitch()}</button>
 
 										<div class="fg mt-2">
-											<label class="fl" for="glitchDocs">Glitch Documentation Links</label>
+											<label class="fl" for="glitchDocs">{m.submit_game_glitch_docs()}</label>
 											<textarea id="glitchDocs" class="fi" bind:value={glitchDocLinks} placeholder="Links to glitch guides, wikis, or documentation..." rows="2" maxlength="2000"></textarea>
 										</div>
 									</div>
@@ -1523,16 +1525,16 @@
 						<div class="tab-content">
 							<div class="sub-section" class:sub-section--open={openSubs.rules}>
 								<button class="sub-toggle" onclick={() => toggleSub('rules')}>
-									<span>📜 General Rules</span>
+									<span>📜 {m.submit_game_sub_rules()}</span>
 									<span class="sub-toggle__chevron">{openSubs.rules ? '▲' : '▼'}</span>
 								</button>
 								{#if openSubs.rules}
 								<div class="sub-body">
 								<div class="fg">
-									<label class="fl" for="rules">Suggested Rules</label>
-									<p class="fh mb-2">These should be rules that apply to any and all challenges.</p>
+									<label class="fl" for="rules">{m.submit_game_suggested_rules()}</label>
+									<p class="fh mb-2">{m.submit_game_rules_hint()}</p>
 									<textarea id="rules" class="fi" bind:value={generalRules} placeholder="e.g. For Unseeded runs, show previous death or..." rows="4" maxlength="5000"></textarea>
-									<p class="fh">These will be reviewed and refined by our team.</p>
+									<p class="fh">{m.submit_game_rules_review()}</p>
 								</div>
 								</div>
 								{/if}
@@ -1540,13 +1542,13 @@
 
 							<div class="sub-section" class:sub-section--open={openSubs.involvement}>
 								<button class="sub-toggle" onclick={() => toggleSub('involvement')}>
-									<span>📝 Involvement & Notes</span>
+									<span>📝 {m.submit_game_sub_involvement()}</span>
 									<span class="sub-toggle__chevron">{openSubs.involvement ? '▲' : '▼'}</span>
 								</button>
 								{#if openSubs.involvement}
 								<div class="sub-body">
 								<div class="fg">
-									<label class="fl">How would you like to be involved?</label>
+									<label class="fl">{m.submit_game_involvement_question()}</label>
 									{#each INVOLVEMENT_OPTIONS as opt}
 										<label class="check-item mb-2">
 											<input type="checkbox" checked={involvement.includes(opt)} onchange={() => toggleInvolvement(opt)} />
@@ -1555,7 +1557,7 @@
 									{/each}
 								</div>
 								<div class="fg">
-									<label class="fl" for="notes">Additional Notes</label>
+									<label class="fl" for="notes">{m.submit_game_additional_notes()}</label>
 									<textarea id="notes" class="fi" bind:value={additionalNotes} placeholder="Let us know any thoughts, ideas, suggestions, or frustrations with the game submission form. Please be respectful in this reply if you have criticisms." rows="3" maxlength="2000"></textarea>
 								</div>
 								</div>
@@ -1578,32 +1580,32 @@
 
 						{#if !hasAtLeastOneCategory && gameName.trim()}
 							<button type="button" class="validation-link" onclick={() => scrollToSection('categories')}>
-								⚠ Please add at least 1 run category — click to go there
+								⚠ {m.submit_game_val_category()}
 							</button>
 						{/if}
 						{#if !hasAtLeastOneChallenge && gameName.trim()}
 							<button type="button" class="validation-link" onclick={() => scrollToSection('challenges')}>
-								⚠ Please select at least 1 challenge type — click to go there
+								⚠ {m.submit_game_val_challenge()}
 							</button>
 						{/if}
 						{#if !hasEnoughCharacters && gameName.trim()}
 							<button type="button" class="validation-link" onclick={() => scrollToSection('characters')}>
-								⚠ Characters enabled — at least 2 options required — click to go there
+								⚠ {m.submit_game_val_characters()}
 							</button>
 						{/if}
 
 						<div class="submit-buttons">
 							<button class="btn btn--lg" onclick={saveDraft} disabled={!gameName.trim()}>
-								{#if draftStatus === 'saving'}Saving...{:else if draftStatus === 'saved'}✓ Draft Saved{:else if draftStatus === 'error'}Save Failed{:else}Save Draft{/if}
+								{#if draftStatus === 'saving'}{m.btn_draft_saving()}{:else if draftStatus === 'saved'}{m.btn_draft_saved()}{:else if draftStatus === 'error'}{m.btn_draft_save_failed()}{:else}{m.btn_save_draft()}{/if}
 							</button>
 							<button class="btn btn--accent btn--lg submit-btn" onclick={handleSubmit} disabled={!canSubmit}>
-								{submitting ? 'Submitting...' : 'Submit Game Request'}
+								{submitting ? m.btn_submitting() : m.btn_submit_game_request()}
 							</button>
 						</div>
 					{:else}
 						<button class="btn btn--accent btn--lg submit-btn" onclick={handleSupportSubmit}
 							disabled={supporterSubmitting || !turnstileToken || (!supporterNotes.trim() && !supporterCategories.trim() && !supporterChallenges.trim() && !supporterRules.trim())}>
-							{supporterSubmitting ? 'Submitting...' : '🤝 Add My Suggestions'}
+							{supporterSubmitting ? m.btn_submitting() : `🤝 ${m.btn_add_suggestions()}`}
 						</button>
 					{/if}
 				</div>

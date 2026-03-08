@@ -9,6 +9,8 @@
 	import { showToast } from '$stores/toast';
 	import { PUBLIC_WORKER_URL, PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
 	import { getCountry } from '$lib/data/countries';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	const game = $derived(data.game);
@@ -347,30 +349,30 @@
 	<title>Submit Run - {game.game_name} | CRC</title>
 </svelte:head>
 
-<h2>Submit a {game.game_name} Run</h2>
+<h2>{m.submit_run_heading({ game_name: game.game_name })}</h2>
 <p class="muted mb-3">
-	Fill in your run details below. All options are specific to {game.game_name}.
-	<span class="required-hint"><span class="req">*</span> indicates required fields</span>
+	{m.submit_run_description({ game_name: game.game_name })}
+	<span class="required-hint"><span class="req">*</span> {m.required_fields_hint()}</span>
 </p>
 
 {#if !$session}
 	<div class="card">
 		<div class="empty-state">
 			<span class="empty-state__icon">🔐</span>
-			<h3>Sign In Required</h3>
-			<p class="muted">You need to be signed in to submit a run.</p>
-			<a href="/sign-in?redirect=/games/{game.game_id}/submit" class="btn btn--accent mt-2">Sign In</a>
+			<h3>{m.sign_in_required()}</h3>
+			<p class="muted">{m.sign_in_required_submit()}</p>
+			<a href={localizeHref(`/sign-in?redirect=/games/${game.game_id}/submit`)} class="btn btn--accent mt-2">{m.btn_sign_in()}</a>
 		</div>
 	</div>
 {:else if successMsg}
 	<div class="card">
 		<div class="success-state">
 			<span class="success-state__icon">✅</span>
-			<h3>Submitted!</h3>
+			<h3>{m.submitted_success()}</h3>
 			<p class="muted">{successMsg}</p>
 			<div class="success-actions">
-				<button class="btn btn--accent" onclick={() => successMsg = ''}>Submit Another</button>
-				<a href="/games/{game.game_id}/runs" class="btn">View Runs</a>
+				<button class="btn btn--accent" onclick={() => successMsg = ''}>{m.btn_submit_another()}</button>
+				<a href={localizeHref(`/games/${game.game_id}/runs`)} class="btn">{m.btn_view_runs()}</a>
 			</div>
 		</div>
 	</div>
@@ -379,22 +381,22 @@
 
 		<!-- 1. Category Selection -->
 		<div class="submit-section">
-			<p class="submit-section__title">Category <span class="req">*</span></p>
-			<p class="submit-section__sub">Select the run tier and category.</p>
+			<p class="submit-section__title">{m.submit_run_section_category()} <span class="req">*</span></p>
+			<p class="submit-section__sub">{m.submit_run_category_sub()}</p>
 			<div class="field-row">
 				<div class="field">
-					<label for="tier" class="field-label">Tier <span class="req">*</span></label>
+					<label for="tier" class="field-label">{m.submit_run_tier()} <span class="req">*</span></label>
 					<select id="tier" bind:value={categoryTier} required>
-						<option value="">Select tier...</option>
+						<option value="">{m.submit_run_select_tier()}</option>
 						{#each tierOptions() as tier}
 							<option value={tier.value}>{tier.label}</option>
 						{/each}
 					</select>
 				</div>
 				<div class="field">
-					<label for="category" class="field-label">Category <span class="req">*</span></label>
+					<label for="category" class="field-label">{m.submit_run_section_category()} <span class="req">*</span></label>
 					<select id="category" bind:value={categorySlug} required disabled={!categoryTier}>
-						<option value="">Select category...</option>
+						<option value="">{m.submit_run_select_category()}</option>
 						{#each categoryOptions as cat}
 							<option value={cat.slug}>{cat.label}</option>
 						{/each}
@@ -405,17 +407,17 @@
 
 		<!-- 2. Platform (typeahead, filtered to game) -->
 		<div class="submit-section">
-			<p class="submit-section__title">Platform{#if platformRequired} <span class="req">*</span>{/if}</p>
-			<p class="submit-section__sub">{#if platformRequired}This game requires a platform selection.{:else}What platform did you play on? Optional but helpful for verification.{/if}</p>
+			<p class="submit-section__title">{m.submit_run_section_platform()}{#if platformRequired} <span class="req">*</span>{/if}</p>
+			<p class="submit-section__sub">{#if platformRequired}{m.submit_run_platform_required()}{:else}{m.submit_run_platform_optional()}{/if}</p>
 			<div class="field" style="max-width: 300px;">
 				<div class="ta">
-					<input type="text" class="ta__input" placeholder="Type a platform..." autocomplete="off" bind:value={platformSearch}
+					<input type="text" class="ta__input" placeholder={m.submit_run_type_platform()} autocomplete="off" bind:value={platformSearch}
 						onclick={() => platformOpen = !platformOpen} oninput={() => { if (!platformOpen) platformOpen = true; }}
 						onblur={() => handleBlur(() => { platformOpen = false; if (platform) { const match = gamePlatforms.find((p: any) => p.id === platform); platformSearch = match?.label || ''; } else platformSearch = ''; })} />
 					{#if platform}<button type="button" class="ta__clear" onclick={clearPlatform}>✕</button>{/if}
 					{#if platformOpen}
 						{@const matches = filterItems(gamePlatforms, platformSearch)}
-						<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">No matches</li>{:else}{#each matches as p}<li><button type="button" class="ta__opt" class:ta__opt--active={platform === p.id} onmousedown={() => selectPlatform(p)}>{p.label}</button></li>{/each}{/if}</ul>
+						<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">{m.submit_run_no_matches()}</li>{:else}{#each matches as p}<li><button type="button" class="ta__opt" class:ta__opt--active={platform === p.id} onmousedown={() => selectPlatform(p)}>{p.label}</button></li>{/each}{/if}</ul>
 					{/if}
 				</div>
 			</div>
@@ -423,10 +425,10 @@
 
 		<!-- 3. Runner (auto-fill + additional runners stub) -->
 		<div class="submit-section">
-			<p class="submit-section__title">Runner</p>
+			<p class="submit-section__title">{m.submit_run_section_runner()}</p>
 			<div class="field-row">
 				<div class="field">
-					<label class="field-label">Your Profile</label>
+					<label class="field-label">{m.submit_run_your_profile()}</label>
 					{#if runnerProfile}
 						{@const locCountry = runnerProfile.location ? getCountry(runnerProfile.location) : null}
 						{@const repCountry = runnerProfile.socials?.representing ? getCountry(runnerProfile.socials.representing) : null}
@@ -448,7 +450,7 @@
 											{locCountry.name}
 										{/if}
 										{#if repCountry && repCountry.code !== locCountry?.code}
-											<span class="runner-autofill__ally">· Ally of
+											<span class="runner-autofill__ally">· {m.submit_run_ally_of()}
 												<img class="runner-autofill__flag" src="https://flagcdn.com/w40/{repCountry.code.toLowerCase()}.png" alt="{repCountry.name} flag" width="16" height="12" />
 												{repCountry.name}
 											</span>
@@ -459,15 +461,15 @@
 						</div>
 					{:else}
 						<div class="runner-autofill runner-autofill--none">
-							<span class="muted">No profile found — <a href="/profile/create">create one</a></span>
+							<span class="muted">{@html m.submit_run_no_profile({ link_start: '<a href="' + localizeHref('/profile/create') + '">', link_end: '</a>' })}</span>
 						</div>
 					{/if}
 				</div>
 				<div class="field">
-					<label class="field-label">Additional Runners</label>
+					<label class="field-label">{m.submit_run_additional_runners()}</label>
 					<div class="coming-soon-stub">
 						<span class="coming-soon-stub__icon">👥</span>
-						<span class="coming-soon-stub__text">Multi-runner support coming soon</span>
+						<span class="coming-soon-stub__text">{m.submit_run_multi_runner_soon()}</span>
 					</div>
 				</div>
 			</div>
@@ -476,22 +478,22 @@
 		<!-- 4. Character (typeahead) -->
 		{#if game.character_column?.enabled && game.characters_data?.length}
 			<div class="submit-section">
-				<p class="submit-section__title">{game.character_column.label}{#if fixedLoadout?.character} <span class="fixed-badge">🔒 Fixed</span>{/if}</p>
+				<p class="submit-section__title">{game.character_column.label}{#if fixedLoadout?.character} <span class="fixed-badge">🔒 {m.submit_run_fixed_badge()}</span>{/if}</p>
 				<div class="field">
 					{#if fixedLoadout?.character}
 						<div class="ta">
 							<input type="text" class="ta__input" value={charSearch} disabled />
 						</div>
-						<span class="field-hint">Locked by category — this {game.character_column.label.toLowerCase()} is required for this challenge.</span>
+						<span class="field-hint">{m.submit_run_locked_hint({ label: game.character_column.label.toLowerCase() })}</span>
 					{:else}
 						<div class="ta">
-							<input type="text" class="ta__input" placeholder="Type a {game.character_column.label.toLowerCase()}..." autocomplete="off" bind:value={charSearch}
+							<input type="text" class="ta__input" placeholder={`${m.submit_run_type_platform().split("...")[0].replace(m.submit_run_type_platform().split(" ")[0], game.character_column.label)}...`} autocomplete="off" bind:value={charSearch}
 								onclick={() => charOpen = !charOpen} oninput={() => { if (!charOpen) charOpen = true; }}
 								onblur={() => handleBlur(() => { charOpen = false; if (character) { const match = (game.characters_data || []).find((c: any) => c.slug === character); charSearch = match?.label || ''; } else charSearch = ''; })} />
 							{#if character}<button type="button" class="ta__clear" onclick={clearCharacter}>✕</button>{/if}
 							{#if charOpen}
 								{@const matches = filterItems(game.characters_data || [], charSearch)}
-								<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">No matches</li>{:else}{#each matches as c}<li><button type="button" class="ta__opt" class:ta__opt--active={character === c.slug} onmousedown={() => selectCharacter(c)}>{c.label}</button></li>{/each}{/if}</ul>
+								<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">{m.submit_run_no_matches()}</li>{:else}{#each matches as c}<li><button type="button" class="ta__opt" class:ta__opt--active={character === c.slug} onmousedown={() => selectCharacter(c)}>{c.label}</button></li>{/each}{/if}</ul>
 							{/if}
 						</div>
 					{/if}
@@ -511,7 +513,7 @@
 						{#if difficulty}<button type="button" class="ta__clear" onclick={clearDifficulty}>✕</button>{/if}
 						{#if diffOpen}
 							{@const matches = filterItems(game.difficulties_data || [], diffSearch)}
-							<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">No matches</li>{:else}{#each matches as d}<li><button type="button" class="ta__opt" class:ta__opt--active={difficulty === d.slug} onmousedown={() => selectDifficulty(d)}>{d.label}</button></li>{/each}{/if}</ul>
+							<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">{m.submit_run_no_matches()}</li>{:else}{#each matches as d}<li><button type="button" class="ta__opt" class:ta__opt--active={difficulty === d.slug} onmousedown={() => selectDifficulty(d)}>{d.label}</button></li>{/each}{/if}</ul>
 						{/if}
 					</div>
 				</div>
@@ -521,8 +523,8 @@
 		<!-- 5. Challenges (chip grid) -->
 		{#if game.challenges_data?.length}
 			<div class="submit-section">
-				<p class="submit-section__title">Challenges{#if fixedLoadout?.challenge} <span class="fixed-badge">🔒 Fixed</span>{/if}</p>
-				<p class="submit-section__sub">Select all challenges completed in this run.</p>
+				<p class="submit-section__title">{m.submit_run_section_challenges()}{#if fixedLoadout?.challenge} <span class="fixed-badge">🔒 {m.submit_run_fixed_badge()}</span>{/if}</p>
+				<p class="submit-section__sub">{m.submit_run_challenges_sub()}</p>
 				<div class="chip-grid">
 					{#each game.challenges_data as ch}
 						{@const isLocked = fixedLoadout?.challenge === ch.slug}
@@ -530,7 +532,7 @@
 					{/each}
 				</div>
 				{#if fixedLoadout?.challenge}
-					<span class="field-hint mt-1">This challenge is required for the selected category.</span>
+					<span class="field-hint mt-1">{m.submit_run_challenge_required()}</span>
 				{/if}
 			</div>
 		{/if}
@@ -538,16 +540,16 @@
 		<!-- 6. Glitch Category (typeahead) -->
 		{#if game.glitches_data?.length}
 			<div class="submit-section">
-				<p class="submit-section__title">Glitch Category</p>
+				<p class="submit-section__title">{m.submit_run_section_glitch()}</p>
 				<div class="field">
 					<div class="ta">
-						<input type="text" class="ta__input" placeholder="Type a glitch category..." autocomplete="off" bind:value={glitchSearch}
+						<input type="text" class="ta__input" placeholder={m.submit_run_type_glitch()} autocomplete="off" bind:value={glitchSearch}
 							onclick={() => glitchOpen = !glitchOpen} oninput={() => { if (!glitchOpen) glitchOpen = true; }}
 							onblur={() => handleBlur(() => { glitchOpen = false; if (glitchId) { const match = (game.glitches_data || []).find((g: any) => g.slug === glitchId); glitchSearch = match?.label || ''; } else glitchSearch = ''; })} />
 						{#if glitchId}<button type="button" class="ta__clear" onclick={clearGlitch}>✕</button>{/if}
 						{#if glitchOpen}
 							{@const matches = filterItems(game.glitches_data || [], glitchSearch)}
-							<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">No matches</li>{:else}{#each matches as g}<li><button type="button" class="ta__opt" class:ta__opt--active={glitchId === g.slug} onmousedown={() => selectGlitch(g)}>{g.label}</button></li>{/each}{/if}</ul>
+							<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">{m.submit_run_no_matches()}</li>{:else}{#each matches as g}<li><button type="button" class="ta__opt" class:ta__opt--active={glitchId === g.slug} onmousedown={() => selectGlitch(g)}>{g.label}</button></li>{/each}{/if}</ul>
 						{/if}
 					</div>
 				</div>
@@ -557,8 +559,8 @@
 		<!-- 7. Restrictions (expandable groups) -->
 		{#if game.restrictions_data?.length}
 			<div class="submit-section">
-				<p class="submit-section__title">Restrictions{#if fixedLoadout?.restriction} <span class="fixed-badge">🔒 Fixed</span>{/if}</p>
-				<p class="submit-section__sub">Select any optional restrictions applied to this run.{#if game.restrictions_data.some((r: any) => r.children?.length)} Click a group to see options.{/if}</p>
+				<p class="submit-section__title">{m.submit_run_section_restrictions()}{#if fixedLoadout?.restriction} <span class="fixed-badge">🔒 {m.submit_run_fixed_badge()}</span>{/if}</p>
+				<p class="submit-section__sub">{m.submit_run_restrictions_sub()}{#if game.restrictions_data.some((r: any) => r.children?.length)} {m.submit_run_restrictions_click_group()}{/if}</p>
 				<div class="chip-grid">
 					{#each game.restrictions_data as r}
 						{@const isLocked = fixedLoadout?.restriction === r.slug}
@@ -572,7 +574,7 @@
 							</button>
 							{#if isExpanded}
 								<div class="chip-children">
-									{#if r.child_select === 'single'}<span class="chip-children__hint">Pick one:</span>{/if}
+									{#if r.child_select === 'single'}<span class="chip-children__hint">{m.submit_run_pick_one()}</span>{/if}
 									{#each r.children as child}
 										{@const childLocked = fixedLoadout?.restriction === child.slug}
 										<button type="button" class="chip" class:chip--active={selectedRestrictions.includes(child.slug)} class:chip--locked={childLocked} onclick={() => { if (!childLocked) toggleRestriction(child.slug, r); }} disabled={childLocked}>{child.label}{#if childLocked} 🔒{/if}</button>
@@ -585,43 +587,43 @@
 					{/each}
 				</div>
 				{#if fixedLoadout?.restriction}
-					<span class="field-hint mt-1">This restriction is required for the selected category.</span>
+					<span class="field-hint mt-1">{m.submit_run_restriction_required()}</span>
 				{/if}
 			</div>
 		{/if}
 
 		<!-- 8. Run Timing -->
 		<div class="submit-section">
-			<p class="submit-section__title">Run Timing</p>
+			<p class="submit-section__title">{m.submit_run_section_timing()}</p>
 			<p class="submit-section__sub">
 				{#if showRtaSeparately}
-					Enter your RTA (real-time) and {gameTimingLabel} times. Both are optional but help with verification.
+					{m.submit_run_timing_both({ label: gameTimingLabel })}
 				{:else}
-					Enter your run time. Format: HH:MM:SS or MM:SS. Optional but recommended.
+					{m.submit_run_timing_single()}
 				{/if}
 			</p>
 			<div class="field-row">
 				{#if showRtaSeparately}
 					<div class="field">
-						<label for="time-primary" class="field-label">{gameTimingLabel} Time</label>
-						<input id="time-primary" type="text" bind:value={runTimePrimary} placeholder="HH:MM:SS or MM:SS" />
-						<span class="field-hint">{game.game_name}'s tracked timing</span>
+						<label for="time-primary" class="field-label">{m.submit_run_time_label({ label: gameTimingLabel })}</label>
+						<input id="time-primary" type="text" bind:value={runTimePrimary} placeholder={m.submit_run_time_placeholder()} />
+						<span class="field-hint">{m.submit_run_time_hint({ game_name: game.game_name })}</span>
 					</div>
 				{:else}
 					<div class="field"></div>
 				{/if}
 				<div class="field">
-					<label for="time-rta" class="field-label">RTA Time</label>
-					<input id="time-rta" type="text" bind:value={runTimeRta} placeholder="HH:MM:SS or MM:SS" />
-					<span class="field-hint">Real-time (wall clock)</span>
+					<label for="time-rta" class="field-label">{m.submit_run_rta_time()}</label>
+					<input id="time-rta" type="text" bind:value={runTimeRta} placeholder={m.submit_run_time_placeholder()} />
+					<span class="field-hint">{m.submit_run_rta_hint()}</span>
 				</div>
 			</div>
 		</div>
 
 		<!-- 9. Date Completed -->
 		<div class="submit-section">
-			<p class="submit-section__title">Date Completed</p>
-			<p class="submit-section__sub">When was this run completed? Optional — will use submission date if left blank.</p>
+			<p class="submit-section__title">{m.submit_run_section_date()}</p>
+			<p class="submit-section__sub">{m.submit_run_date_sub()}</p>
 			<div class="field" style="max-width: 240px;">
 				<input id="date" type="date" bind:value={dateCompleted} max={new Date().toISOString().split('T')[0]} />
 			</div>
@@ -629,16 +631,16 @@
 
 		<!-- 10. Video Proof -->
 		<div class="submit-section">
-			<p class="submit-section__title">Video Proof <span class="req">*</span></p>
+			<p class="submit-section__title">{m.submit_run_section_video()} <span class="req">*</span></p>
 			<div class="field">
-				<label for="video" class="field-label">Video URL <span class="req">*</span></label>
-				<input id="video" type="url" bind:value={videoUrl} required placeholder="https://youtube.com/watch?v=..." class:field--error={videoUrl && !videoValid} />
+				<label for="video" class="field-label">{m.submit_run_video_url()} <span class="req">*</span></label>
+				<input id="video" type="url" bind:value={videoUrl} required placeholder={m.submit_run_video_placeholder()} class:field--error={videoUrl && !videoValid} />
 				{#if videoUrl && !videoValid}
-					<span class="field-error">Must be a YouTube, Twitch, or supported video URL</span>
+					<span class="field-error">{m.submit_run_video_error()}</span>
 				{/if}
 			</div>
 			{#if videoFetching}
-				<div class="video-meta"><span class="spinner spinner--small"></span> <span class="muted">Fetching video info...</span></div>
+				<div class="video-meta"><span class="spinner spinner--small"></span> <span class="muted">{m.submit_run_fetching_video()}</span></div>
 			{/if}
 			{#if videoTitle}
 				<div class="video-meta video-meta--success">
@@ -653,8 +655,8 @@
 
 		<!-- 11. Runner Notes -->
 		<div class="submit-section">
-			<p class="submit-section__title">Runner Notes</p>
-			<p class="submit-section__sub">Optional notes about your run (strategy, memorable moments, attempts count, etc.). Max 500 characters.</p>
+			<p class="submit-section__title">{m.submit_run_section_notes()}</p>
+			<p class="submit-section__sub">{m.submit_run_notes_sub()}</p>
 			<div class="field">
 				<textarea
 					bind:value={submitterNotes}
@@ -684,15 +686,15 @@
 			<div class="submit-footer__verify">
 				<div id="turnstile-container-run"></div>
 				{#if !turnstileReady}
-					<p class="muted" style="font-size: 0.8rem;">Loading verification...</p>
+					<p class="muted" style="font-size: 0.8rem;">{m.loading_verification()}</p>
 				{/if}
 			</div>
 			<div class="submit-footer__action">
 				<button type="submit" class="btn btn--lg" class:btn--accent={canSubmit} class:btn--muted={!canSubmit} disabled={!canSubmit}>
 					{#if submitting}
-						<span class="spinner spinner--small"></span> Submitting...
+						<span class="spinner spinner--small"></span> {m.btn_submitting()}
 					{:else}
-						Submit Run
+						{m.btn_submit_run()}
 					{/if}
 				</button>
 			</div>

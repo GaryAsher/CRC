@@ -3,6 +3,8 @@
 	import { supabase } from '$lib/supabase';
 	import { checkBannedTerms } from '$lib/utils/banned-terms';
 	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	const game = $derived(data.game);
@@ -136,7 +138,7 @@
 				<p class="muted">A moderator will review it shortly.</p>
 			</div>
 		</div>
-		<button type="button" class="btn btn--small mt-2" onclick={resetForm}>Submit Another</button>
+		<button type="button" class="btn btn--small mt-2" onclick={resetForm}>{m.btn_submit_another()}</button>
 	{:else}
 		<form class="suggest-form" onsubmit={submitSuggestion}>
 			<div class="suggest-form__field">
@@ -209,9 +211,9 @@
 
 			<button type="submit" class="btn btn--primary" disabled={suggestSubmitting || !!suggestBannedWarning}>
 				{#if suggestSubmitting}
-					<span class="spinner spinner--small"></span> Submitting...
+					<span class="spinner spinner--small"></span> {m.btn_submitting()}
 				{:else}
-					Submit Suggestion
+					{m.btn_submit_suggestion()}
 				{/if}
 			</button>
 		</form>

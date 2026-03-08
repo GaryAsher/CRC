@@ -4,6 +4,8 @@
 	import { supabase } from '$lib/supabase';
 	import { formatDate } from '$lib/utils';
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let checking = $state(true);
 	let authorized = $state(false);

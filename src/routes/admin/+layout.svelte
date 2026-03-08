@@ -5,6 +5,8 @@
 	import { debugRole, realRole as realRoleStore } from '$stores/debug';
 	import { checkAdminRole } from '$lib/admin';
 	import { canAccessRoute, realRoleToDebugId } from '$lib/permissions';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 	import type { DebugRoleId } from '$stores/debug';
 
 	let { children } = $props();
@@ -54,18 +56,16 @@
 	<div class="page-width">
 		<div class="access-blocked">
 			<div class="access-blocked__icon">🔒</div>
-			<h1>Access Denied</h1>
+			<h1>{m.admin_access_denied()}</h1>
 			<p class="muted">
-				The <strong>{ROLE_LABELS[$debugRole ?? ''] ?? $debugRole}</strong> role does not have
-				access to this page.
+				{m.admin_access_denied_role({ role: ROLE_LABELS[$debugRole ?? ''] ?? $debugRole ?? '' })}
 			</p>
 			<p class="muted" style="font-size: 0.85rem; margin-top: 0.5rem;">
-				Use the <strong>Exit Debug</strong> button in the debug bar above to return to your real role,
-				or switch to a different role from the debug bar's <strong>Navigate</strong> menu.
+				{m.admin_access_denied_hint()}
 			</p>
 			<div class="access-blocked__actions">
-				<a href="/" class="btn btn--outline">🏠 Home</a>
-				<a href="/admin" class="btn btn--outline">← Dashboard</a>
+				<a href={localizeHref('/')} class="btn btn--outline">🏠 {m.error_go_home()}</a>
+				<a href={localizeHref('/admin')} class="btn btn--outline">← {m.admin_dashboard()}</a>
 			</div>
 		</div>
 	</div>

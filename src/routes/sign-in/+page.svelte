@@ -5,6 +5,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { PUBLIC_SITE_URL } from '$env/static/public';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let signingIn = $state(false);
 	let errorMessage = $state('');
@@ -12,7 +14,7 @@
 	// If already signed in (and not in debug non-user mode), redirect
 	$effect(() => {
 		if (!$isLoading && $session && !$debugHidesAuth) {
-			goto('/profile');
+			goto(localizeHref('/profile'));
 		}
 	});
 
@@ -20,7 +22,7 @@
 	$effect(() => {
 		const err = $page.url.searchParams.get('error');
 		if (err === 'auth_failed') {
-			errorMessage = 'Authentication failed. Please try again.';
+			errorMessage = m.signin_auth_failed();
 		}
 	});
 
@@ -44,20 +46,20 @@
 			});
 			if (error) throw error;
 		} catch (err: any) {
-			errorMessage = err?.message || 'Failed to start sign in. Please try again.';
+			errorMessage = err?.message || m.signin_generic_error();
 			signingIn = false;
 		}
 	}
 </script>
 
-<svelte:head><title>Sign In | Challenge Run Community</title></svelte:head>
+<svelte:head><title>{m.signin_page_title()}</title></svelte:head>
 
 <div class="page-width">
 	<div class="sign-in-page">
 		<div class="sign-in-card">
-			<h1>Sign In</h1>
-			<p class="muted">Sign in to submit runs, manage your profile, and track your achievements.</p>
-			<p class="first-time">First time here? Just click one of the buttons below to sign up via Discord or Twitch.</p>
+			<h1>{m.signin_title()}</h1>
+			<p class="muted">{m.signin_description()}</p>
+			<p class="first-time">{m.signin_first_time()}</p>
 
 			{#if errorMessage}
 				<div class="alert alert--error">{errorMessage}</div>
@@ -69,19 +71,22 @@
 					onclick={() => signInWith('discord')}
 					disabled={signingIn}
 				>
-					{signingIn ? 'Redirecting...' : 'Sign in with Discord'}
+					{signingIn ? m.signin_redirecting() : m.signin_with_discord()}
 				</button>
 				<button
 					class="btn btn--twitch"
 					onclick={() => signInWith('twitch')}
 					disabled={signingIn}
 				>
-					{signingIn ? 'Redirecting...' : 'Sign in with Twitch'}
+					{signingIn ? m.signin_redirecting() : m.signin_with_twitch()}
 				</button>
 			</div>
 
 			<div class="sign-in-footer">
-				<p class="muted">By signing in, you agree to our <a href="/legal/terms">Terms of Service</a> and <a href="/legal/privacy">Privacy Policy</a>.</p>
+				<p class="muted">{@html m.signin_agree({
+					terms_link: `<a href="${localizeHref('/legal/terms')}">${m.footer_terms_of_service()}</a>`,
+					privacy_link: `<a href="${localizeHref('/legal/privacy')}">${m.footer_privacy_policy()}</a>`
+				})}</p>
 			</div>
 		</div>
 	</div>

@@ -10,6 +10,7 @@
 	import { showToast } from '$stores/toast';
 	import { COUNTRIES } from '$lib/data/countries';
 	import AuthGuard from '$components/auth/AuthGuard.svelte';
+	import * as m from '$lib/paraglide/messages';
 
 	// ── Server Data ───────────────────────────────────────────────────────────
 	let { data } = $props();
@@ -559,7 +560,7 @@
 								<p class="form-message form-message--error">{bannedTermsWarning}</p>
 							{/if}
 							<button type="button" class="btn btn--primary btn--lg" onclick={handleSubmit} disabled={submitting || !!bannedTermsWarning}>
-								{submitting ? '⏳ Submitting...' : '🚀 Submit for Review'}
+								{submitting ? `⏳ ${m.btn_submitting()}` : `🚀 ${m.btn_submit_for_review()}`}
 							</button>
 						</div>
 					</section>

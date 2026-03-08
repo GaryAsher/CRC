@@ -3,6 +3,8 @@
 	import { checkAdminRole } from '$lib/admin';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import { onMount } from 'svelte';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let { data } = $props();
 
@@ -59,7 +61,7 @@
 	{#if checking || $isLoading}
 		<div class="center"><div class="spinner"></div><p class="muted">Checking access...</p></div>
 	{:else if !authorized}
-		<div class="center"><h2>🔒 Access Denied</h2><p class="muted">Admin access required.</p><a href="/" class="btn">Go Home</a></div>
+		<div class="center"><h2>🔒 {m.admin_access_denied()}</h2><p class="muted">{m.admin_access_required()}</p><a href={localizeHref("/")} class="btn">{m.error_go_home()}</a></div>
 	{:else}
 		<h1>📚 Staff Guides</h1>
 		<p class="muted mb-3">Internal documentation for CRC staff members.</p>

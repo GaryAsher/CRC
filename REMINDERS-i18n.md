@@ -1,8 +1,8 @@
 # i18n — Spanish Language Support (Paraglide JS)
 
-**Status:** Phase 1 complete — Phase 2 (string extraction) in progress
+**Status:** Phase 1 complete — Phase 2 complete — Phase 3 (community translation review) next
 **Added:** March 2026
-**Last updated:** March 2026
+**Last updated:** March 8, 2026
 
 ## What's Done
 
@@ -21,6 +21,26 @@
 - [x] `src/hooks.js` created with `reroute` function (required for `/es/` URL routing)
 - [x] `src/lib/paraglide/` added to `.gitignore`
 - [x] Header nav links localized with `localizeHref()` and `m.*()` message functions
+- [x] Header: all remaining strings (Submit, More dropdown, search placeholder, user menu, Login, role labels)
+- [x] Footer: all links, headings, descriptions, copyright
+- [x] DebugBar: chrome strings (badge, buttons, toast)
+- [x] Sign-in page: all strings (title, description, buttons, agree text)
+- [x] Game page layout: tabs translated + back link localized + tab hrefs localized
+- [x] Runner profile: all 5 tabs translated
+- [x] Profile edit: tabs, page title, back link, Save/Reset buttons translated
+- [x] Game submit: sign-in required, success state, submit button, verification text
+- [x] Game suggest: submit suggestion button, submit another button
+- [x] Profile create: submit for review button
+- [x] Profile setup: save & continue, skip buttons
+- [x] Submit-game: 7 tabs, save draft, submit game request, browse games, submit another, add suggestions buttons
+- [x] Submit run form: all 11 sections (category, platform, runner, character, challenges, glitch, restrictions, timing, date, video, notes) + validation messages
+- [x] Submit-game form: all page-level text, all 7 tab contents (General with sub-sections, Categories, Challenges, Characters, Restrictions, Timing & Glitches, Rules & Notes), supporter form, validation messages
+- [x] Glossary page: heading, description, challenge types heading, empty/alias states
+- [x] Error page (+error.svelte): all status headings (404, 403, 500), messages, action buttons
+- [x] Admin layout: access denied state with role name, hint text, navigation buttons
+- [x] Admin dashboard: page title, role labels, stats labels, all 11 nav card titles + descriptions
+- [x] Header sidebar: all admin panel nav items, section titles, role badges translated
+- [x] All 13 admin pages: access denied blocks, Go Home / Back to Dashboard buttons
 - [x] `/es/games` loads Spanish locale, `/games` stays English
 
 ## Critical Setup Details
@@ -91,17 +111,17 @@ Every component with internal links needs:
 
 Priority order:
 - [x] Header navigation (Home, Games, Runners, Teams + all dropdown/user menu links)
-- [ ] Footer (all links and headings)
-- [ ] Dev banner
-- [ ] Sign-in / auth pages
-- [ ] Game page tabs (Overview, Runs, Rules, etc.)
-- [ ] Runner profile tabs
-- [ ] Common action buttons (Submit, Cancel, Save, Approve, Reject)
-- [ ] Submit run form labels and validation messages
-- [ ] Submit game form
-- [ ] Glossary page section headings
-- [ ] Error pages (404, 500)
-- [ ] Admin panel (lower priority — admin-only, not public-facing)
+- [x] Footer (all links and headings)
+- [x] Dev banner
+- [x] Sign-in / auth pages
+- [x] Game page tabs (Overview, Runs, Rules, etc.)
+- [x] Runner profile tabs
+- [x] Common action buttons (Submit, Cancel, Save, Approve, Reject)
+- [x] Submit run form labels and validation messages
+- [x] Submit game form
+- [x] Glossary page section headings
+- [x] Error pages (404, 500)
+- [x] Admin panel (lower priority — admin-only, not public-facing)
 
 ### Phase 3 — Community Translation
 - [ ] Share `messages/es.json` with Spanish-speaking community members for review

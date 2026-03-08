@@ -3,6 +3,8 @@
 	import { session, isLoading } from '$stores/auth';
 	import { goto } from '$app/navigation';
 	import { checkAdminRole } from '$lib/admin';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let checking = $state(true);
 	let authorized = $state(false);
@@ -144,7 +146,7 @@
 	{#if checking || $isLoading}
 		<div class="center"><div class="spinner"></div><p class="muted">Verifying access...</p></div>
 	{:else if !authorized}
-		<div class="center"><h2>🔒 Access Denied</h2><p class="muted">Super Admin privileges required.</p><a href="/" class="btn">Go Home</a></div>
+		<div class="center"><h2>🔒 {m.admin_access_denied()}</h2><p class="muted">{m.admin_super_required()}</p><a href={localizeHref("/")} class="btn">{m.error_go_home()}</a></div>
 	{:else}
 		<div class="page-header">
 			<span class="super-badge">🔒 Super Admin Only</span>

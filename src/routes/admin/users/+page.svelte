@@ -4,6 +4,8 @@
 	import { goto } from '$app/navigation';
 	import { checkAdminRole, adminAction } from '$lib/admin';
 	import { supabase } from '$lib/supabase';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let checking = $state(true);
 	let myRole = $state<any>(null);
@@ -303,7 +305,7 @@
 	{#if checking || $isLoading}
 		<div class="center"><div class="spinner"></div><p class="muted">Verifying access...</p></div>
 	{:else if !myRole?.admin && !myRole?.moderator}
-		<div class="center"><h2>🔒 Access Denied</h2><p class="muted">Moderator or higher privileges required.</p><a href="/" class="btn">Go Home</a></div>
+		<div class="center"><h2>🔒 {m.admin_access_denied()}</h2><p class="muted">{m.admin_moderator_required()}</p><a href={localizeHref("/")} class="btn">{m.error_go_home()}</a></div>
 	{:else}
 		<h1>👥 Users & Roles</h1>
 		<p class="muted mb-2">Manage users, assign staff roles, and view membership.</p>

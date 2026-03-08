@@ -2,6 +2,8 @@
 	import { page } from '$app/stores';
 	import { beforeNavigate, afterNavigate } from '$app/navigation';
 	import { saveScroll, restoreScroll } from '$lib/stores/scroll';
+	import { localizeHref, deLocalizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	/** Convert a slug like "playstation-5" to "Playstation 5" */
 	function slugToLabel(slug: string): string {
@@ -12,18 +14,18 @@
 	const game = $derived(data.game);
 
 	const tabs = $derived([
-		{ id: 'overview', label: 'Overview', href: `/games/${game.game_id}`, enabled: game.tabs.overview },
-		{ id: 'runs', label: 'Runs', href: `/games/${game.game_id}/runs`, enabled: game.tabs.runs },
-		{ id: 'rules', label: 'Rules', href: `/games/${game.game_id}/rules`, enabled: game.tabs.rules },
-		{ id: 'history', label: 'History', href: `/games/${game.game_id}/history`, enabled: game.tabs.history },
-		{ id: 'resources', label: 'Resources', href: `/games/${game.game_id}/resources`, enabled: game.tabs.resources },
-		{ id: 'forum', label: 'Forum', href: `/games/${game.game_id}/forum`, enabled: game.tabs.forum },
-		{ id: 'suggest', label: 'Suggest an Update', href: `/games/${game.game_id}/suggest`, enabled: true, push: true },
-		{ id: 'submit', label: 'Submit Run', href: `/games/${game.game_id}/submit`, enabled: true },
+		{ id: 'overview', label: m.game_tab_overview(), href: `/games/${game.game_id}`, enabled: game.tabs.overview },
+		{ id: 'runs', label: m.game_tab_runs(), href: `/games/${game.game_id}/runs`, enabled: game.tabs.runs },
+		{ id: 'rules', label: m.game_tab_rules(), href: `/games/${game.game_id}/rules`, enabled: game.tabs.rules },
+		{ id: 'history', label: m.game_tab_history(), href: `/games/${game.game_id}/history`, enabled: game.tabs.history },
+		{ id: 'resources', label: m.game_tab_resources(), href: `/games/${game.game_id}/resources`, enabled: game.tabs.resources },
+		{ id: 'forum', label: m.game_tab_forum(), href: `/games/${game.game_id}/forum`, enabled: game.tabs.forum },
+		{ id: 'suggest', label: m.game_tab_suggest_update(), href: `/games/${game.game_id}/suggest`, enabled: true, push: true },
+		{ id: 'submit', label: m.game_tab_submit_run(), href: `/games/${game.game_id}/submit`, enabled: true },
 	].filter(t => t.enabled));
 
 	function isActiveTab(href: string): boolean {
-		const path = $page.url.pathname;
+		const path = deLocalizeHref($page.url.pathname);
 		if (href === `/games/${game.game_id}`) {
 			return path === href || path === href + '/';
 		}
@@ -52,7 +54,7 @@
 </svelte:head>
 
 <div class="page-width">
-	<p class="muted page-back"><a href="/games">← Games</a></p>
+	<p class="muted page-back"><a href={localizeHref('/games')}>{m.game_back_to_games()}</a></p>
 </div>
 
 <!-- Game Hero -->
@@ -112,7 +114,7 @@
 		<nav class="game-tabs" aria-label="Game sections">
 			{#each tabs as tab}
 				<a
-					href={tab.href}
+					href={localizeHref(tab.href)}
 					class="game-tab"
 					class:game-tab--active={isActiveTab(tab.href)}
 					class:game-tab--push={tab.push}

@@ -6,6 +6,8 @@
 	import { supabase } from '$lib/supabase';
 	import AzNav from '$lib/components/AzNav.svelte';
 	import { norm, expandRomanNumerals, matchesLetterFilter, getFirstLetter } from '$lib/utils/filters';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let checking = $state(true);
 	let authorized = $state(false);
@@ -136,7 +138,7 @@
 	{#if checking || $isLoading}
 		<div class="center"><div class="spinner"></div><p class="muted">Checking access...</p></div>
 	{:else if !authorized}
-		<div class="center"><h2>🔒 Access Denied</h2><p class="muted">Game Editor is available to Admins and Game Moderators.</p><a href="/admin" class="btn">Back to Dashboard</a></div>
+		<div class="center"><h2>🔒 {m.admin_access_denied()}</h2><p class="muted">{m.admin_access_required()}</p><a href={localizeHref("/admin")} class="btn">{m.admin_back_to_dashboard()}</a></div>
 	{:else}
 		<h1>🛠️ Game Editor</h1>
 		<p class="muted mb-2">

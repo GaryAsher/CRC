@@ -99,24 +99,24 @@
 	// ─── Derived ───────────────────────────────────────────────
 	let profileLink = $derived.by(() => {
 		if (!profileInfo || profileInfo.profileState === 'none') {
-			return { href: '/profile/create', icon: '➕', label: 'Create Profile' };
+			return { href: '/profile/create', icon: '➕', label: m.user_menu_create_profile() };
 		}
 		if (profileInfo.profileState === 'active' && profileInfo.runner_id) {
-			return { href: `/runners/${profileInfo.runner_id}`, icon: '👤', label: 'My Profile' };
+			return { href: `/runners/${profileInfo.runner_id}`, icon: '👤', label: m.user_menu_my_profile() };
 		}
 		if (profileInfo.profileState === 'pending') {
-			return { href: '/profile/status', icon: '⏳', label: 'Profile Status' };
+			return { href: '/profile/status', icon: '⏳', label: m.user_menu_profile_status() };
 		}
-		return { href: '/profile/create', icon: '➕', label: 'Create Profile' };
+		return { href: '/profile/create', icon: '➕', label: m.user_menu_create_profile() };
 	});
 
 	let roleLabel = $derived.by(() => {
-		if (!profileInfo || profileInfo.profileState === 'none') return 'No Profile';
-		if (profileInfo.is_admin) return 'Admin';
-		if (profileInfo.is_moderator) return 'Moderator';
-		if (profileInfo.is_verifier) return 'Verifier';
-		if (profileInfo.profileState === 'pending') return '⏳ Pending';
-		return 'Runner';
+		if (!profileInfo || profileInfo.profileState === 'none') return m.role_no_profile();
+		if (profileInfo.is_admin) return m.role_admin();
+		if (profileInfo.is_moderator) return m.role_moderator();
+		if (profileInfo.is_verifier) return m.role_verifier();
+		if (profileInfo.profileState === 'pending') return `⏳ ${m.role_pending()}`;
+		return m.role_runner();
 	});
 
 	// ─── Sidebar visibility (respects debug mode) ────────────
@@ -157,7 +157,7 @@
 			};
 			return labels[$debugRole] ?? '';
 		}
-		return isSuperAdmin ? 'Super Admin' : profileInfo?.is_admin ? 'Admin' : profileInfo?.is_moderator ? 'Moderator' : 'Verifier';
+		return isSuperAdmin ? m.admin_sidebar_super_admin() : profileInfo?.is_admin ? m.admin_sidebar_admin() : profileInfo?.is_moderator ? m.admin_sidebar_moderator() : m.admin_sidebar_verifier();
 	});
 
 	// Debug: should we show the signed-in UI or the sign-in link?
@@ -270,23 +270,23 @@
 			<a href={localizeHref('/games')} class:active={isActive('/games')}>{m.nav_games()}</a>
 			<a href={localizeHref('/runners')} class:active={isActive('/runners')}>{m.nav_runners()}</a>
 			<a href={localizeHref('/teams')} class:active={isActive('/teams')}>{m.nav_teams()}</a>
-			<a href={localizeHref('/submit')} class:active={isActive('/submit')}>Submit</a>
+			<a href={localizeHref('/submit')} class:active={isActive('/submit')}>{m.nav_submit()}</a>
 
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div class="nav-dropdown" onclick={(e) => { e.stopPropagation(); moreOpen = !moreOpen; }}>
 				<button type="button" class="nav-dropdown__toggle" aria-expanded={moreOpen}>
-					More <span class="nav-dropdown__caret">▾</span>
+					{m.nav_more()} <span class="nav-dropdown__caret">▾</span>
 				</button>
 				{#if moreOpen}
 					<div class="nav-dropdown__menu">
-						<a href={localizeHref('/news')} class="nav-dropdown__item">📰 News</a>
-						<a href={localizeHref('/rules')} class="nav-dropdown__item">📜 Rules</a>
-						<a href={localizeHref('/glossary')} class="nav-dropdown__item">📖 Glossary</a>
-						<a href={localizeHref('/guidelines')} class="nav-dropdown__item">📋 Guidelines</a>
-						<a href={localizeHref('/support')} class="nav-dropdown__item">💬 Support</a>
+						<a href={localizeHref('/news')} class="nav-dropdown__item">📰 {m.nav_news()}</a>
+						<a href={localizeHref('/rules')} class="nav-dropdown__item">📜 {m.nav_rules()}</a>
+						<a href={localizeHref('/glossary')} class="nav-dropdown__item">📖 {m.nav_glossary()}</a>
+						<a href={localizeHref('/guidelines')} class="nav-dropdown__item">📋 {m.nav_guidelines()}</a>
+						<a href={localizeHref('/support')} class="nav-dropdown__item">💬 {m.nav_support()}</a>
 						<hr class="nav-dropdown__divider" />
-						<a href="/feed.xml" class="nav-dropdown__item">📡 RSS Feed</a>
+						<a href="/feed.xml" class="nav-dropdown__item">📡 {m.nav_rss_feed()}</a>
 					</div>
 				{/if}
 			</div>
@@ -298,7 +298,7 @@
 				<input
 					type="search"
 					class="nav-search-input"
-					placeholder="Search games, runners..."
+					placeholder={m.search_placeholder()}
 					bind:value={searchQuery}
 					onkeydown={handleSearchKeydown}
 				/>
@@ -352,21 +352,21 @@
 									{profileLink.icon} {profileLink.label}
 								</a>
 								{#if profileInfo?.profileState === 'active'}
-									<a href={localizeHref('/profile/edit')} class="nav-user__menu-item">✏️ Edit Profile</a>
+									<a href={localizeHref('/profile/edit')} class="nav-user__menu-item">✏️ {m.user_menu_edit_profile()}</a>
 								{/if}
-								<a href={localizeHref('/profile/theme')} class="nav-user__menu-item">🎨 Theme</a>
-								<a href={localizeHref('/profile/settings')} class="nav-user__menu-item">⚙️ Settings</a>
+								<a href={localizeHref('/profile/theme')} class="nav-user__menu-item">🎨 {m.user_menu_theme()}</a>
+								<a href={localizeHref('/profile/settings')} class="nav-user__menu-item">⚙️ {m.user_menu_settings()}</a>
 								<hr class="nav-user__menu-divider" />
 								<button
 									type="button"
 									class="nav-user__menu-item"
 									onclick={(e) => { e.stopPropagation(); toggleTheme(); }}
 								>
-									{$theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode'}
+									{$theme === 'dark' ? `☀️ ${m.user_menu_light_mode()}` : `🌙 ${m.user_menu_dark_mode()}`}
 								</button>
 								<hr class="nav-user__menu-divider" />
 								<button type="button" class="nav-user__menu-item nav-user__menu-item--signout" onclick={signOut}>
-									🚪 Sign Out
+									🚪 {m.user_menu_sign_out()}
 								</button>
 							</div>
 						</div>
@@ -382,7 +382,7 @@
 				>
 					{$theme === 'dark' ? '☀️' : '🌙'}
 				</button>
-				<a href={localizeHref('/sign-in')} class="nav-user__signin">Login</a>
+				<a href={localizeHref('/sign-in')} class="nav-user__signin">{m.nav_login()}</a>
 			{/if}
 		</div>
 	</nav>
@@ -399,7 +399,7 @@
 				<span class="admin-panel__role-badge">
 					{sidebarRoleBadge}
 				</span>
-				Admin Panel
+				{m.admin_sidebar_panel()}
 			</span>
 			<button type="button" class="admin-panel__close" onclick={closeAdminPanel}>&times;</button>
 		</div>
@@ -407,60 +407,60 @@
 		<nav class="admin-panel__nav">
 			<a href="/admin" class="admin-panel__item" class:is-active={isAdminActive('/admin')} onclick={closeAdminPanel}>
 				<span class="admin-panel__icon">📊</span>
-				<span class="admin-panel__text">Dashboard</span>
+				<span class="admin-panel__text">{m.admin_dashboard()}</span>
 			</a>
 
 			{#if isSuperAdmin}
 				<hr class="admin-panel__divider" />
-				<div class="admin-panel__section-title">Super Admin</div>
+				<div class="admin-panel__section-title">{m.admin_sidebar_super_admin()}</div>
 				<a href="/admin/health" class="admin-panel__item" class:is-active={isAdminActive('/admin/health')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">💚</span><span class="admin-panel__text">Site Health</span>
+					<span class="admin-panel__icon">💚</span><span class="admin-panel__text">{m.admin_nav_health()}</span>
 				</a>
 				<a href="/admin/financials" class="admin-panel__item" class:is-active={isAdminActive('/admin/financials')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">💰</span><span class="admin-panel__text">Financials</span>
+					<span class="admin-panel__icon">💰</span><span class="admin-panel__text">{m.admin_nav_financials()}</span>
 				</a>
 			{/if}
 
 			{#if sidebarIsAdmin}
 				<hr class="admin-panel__divider" />
-				<div class="admin-panel__section-title">Admin</div>
+				<div class="admin-panel__section-title">{m.admin_sidebar_admin()}</div>
 				<a href="/admin/profiles" class="admin-panel__item" class:is-active={isAdminActive('/admin/profiles')} onclick={closeAdminPanel}>
 					<span class="admin-panel__icon">👥</span>
-					<span class="admin-panel__text">Profiles</span>
+					<span class="admin-panel__text">{m.admin_nav_profiles()}</span>
 					{#if adminCounts.pendingProfiles > 0}<span class="admin-panel__badge">{adminCounts.pendingProfiles}</span>{/if}
 				</a>
 				<a href="/admin/games" class="admin-panel__item" class:is-active={isAdminActive('/admin/games')} onclick={closeAdminPanel}>
 					<span class="admin-panel__icon">🎮</span>
-					<span class="admin-panel__text">Games</span>
+					<span class="admin-panel__text">{m.admin_nav_games()}</span>
 					{#if adminCounts.pendingGames > 0}<span class="admin-panel__badge">{adminCounts.pendingGames}</span>{/if}
 				</a>
 				<a href="/admin/news" class="admin-panel__item" class:is-active={isAdminActive('/admin/news')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">📰</span><span class="admin-panel__text">News</span>
+					<span class="admin-panel__icon">📰</span><span class="admin-panel__text">{m.admin_nav_news()}</span>
 				</a>
 			{/if}
 
 			{#if sidebarIsModerator}
 				<hr class="admin-panel__divider" />
-				<div class="admin-panel__section-title">Moderator</div>
+				<div class="admin-panel__section-title">{m.admin_sidebar_moderator()}</div>
 				<a href="/admin/users" class="admin-panel__item" class:is-active={isAdminActive('/admin/users')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">👤</span><span class="admin-panel__text">Users & Roles</span>
+					<span class="admin-panel__icon">👤</span><span class="admin-panel__text">{m.admin_nav_users()}</span>
 				</a>
 				<a href="/admin/game-editor" class="admin-panel__item" class:is-active={isAdminActive('/admin/game-editor')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">🛠️</span><span class="admin-panel__text">Game Editor</span>
+					<span class="admin-panel__icon">🛠️</span><span class="admin-panel__text">{m.admin_nav_game_editor()}</span>
 				</a>
 			{/if}
 
 			{#if sidebarIsVerifier}
 				<hr class="admin-panel__divider" />
-				<div class="admin-panel__section-title">Verifier</div>
+				<div class="admin-panel__section-title">{m.admin_sidebar_verifier()}</div>
 				<a href="/admin/runs" class="admin-panel__item" class:is-active={isAdminActive('/admin/runs')} onclick={closeAdminPanel}>
 					<span class="admin-panel__icon">🏃</span>
-					<span class="admin-panel__text">Runs</span>
+					<span class="admin-panel__text">{m.admin_nav_runs()}</span>
 					{#if adminCounts.pendingRuns > 0}<span class="admin-panel__badge">{adminCounts.pendingRuns}</span>{/if}
 				</a>
 				<a href="/admin/game-updates" class="admin-panel__item" class:is-active={isAdminActive('/admin/game-updates')} onclick={closeAdminPanel}>
 					<span class="admin-panel__icon">📝</span>
-					<span class="admin-panel__text">Game Updates</span>
+					<span class="admin-panel__text">{m.admin_nav_game_updates()}</span>
 					{#if adminCounts.pendingUpdates > 0}<span class="admin-panel__badge">{adminCounts.pendingUpdates}</span>{/if}
 				</a>
 			{/if}
@@ -468,12 +468,12 @@
 			<!-- Staff Guides — all staff roles -->
 			<hr class="admin-panel__divider" />
 			<a href="/admin/staff-guides" class="admin-panel__item" class:is-active={isAdminActive('/admin/staff-guides')} onclick={closeAdminPanel}>
-				<span class="admin-panel__icon">📖</span><span class="admin-panel__text">Staff Guides</span>
+				<span class="admin-panel__icon">📖</span><span class="admin-panel__text">{m.admin_nav_staff_guides()}</span>
 			</a>
 
 			{#if sidebarIsModerator}
 				<a href="/admin/debug" class="admin-panel__item" class:is-active={isAdminActive('/admin/debug')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">🔧</span><span class="admin-panel__text">Debug Tools</span>
+					<span class="admin-panel__icon">🔧</span><span class="admin-panel__text">{m.admin_nav_debug()}</span>
 				</a>
 			{/if}
 		</nav>

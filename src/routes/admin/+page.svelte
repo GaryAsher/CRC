@@ -7,6 +7,8 @@
 	import { supabase } from '$lib/supabase';
 	import { realRoleToDebugId, canAccessRoute } from '$lib/permissions';
 	import type { DebugRoleId } from '$stores/debug';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let role = $state<{ admin: boolean; superAdmin: boolean; moderator: boolean; verifier: boolean; runnerId: string | null } | null>(null);
 	let realRoleId = $state<DebugRoleId>('user');
@@ -67,21 +69,21 @@
 	// canAccessRoute() from permissions.ts handles per-role filtering.
 	const NAV_SECTIONS = [
 		// Super Admin
-		{ key: 'health',       icon: '💚', title: 'Site Health',      desc: 'Performance, storage, and system status.',               href: '/admin/health' },
-		{ key: 'financials',   icon: '💰', title: 'Financials',       desc: 'Track site income and expenses.',                         href: '/admin/financials' },
+		{ key: 'health',       icon: '💚', title: m.admin_nav_health(),      desc: m.admin_nav_health_desc(),               href: '/admin/health' },
+		{ key: 'financials',   icon: '💰', title: m.admin_nav_financials(),       desc: m.admin_nav_financials_desc(),                         href: '/admin/financials' },
 		// Admin (left = games, right = profiles)
-		{ key: 'games',        icon: '🎮', title: 'Games',            desc: 'Review pending games and manage approved submissions.',    href: '/admin/games',       countKey: 'pendingGames' },
-		{ key: 'profiles',     icon: '👥', title: 'Profiles',         desc: 'Review pending profiles and manage approved submissions.',  href: '/admin/profiles',    countKey: 'pendingProfiles' },
+		{ key: 'games',        icon: '🎮', title: m.admin_nav_games(),            desc: m.admin_nav_games_desc(),    href: '/admin/games',       countKey: 'pendingGames' },
+		{ key: 'profiles',     icon: '👥', title: m.admin_nav_profiles(),         desc: m.admin_nav_profiles_desc(),  href: '/admin/profiles',    countKey: 'pendingProfiles' },
 		// Moderator (left = users, right = game editor)
-		{ key: 'game-editor',  icon: '🛠️', title: 'Game Editor',      desc: 'Edit game configs — categories, restrictions, rules, characters.', href: '/admin/game-editor' },
-		{ key: 'users',        icon: '👥', title: 'Users & Roles',    desc: 'Manage users and assign staff roles.',                    href: '/admin/users' },
+		{ key: 'game-editor',  icon: '🛠️', title: m.admin_nav_game_editor(),      desc: m.admin_nav_game_editor_desc(), href: '/admin/game-editor' },
+		{ key: 'users',        icon: '👥', title: m.admin_nav_users(),    desc: m.admin_nav_users_desc(),                    href: '/admin/users' },
 		// Verifier (left = game updates, right = runs)
-		{ key: 'game-updates', icon: '📝', title: 'Game Updates',     desc: 'Review pending updates and manage approved corrections.', href: '/admin/game-updates', countKey: 'pendingUpdates' },
-		{ key: 'runs',         icon: '🏃', title: 'Runs',             desc: 'Review pending runs and manage approved runs.',            href: '/admin/runs',        countKey: 'pendingRuns' },
-		{ key: 'reports',      icon: '🚩', title: 'Reports',          desc: 'Review user-submitted reports on runners, runs, and games.', href: '/admin/reports',    countKey: 'pendingReports' },
+		{ key: 'game-updates', icon: '📝', title: m.admin_nav_game_updates(),     desc: m.admin_nav_game_updates_desc(), href: '/admin/game-updates', countKey: 'pendingUpdates' },
+		{ key: 'runs',         icon: '🏃', title: m.admin_nav_runs(),             desc: m.admin_nav_runs_desc(),            href: '/admin/runs',        countKey: 'pendingRuns' },
+		{ key: 'reports',      icon: '🚩', title: m.admin_nav_reports(),          desc: m.admin_nav_reports_desc(), href: '/admin/reports',    countKey: 'pendingReports' },
 		// All staff
-		{ key: 'staff-guides', icon: '📖', title: 'Staff Guides',     desc: 'Internal documentation for staff.',                       href: '/admin/staff-guides' },
-		{ key: 'debug',        icon: '🔧', title: 'Debug Tools',      desc: 'Role simulation, system diagnostics.',                    href: '/admin/debug' },
+		{ key: 'staff-guides', icon: '📖', title: m.admin_nav_staff_guides(),     desc: m.admin_nav_staff_guides_desc(),                       href: '/admin/staff-guides' },
+		{ key: 'debug',        icon: '🔧', title: m.admin_nav_debug(),      desc: m.admin_nav_debug_desc(),                    href: '/admin/debug' },
 	];
 
 	// Filter nav cards based on effective role (real or debug)
@@ -95,26 +97,26 @@
 	);
 </script>
 
-<svelte:head><title>Admin Panel | Challenge Run Community</title></svelte:head>
+<svelte:head><title>{m.admin_panel()} | Challenge Run Community</title></svelte:head>
 
 <div class="page-width">
 	{#if checking || $isLoading}
 		<div class="admin-loading">
 			<div class="spinner"></div>
-			<p class="muted">Checking permissions...</p>
+			<p class="muted">{m.admin_checking_permissions()}</p>
 		</div>
 	{:else if !role?.admin && !role?.verifier && !role?.moderator}
 		<div class="admin-denied">
-			<h1>🔒 Access Denied</h1>
-			<p class="muted">You need verifier, moderator, admin, or super admin privileges to access the dashboard.</p>
-			<a href="/" class="btn btn--outline">Go Home</a>
+			<h1>🔒 {m.admin_access_denied()}</h1>
+			<p class="muted">{m.admin_denied_message()}</p>
+			<a href={localizeHref("/")} class="btn btn--outline">{m.error_go_home()}</a>
 		</div>
 	{:else}
 		<div class="dash">
 			<!-- Header -->
 			<div class="dash-header">
 				<div class="dash-header__info">
-					<h1>Admin Panel</h1>
+					<h1>{m.admin_panel()}</h1>
 					<p class="muted">
 						{#if effectiveRole === 'super_admin'}⭐ Super Admin
 						{:else if effectiveRole === 'admin'}🛡️ Admin
@@ -139,22 +141,22 @@
 				{#if isAdminPlus}
 					<div class="dash-stat" class:dash-stat--alert={counts.pendingGames > 0}>
 						<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingGames ?? 0}</span>
-						<span class="dash-stat__label">Pending Games</span>
+						<span class="dash-stat__label">{m.admin_pending_games()}</span>
 					</div>
 				{/if}
 				<div class="dash-stat" class:dash-stat--alert={(counts.pendingUpdates ?? 0) > 0}>
 					<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingUpdates ?? 0}</span>
-					<span class="dash-stat__label">Pending Game Updates</span>
+					<span class="dash-stat__label">{m.admin_pending_game_updates()}</span>
 				</div>
 				{#if isAdminPlus}
 					<div class="dash-stat" class:dash-stat--alert={counts.pendingProfiles > 0}>
 						<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingProfiles ?? 0}</span>
-						<span class="dash-stat__label">Pending Profiles</span>
+						<span class="dash-stat__label">{m.admin_pending_profiles()}</span>
 					</div>
 				{/if}
 				<div class="dash-stat" class:dash-stat--alert={counts.pendingRuns > 0}>
 					<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingRuns ?? 0}</span>
-					<span class="dash-stat__label">Pending Runs</span>
+					<span class="dash-stat__label">{m.admin_pending_runs()}</span>
 				</div>
 			</div>
 

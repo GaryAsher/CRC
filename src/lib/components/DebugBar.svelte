@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { debugRole, realRole } from '$stores/debug';
 	import { getDebugableRoles, canAccessRoute } from '$lib/permissions';
+	import * as m from '$lib/paraglide/messages';
 	import type { DebugRoleId } from '$stores/debug';
 
 	let mounted = $state(false);
@@ -176,13 +177,13 @@
 			<div class="debug-bar__left">
 				<span class="debug-bar__dot"></span>
 				<span class="debug-bar__role">{currentRole.icon} {currentRole.label}</span>
-				<span class="debug-bar__badge">DEBUG</span>
+				<span class="debug-bar__badge">{m.debug_badge()}</span>
 			</div>
 			<div class="debug-bar__right">
 				<!-- Change Role (inline picker) -->
 				<div class="debug-bar__picker-wrap">
 					<button class="debug-bar__btn" onclick={() => { rolePickerOpen = !rolePickerOpen; navOpen = false; }}>
-						🔄 Change Role
+						🔄 {m.debug_change_role()}
 					</button>
 					{#if rolePickerOpen}
 						<div class="debug-bar__picker">
@@ -202,9 +203,9 @@
 				</div>
 
 				<button class="debug-bar__btn" onclick={() => { navOpen = !navOpen; rolePickerOpen = false; }}>
-					{navOpen ? '✕ Close' : '🗺️ Navigate'}
+					{navOpen ? `✕ ${m.debug_close()}` : `🗺️ ${m.debug_navigate()}`}
 				</button>
-				<button class="debug-bar__exit" onclick={exitDebug}>Exit</button>
+				<button class="debug-bar__exit" onclick={exitDebug}>{m.debug_exit()}</button>
 			</div>
 		</div>
 
@@ -237,7 +238,7 @@
 	</div>
 
 	{#if toastVisible}
-		<div class="debug-toast">🚫 Submissions are disabled in debug mode</div>
+		<div class="debug-toast">🚫 {m.debug_submissions_disabled()}</div>
 	{/if}
 {/if}
 

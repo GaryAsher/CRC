@@ -5,6 +5,8 @@
 	import { checkAdminRole } from '$lib/admin';
 	import { supabase } from '$lib/supabase';
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let checking = $state(true);
 	let authorized = $state(false);
@@ -134,7 +136,7 @@
 	{#if checking || $isLoading}
 		<div class="center"><div class="spinner"></div><p class="muted">Checking access...</p></div>
 	{:else if !authorized}
-		<div class="center"><h2>🔒 Access Denied</h2><p class="muted">Staff privileges required to view game updates.</p><a href="/" class="btn">Go Home</a></div>
+		<div class="center"><h2>🔒 {m.admin_access_denied()}</h2><p class="muted">{m.admin_staff_required()}</p><a href={localizeHref("/")} class="btn">{m.error_go_home()}</a></div>
 	{:else}
 		<h1>📝 Game Updates</h1>
 		<p class="muted mb-2">Review pending updates and manage approved corrections.</p>

@@ -8,6 +8,7 @@
 	import { getAccessToken } from '$lib/admin';
 	import { checkBannedTerms } from '$lib/utils/banned-terms';
 	import AuthGuard from '$components/auth/AuthGuard.svelte';
+	import * as m from '$lib/paraglide/messages';
 
 	// Where to redirect after setup (or skip)
 	let redirectTo = $state('/');
@@ -257,10 +258,10 @@
 
 					<div class="setup-actions">
 						<button class="btn btn--primary" onclick={handleSubmit} disabled={!canSubmit}>
-							{submitting ? 'Saving...' : 'Save & Continue'}
+							{submitting ? m.btn_saving() : m.btn_save_continue()}
 						</button>
 						<button class="btn btn--ghost" onclick={skip}>
-							Skip for now
+							{m.btn_skip_for_now()}
 						</button>
 					</div>
 

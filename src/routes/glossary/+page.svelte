@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import * as m from '$lib/paraglide/messages';
 	let { data } = $props();
 	const challenges = $derived(data.challenges || {});
 	const glossary = $derived(data.glossary || {});
@@ -12,17 +13,17 @@
 	);
 </script>
 
-<svelte:head><title>Glossary | Challenge Run Community</title></svelte:head>
+<svelte:head><title>{m.glossary_page_title()}</title></svelte:head>
 
 <div class="page-width">
-	<h1>Glossary</h1>
-	<p class="muted mb-4">Definitions for gameplay interactions and challenge run terminology used across CRC. These are our community standards — individual games may define terms differently on their rules pages.</p>
+	<h1>{m.glossary_heading()}</h1>
+	<p class="muted mb-4">{m.glossary_description()}</p>
 
 	<nav class="glossary-nav" aria-label="Glossary sections">
 		{#each glossarySections as [key, section]}
 			<a href="#{key}">{section.label}</a>
 		{/each}
-		<a href="#challenges">Challenge Types</a>
+		<a href="#challenges">{m.glossary_challenge_types()}</a>
 	</nav>
 
 	{#each glossarySections as [key, section]}
@@ -40,17 +41,17 @@
 	{/each}
 
 	<section id="challenges">
-		<h2>Challenge Types</h2>
+		<h2>{m.glossary_challenge_types()}</h2>
 		{#each challengeEntries as [slug, challenge]}
 			<div class="card">
 				<h3>{challenge.label}</h3>
 				{#if challenge.description}
 					<div class="card-body">{@html renderMarkdown(challenge.description)}</div>
 				{:else}
-					<p class="muted">No global definition yet.</p>
+					<p class="muted">{m.glossary_no_definition()}</p>
 				{/if}
 				{#if challenge.aliases?.length}
-					<p class="muted aliases">Also known as: {challenge.aliases.join(', ')}</p>
+					<p class="muted aliases">{m.glossary_also_known_as({ aliases: challenge.aliases.join(', ') })}</p>
 				{/if}
 			</div>
 		{/each}

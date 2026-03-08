@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 </script>
 
 <div class="page-width">
@@ -7,26 +9,26 @@
 		<div class="error-code">{$page.status}</div>
 		<h1>
 			{#if $page.status === 404}
-				Page Not Found
+				{m.error_page_not_found()}
 			{:else if $page.status === 403}
-				Access Denied
+				{m.error_access_denied()}
 			{:else if $page.status === 500}
-				Server Error
+				{m.error_server_error()}
 			{:else}
-				Something Went Wrong
+				{m.error_something_wrong()}
 			{/if}
 		</h1>
 		<p class="muted">
 			{#if $page.status === 404}
-				The page you're looking for doesn't exist or may have been moved.
+				{m.error_404_message()}
 			{:else}
-				{$page.error?.message || 'An unexpected error occurred.'}
+				{$page.error?.message || m.error_generic_message()}
 			{/if}
 		</p>
 		<div class="error-actions">
-			<a href="/" class="btn btn--accent">Go Home</a>
-			<a href="/games" class="btn btn--outline">Browse Games</a>
-			<a href="/search" class="btn btn--outline">Search</a>
+			<a href={localizeHref('/')} class="btn btn--accent">{m.error_go_home()}</a>
+			<a href={localizeHref('/games')} class="btn btn--outline">{m.btn_browse_games()}</a>
+			<a href={localizeHref('/search')} class="btn btn--outline">{m.error_search()}</a>
 		</div>
 	</div>
 </div>

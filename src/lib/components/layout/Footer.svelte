@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { showCookieSettings } from '$stores/consent';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 	const year = new Date().getFullYear();
 </script>
 
@@ -7,51 +9,51 @@
 	<div class="footer-content">
 		<div class="footer-grid">
 			<div class="footer-section">
-				<a href="/" class="footer-brand">CRC</a>
-				<p class="footer-tagline">Challenge Run Community</p>
+				<a href={localizeHref('/')} class="footer-brand">CRC</a>
+				<p class="footer-tagline">{m.footer_tagline()}</p>
 				<p class="footer-description">
-					A community-driven platform for challenge run speedrunners and enthusiasts.
+					{m.footer_description()}
 				</p>
 				<p class="footer-description">
-					Game content and images are property of their respective owners.
+					{m.footer_copyright_notice()}
 				</p>
 			</div>
 
 			<div class="footer-section">
-				<h4 class="footer-heading">Explore</h4>
+				<h4 class="footer-heading">{m.footer_explore()}</h4>
 				<ul class="footer-links">
-					<li><a href="/games">Games</a></li>
-					<li><a href="/runners">Runners</a></li>
-					<li><a href="/teams">Teams</a></li>
-					<li><a href="/news">News</a></li>
+					<li><a href={localizeHref('/games')}>{m.nav_games()}</a></li>
+					<li><a href={localizeHref('/runners')}>{m.nav_runners()}</a></li>
+					<li><a href={localizeHref('/teams')}>{m.nav_teams()}</a></li>
+					<li><a href={localizeHref('/news')}>{m.nav_news()}</a></li>
 				</ul>
 			</div>
 
 			<div class="footer-section">
-				<h4 class="footer-heading">Resources</h4>
+				<h4 class="footer-heading">{m.footer_resources()}</h4>
 				<ul class="footer-links">
-					<li><a href="/rules">Rules</a></li>
-					<li><a href="/glossary">Glossary</a></li>
-					<li><a href="/support">Support</a></li>
-					<li><a href="/support#contact">Contact Us</a></li>
-					<li><a href="/feed.xml">RSS Feed</a></li>
+					<li><a href={localizeHref('/rules')}>{m.nav_rules()}</a></li>
+					<li><a href={localizeHref('/glossary')}>{m.nav_glossary()}</a></li>
+					<li><a href={localizeHref('/support')}>{m.nav_support()}</a></li>
+					<li><a href={localizeHref('/support#contact')}>{m.footer_contact_us()}</a></li>
+					<li><a href="/feed.xml">{m.nav_rss_feed()}</a></li>
 				</ul>
 			</div>
 
 			<div class="footer-section">
-				<h4 class="footer-heading">Legal</h4>
+				<h4 class="footer-heading">{m.footer_legal()}</h4>
 				<ul class="footer-links">
-					<li><a href="/legal/privacy">Privacy Policy</a></li>
-					<li><a href="/legal/terms">Terms of Service</a></li>
-					<li><a href="/legal/cookies">Cookie Policy</a></li>
-					<li><a href="/guidelines">Community Guidelines</a></li>
-					<li><button class="footer-link-btn" onclick={() => showCookieSettings.set(true)}>Cookie Settings</button></li>
+					<li><a href={localizeHref('/legal/privacy')}>{m.footer_privacy_policy()}</a></li>
+					<li><a href={localizeHref('/legal/terms')}>{m.footer_terms_of_service()}</a></li>
+					<li><a href={localizeHref('/legal/cookies')}>{m.footer_cookie_policy()}</a></li>
+					<li><a href={localizeHref('/guidelines')}>{m.footer_community_guidelines()}</a></li>
+					<li><button class="footer-link-btn" onclick={() => showCookieSettings.set(true)}>{m.footer_cookie_settings()}</button></li>
 				</ul>
 			</div>
 		</div>
 
 		<div class="footer-bottom">
-			<p>&copy; {year} Challenge Run Community. All rights reserved.</p>
+			<p>{m.footer_copyright({ year: String(year) })}</p>
 		</div>
 	</div>
 </footer>

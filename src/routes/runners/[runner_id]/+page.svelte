@@ -21,6 +21,7 @@
 		return null;
 	}
 	import { page } from '$app/stores';
+	import * as m from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	const runner = $derived(data.runner);
@@ -177,12 +178,12 @@
 
 	<!-- Tabs Navigation -->
 	<nav class="runner-tabs">
-		<button class="tab" class:active={activeTab === 'overview'} onclick={() => activeTab = 'overview'}>Overview</button>
-		<button class="tab" class:active={activeTab === 'runs'} onclick={() => activeTab = 'runs'}>Run Statistics</button>
-		<button class="tab" class:active={activeTab === 'achievements'} onclick={() => activeTab = 'achievements'}>Achievements</button>
-		<button class="tab" class:active={activeTab === 'contributions'} onclick={() => activeTab = 'contributions'}>Contributions</button>
+		<button class="tab" class:active={activeTab === 'overview'} onclick={() => activeTab = 'overview'}>{m.runner_tab_overview()}</button>
+		<button class="tab" class:active={activeTab === 'runs'} onclick={() => activeTab = 'runs'}>{m.runner_tab_run_statistics()}</button>
+		<button class="tab" class:active={activeTab === 'achievements'} onclick={() => activeTab = 'achievements'}>{m.runner_tab_achievements()}</button>
+		<button class="tab" class:active={activeTab === 'contributions'} onclick={() => activeTab = 'contributions'}>{m.runner_tab_contributions()}</button>
 		{#if !socials.hide_activity}
-			<button class="tab" class:active={activeTab === 'activity'} onclick={() => activeTab = 'activity'}>Activity</button>
+			<button class="tab" class:active={activeTab === 'activity'} onclick={() => activeTab = 'activity'}>{m.runner_tab_activity()}</button>
 		{/if}
 	</nav>
 

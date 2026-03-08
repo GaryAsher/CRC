@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 	onMount(() => goto('/admin/runs', { replaceState: true }));
 </script>
 <div class="page-width" style="text-align:center;padding:4rem 0;">
