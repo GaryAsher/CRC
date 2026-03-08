@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { checkAdminRole } from '$lib/admin';
 	import { supabase } from '$lib/supabase';
+	import { renderMarkdown } from '$lib/utils/markdown';
 
 	let checking = $state(true);
 	let authorized = $state(false);
@@ -15,9 +16,11 @@
 
 	// Games this user can moderate (write permission)
 	let myModeratorGameIds = $state<Set<string>>(new Set());
+	let isAdmin = $state(false);
+	let isSuperAdmin = $state(false);
 
 	function canEdit(req: any): boolean {
-		return myModeratorGameIds.has(req.game_id);
+		return isAdmin || isSuperAdmin || myModeratorGameIds.has(req.game_id);
 	}
 
 	type UpdateStatus = 'pending' | 'acknowledged' | 'resolved' | 'dismissed' | 'all';
@@ -110,6 +113,8 @@
 				if (!sess) { goto('/sign-in?redirect=/admin/game-updates'); return; }
 				const role = await checkAdminRole();
 				authorized = !!(role?.admin || role?.moderator || role?.verifier);
+				if (role?.admin) isAdmin = true;
+				if (role?.superAdmin) isSuperAdmin = true;
 				if (role?.moderatorGameIds?.length) {
 					myModeratorGameIds = new Set(role.moderatorGameIds);
 				}
@@ -226,7 +231,7 @@
 								{#if req.details}
 									<div class="req-content">
 										<span class="req-content__label">Details</span>
-										<div class="req-content__text">{req.details}</div>
+										<div class="req-content__text">{@html renderMarkdown(req.details)}</div>
 									</div>
 								{/if}
 
@@ -331,7 +336,15 @@
 	/* Content block */
 	.req-content { margin-bottom: 1.25rem; }
 	.req-content__label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); display: block; margin-bottom: 0.35rem; }
-	.req-content__text { font-size: 0.9rem; line-height: 1.5; background: var(--bg); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border); white-space: pre-wrap; word-break: break-word; }
+	.req-content__text { font-size: 0.9rem; line-height: 1.5; background: var(--bg); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border); word-break: break-word; }
+	.req-content__text :global(p) { margin: 0.25rem 0; }
+	.req-content__text :global(p:first-child) { margin-top: 0; }
+	.req-content__text :global(p:last-child) { margin-bottom: 0; }
+	.req-content__text :global(ul), .req-content__text :global(ol) { margin: 0.25rem 0; padding-left: 1.25rem; }
+	.req-content__text :global(a) { color: var(--accent); text-decoration: underline; }
+	.req-content__text :global(code) { font-size: 0.85em; background: rgba(255,255,255,0.06); padding: 0.1em 0.35em; border-radius: 3px; }
+	.req-content__text :global(blockquote) { margin: 0.5rem 0; padding-left: 0.75rem; border-left: 3px solid var(--border); color: var(--muted); }
+	.req-content__text :global(strong) { font-weight: 600; }
 
 	/* Images */
 	.req-images { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }

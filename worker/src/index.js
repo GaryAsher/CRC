@@ -2385,7 +2385,7 @@ async function handleDataExport(body, env, request) {
 
   // 5. Game submissions
   const games = await supabaseQuery(env,
-    `pending_games?submitter_user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
+    `pending_games?submitted_by=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
   exportData.sections.game_submissions = games.ok ? (games.data || []) : [];
 
   // 6. Game update requests
@@ -2472,7 +2472,7 @@ async function handleDeleteAccount(body, env, request) {
 
   // 9. Delete pending games
   await supabaseQuery(env,
-    `pending_games?submitter_user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+    `pending_games?submitted_by=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
 
   // 10. Delete linked accounts
   await supabaseQuery(env,
