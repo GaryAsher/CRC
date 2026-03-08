@@ -18,6 +18,7 @@
     "validate:terms": "node scripts/check-banned-terms.js"
   },
   "devDependencies": {
+    "@inlang/paraglide-js": "^2.13.2",
     "@sveltejs/adapter-cloudflare": "^7.2.7",
     "@sveltejs/kit": "^2.52.0",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",

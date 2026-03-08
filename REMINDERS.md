@@ -13,39 +13,30 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - [ ] Add default profile picture and default banner
 - [ ] **Favicon** — update once we have a logo (currently empty placeholder)
 
-### Ideas:
+### Rework Visuals (Revisit later):
 - Submit Page (https://www.challengerun.net/submit):
   - [ ] Can we transform this to populate the respective game? or is that too much work?
 - Runner Page:
   - Run Statistics:
     - [ ] Update how the runs are displayed when you click into a game.
+- News Section:
+  - For the front-page:
+    - [ ] Needs more visual styling. Add later
 
 ---
 
 ## Short-Term Priorities
 ### 1 Small fixes
 - [ ] Discord webhooks not working (run submission, game submission, profile waiting approval)
-  - [ ] Add more information in the forum attachment, like link to event.
-    - Profile waiting approval only visible to admin and super admin
-- [ ] Fill glossary definitions (hit, damage, death, hitless vs damageless, etc.)
-- News Section:
-  - For the front-page:
-    - [ ] Needs more visual styling. Add later
-- Admin Panel:
-  - Runs:
-    - Rejected:
-      - Allow super admin to delete this. Additionally, only allow game moderators and game verifiers to see the games they verify / mod for.
+
+### 2. Spanish Language Support
+**PROMISED TO COMMUNITY — HIGH PRIORITY**
+- [ ] Create translation files
+- [ ] Request community translation help early
 
 ---
 
 ## Medium-Term Priorities
-### 3. Spanish Language Support
-**PROMISED TO COMMUNITY — HIGH PRIORITY**
-- [ ] Evaluate: `paraglide-js` or `$lib/i18n` approach
-- [ ] Create translation files
-- [ ] Add language toggle to header
-- [ ] Request community translation help early
-
 ### 4. Notifications & Messaging System
 **Tier 1 — Notifications (build first):**
 - [ ] `notifications` table in Supabase (id, user_id, type, title, message, link, metadata, read, created_at)

@@ -6,6 +6,9 @@
 	import { toggleTheme, theme } from '$stores/theme';
 	import { supabase, signOut as doSignOut } from '$lib/supabase';
 	import { fetchPending } from '$lib/admin';
+	import LanguageSwitcher from '$components/LanguageSwitcher.svelte';
+	import { localizeHref, deLocalizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let moreOpen = $state(false);
 	let userMenuOpen = $state(false);
@@ -201,7 +204,8 @@
 	}
 
 	function isActive(path: string): boolean {
-		return $page.url.pathname.startsWith(path);
+		const current = deLocalizeHref($page.url.pathname);
+		return current.startsWith(path);
 	}
 
 	async function signOut() {
@@ -220,14 +224,14 @@
 
 	function handleSearchKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' && searchQuery.trim()) {
-			goto(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+			goto(localizeHref(`/search?q=${encodeURIComponent(searchQuery.trim())}`));
 			(e.target as HTMLInputElement)?.blur();
 		}
 	}
 
 	function handleSearchSubmit() {
 		if (searchQuery.trim()) {
-			goto(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+			goto(localizeHref(`/search?q=${encodeURIComponent(searchQuery.trim())}`));
 		}
 	}
 </script>
@@ -236,7 +240,7 @@
 
 <header class="site-header">
 	<div class="header-left">
-		<a class="brand" href="/" title="Go to Home">CRC</a>
+		<a class="brand" href={localizeHref('/')} title="Go to Home">CRC</a>
 
 		{#if showAdminLink}
 			<button
@@ -262,11 +266,11 @@
 
 	<nav class="nav" class:nav--open={mobileOpen} aria-label="Primary navigation">
 		<div class="nav-group nav-links">
-			<a href="/" class:active={$page.url.pathname === '/'}>Home</a>
-			<a href="/games" class:active={isActive('/games')}>Games</a>
-			<a href="/runners" class:active={isActive('/runners')}>Runners</a>
-			<a href="/teams" class:active={isActive('/teams')}>Teams</a>
-			<a href="/submit" class:active={isActive('/submit')}>Submit</a>
+			<a href={localizeHref('/')} class:active={deLocalizeHref($page.url.pathname) === '/'}>{m.nav_home()}</a>
+			<a href={localizeHref('/games')} class:active={isActive('/games')}>{m.nav_games()}</a>
+			<a href={localizeHref('/runners')} class:active={isActive('/runners')}>{m.nav_runners()}</a>
+			<a href={localizeHref('/teams')} class:active={isActive('/teams')}>{m.nav_teams()}</a>
+			<a href={localizeHref('/submit')} class:active={isActive('/submit')}>Submit</a>
 
 			<!-- svelte-ignore a11y_click_events_have_key_events -->
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -276,11 +280,11 @@
 				</button>
 				{#if moreOpen}
 					<div class="nav-dropdown__menu">
-						<a href="/news" class="nav-dropdown__item">📰 News</a>
-						<a href="/rules" class="nav-dropdown__item">📜 Rules</a>
-						<a href="/glossary" class="nav-dropdown__item">📖 Glossary</a>
-						<a href="/guidelines" class="nav-dropdown__item">📋 Guidelines</a>
-						<a href="/support" class="nav-dropdown__item">💬 Support</a>
+						<a href={localizeHref('/news')} class="nav-dropdown__item">📰 News</a>
+						<a href={localizeHref('/rules')} class="nav-dropdown__item">📜 Rules</a>
+						<a href={localizeHref('/glossary')} class="nav-dropdown__item">📖 Glossary</a>
+						<a href={localizeHref('/guidelines')} class="nav-dropdown__item">📋 Guidelines</a>
+						<a href={localizeHref('/support')} class="nav-dropdown__item">💬 Support</a>
 						<hr class="nav-dropdown__divider" />
 						<a href="/feed.xml" class="nav-dropdown__item">📡 RSS Feed</a>
 					</div>
@@ -310,6 +314,7 @@
 
 		<!-- Right: User -->
 		<div class="nav-group nav-user">
+			<LanguageSwitcher />
 			{#if showAsSignedIn}
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -343,14 +348,14 @@
 								<button type="button" class="nav-user__menu-close" onclick={(e) => { e.stopPropagation(); userMenuOpen = false; }} aria-label="Close menu">✕</button>
 							</div>
 							<div class="nav-user__menu-items">
-								<a href={profileLink.href} class="nav-user__menu-item">
+								<a href={localizeHref(profileLink.href)} class="nav-user__menu-item">
 									{profileLink.icon} {profileLink.label}
 								</a>
 								{#if profileInfo?.profileState === 'active'}
-									<a href="/profile/edit" class="nav-user__menu-item">✏️ Edit Profile</a>
+									<a href={localizeHref('/profile/edit')} class="nav-user__menu-item">✏️ Edit Profile</a>
 								{/if}
-								<a href="/profile/theme" class="nav-user__menu-item">🎨 Theme</a>
-								<a href="/profile/settings" class="nav-user__menu-item">⚙️ Settings</a>
+								<a href={localizeHref('/profile/theme')} class="nav-user__menu-item">🎨 Theme</a>
+								<a href={localizeHref('/profile/settings')} class="nav-user__menu-item">⚙️ Settings</a>
 								<hr class="nav-user__menu-divider" />
 								<button
 									type="button"
@@ -377,7 +382,7 @@
 				>
 					{$theme === 'dark' ? '☀️' : '🌙'}
 				</button>
-				<a href="/sign-in" class="nav-user__signin">Login</a>
+				<a href={localizeHref('/sign-in')} class="nav-user__signin">Login</a>
 			{/if}
 		</div>
 	</nav>

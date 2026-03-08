@@ -10,6 +10,7 @@
 	import CookieConsent from '$components/CookieConsent.svelte';
 	import DebugBar from '$components/DebugBar.svelte';
 	import Toast from '$components/Toast.svelte';
+	import HrefLang from '$components/HrefLang.svelte';
 
 	let { data, children } = $props();
 
@@ -64,6 +65,8 @@
 <svelte:head>
 	<meta name="description" content="Tracking challenge runs, deathless runs, and no-hit achievements across games" />
 </svelte:head>
+
+<HrefLang />
 
 <div class="site-wrapper">
 	<DebugBar />
