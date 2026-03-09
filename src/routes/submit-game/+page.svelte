@@ -885,6 +885,7 @@
 					<div class="success-actions">
 						<a href={localizeHref('/games')} class="btn">{m.btn_browse_games()}</a>
 						<button class="btn btn--accent" onclick={() => { result = null; gameName = ''; }}>{m.btn_submit_another()}</button>
+						<a href={localizeHref('/profile/submissions')} class="btn">📋 {m.user_menu_submissions()}</a>
 					</div>
 				{/if}
 			{/if}
@@ -1000,6 +1001,7 @@
 											<div class="success-actions">
 												<a href={localizeHref('/games')} class="btn">{m.btn_browse_games()}</a>
 												<button class="btn btn--accent" onclick={() => { supporterResult = null; gameCheckResult = null; gameName = ''; }}>{m.btn_submit_another()}</button>
+												<a href={localizeHref('/profile/submissions')} class="btn">📋 {m.user_menu_submissions()}</a>
 											</div>
 										{/if}
 									{/if}

@@ -23,6 +23,7 @@
 					</p>
 					<div class="profile-actions">
 						<a href="/profile/edit" class="btn btn--outline">Edit Profile</a>
+						<a href="/profile/submissions" class="btn btn--outline">📋 My Submissions</a>
 						<a href="/profile/settings" class="btn btn--outline">Settings</a>
 					</div>
 				</div>

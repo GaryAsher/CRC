@@ -152,7 +152,7 @@
 										{#if locked}
 											<span class="lock-badge">🔒 {m.submissions_under_review()}</span>
 										{:else}
-											<a href={localizeHref(`/profile/run/${run.public_id}`)} class="btn btn--sm">{m.submissions_edit()}</a>
+											<a href={localizeHref(`/profile/submissions/run/${run.public_id}`)} class="btn btn--sm">{m.submissions_edit()}</a>
 											<button
 												class="btn btn--sm btn--danger"
 												disabled={withdrawingId === run.public_id}

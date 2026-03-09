@@ -373,6 +373,7 @@
 			<div class="success-actions">
 				<button class="btn btn--accent" onclick={() => successMsg = ''}>{m.btn_submit_another()}</button>
 				<a href={localizeHref(`/games/${game.game_id}/runs`)} class="btn">{m.btn_view_runs()}</a>
+				<a href={localizeHref('/profile/submissions')} class="btn">📋 {m.user_menu_submissions()}</a>
 			</div>
 		</div>
 	</div>
