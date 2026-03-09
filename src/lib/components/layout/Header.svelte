@@ -356,6 +356,7 @@
 								{/if}
 								<a href={localizeHref('/profile/theme')} class="nav-user__menu-item">🎨 {m.user_menu_theme()}</a>
 								<a href={localizeHref('/profile/settings')} class="nav-user__menu-item">⚙️ {m.user_menu_settings()}</a>
+								<a href={localizeHref('/profile/submissions')} class="nav-user__menu-item">📋 {m.user_menu_submissions()}</a>
 								<hr class="nav-user__menu-divider" />
 								<button
 									type="button"

@@ -14,6 +14,10 @@
  *   POST /game-editor/freeze   Freeze/unfreeze game (admin only)
  *   POST /game-editor/delete   Delete game          (super admin only)
  *   POST /game-editor/rollback Rollback to snapshot  (admin/moderator)
+ *   POST /edit-pending-run    Edit own pending run  (authenticated, own submission only)
+ *   POST /withdraw-pending-run Withdraw own pending run (authenticated, own submission only)
+ *   POST /edit-pending-game   Edit own pending game (authenticated, own submission only)
+ *   POST /withdraw-pending-game Withdraw own pending game (authenticated, own submission only)
  *
  * Secrets (set via wrangler secret put):
  *   SUPABASE_URL, SUPABASE_SERVICE_KEY,
@@ -2737,6 +2741,303 @@ async function handleSupportGame(body, env, request) {
 // ROUTER
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /edit-pending-run (User edits own pending run)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function handleEditPendingRun(body, env, request) {
+  // ── 1. Authenticate ────────────────────────────────────────────────────────
+  const auth = await authenticateUser(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+
+  const runId = body.run_id;
+  if (!runId) return jsonResponse({ error: 'Missing run_id' }, 400, env, request);
+  if (!isValidId(runId)) return jsonResponse({ error: 'Invalid run_id format' }, 400, env, request);
+
+  // ── 2. Fetch and verify ownership ──────────────────────────────────────────
+  const runResult = await supabaseQuery(env,
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=*`, { method: 'GET' });
+  if (!runResult.ok || !runResult.data?.length) {
+    return jsonResponse({ error: 'Run not found' }, 404, env, request);
+  }
+  const run = runResult.data[0];
+
+  if (run.submitted_by !== auth.user.id) {
+    return jsonResponse({ error: 'You can only edit your own submissions' }, 403, env, request);
+  }
+  if (run.status !== 'pending') {
+    return jsonResponse({ error: 'Only pending submissions can be edited' }, 400, env, request);
+  }
+  if (run.claimed_by && isClaimActive(run.claimed_at)) {
+    return jsonResponse({ error: 'This submission is currently under review and cannot be edited' }, 423, env, request);
+  }
+
+  // ── 3. Build update object (allowlisted fields only) ──────────────────────
+  const updates = { updated_at: new Date().toISOString() };
+
+  // Only include fields the user actually sent
+  if (body.category !== undefined)            updates.category = sanitizeInput(body.category, 100);
+  if (body.category_tier !== undefined)       updates.category_tier = sanitizeInput(body.category_tier, 50);
+  if (body.standard_challenges !== undefined) updates.standard_challenges = sanitizeArray(body.standard_challenges);
+  if (body.community_challenge !== undefined) updates.community_challenge = body.community_challenge ? sanitizeInput(body.community_challenge, 200) : null;
+  if (body.character !== undefined)           updates.character = body.character ? sanitizeInput(body.character, 100) : null;
+  if (body.difficulty !== undefined)          updates.difficulty = body.difficulty ? sanitizeInput(body.difficulty, 100) : null;
+  if (body.glitch_id !== undefined)           updates.glitch_id = body.glitch_id ? sanitizeInput(body.glitch_id, 50) : null;
+  if (body.restrictions !== undefined)        updates.restrictions = sanitizeArray(body.restrictions);
+  if (body.platform !== undefined)            updates.platform = body.platform ? sanitizeInput(body.platform, 50) : null;
+  if (body.video_url !== undefined) {
+    if (!isValidVideoUrl(body.video_url)) {
+      return jsonResponse({ error: 'Invalid video URL' }, 400, env, request);
+    }
+    updates.video_url = sanitizeInput(body.video_url, 500);
+  }
+  if (body.run_date !== undefined)            updates.run_date = body.run_date ? sanitizeInput(body.run_date, 10) : null;
+  if (body.time_rta !== undefined)            updates.time_rta = body.time_rta ? sanitizeInput(body.time_rta, 20) : null;
+  if (body.time_primary !== undefined)        updates.time_primary = body.time_primary ? sanitizeInput(body.time_primary, 20) : null;
+  if (body.submitter_notes !== undefined)     updates.submitter_notes = body.submitter_notes ? sanitizeInput(body.submitter_notes, 500) : null;
+  if (body.additional_runners !== undefined)  updates.additional_runners = Array.isArray(body.additional_runners) ? sanitizeArray(body.additional_runners, 10, 60) : null;
+
+  // ── 4. Validate required fields still present ─────────────────────────────
+  const finalCategory = updates.category || run.category;
+  const finalVideo = updates.video_url || run.video_url;
+  if (!finalCategory) return jsonResponse({ error: 'Category is required' }, 400, env, request);
+  if (!finalVideo) return jsonResponse({ error: 'Video URL is required' }, 400, env, request);
+
+  // ── 5. Apply update ───────────────────────────────────────────────────────
+  const patchResult = await supabaseQuery(env,
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}`, {
+      method: 'PATCH',
+      body: updates,
+    });
+
+  if (!patchResult.ok) {
+    console.error('Edit pending run error:', patchResult.data);
+    return jsonResponse({ error: 'Failed to update submission' }, 500, env, request);
+  }
+
+  return jsonResponse({ ok: true, message: 'Submission updated' }, 200, env, request);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /withdraw-pending-run (User withdraws own pending run)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function handleWithdrawPendingRun(body, env, request) {
+  const auth = await authenticateUser(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+
+  const runId = body.run_id;
+  if (!runId) return jsonResponse({ error: 'Missing run_id' }, 400, env, request);
+  if (!isValidId(runId)) return jsonResponse({ error: 'Invalid run_id format' }, 400, env, request);
+
+  const runResult = await supabaseQuery(env,
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=submitted_by,status,claimed_by,claimed_at`, { method: 'GET' });
+  if (!runResult.ok || !runResult.data?.length) {
+    return jsonResponse({ error: 'Run not found' }, 404, env, request);
+  }
+  const run = runResult.data[0];
+
+  if (run.submitted_by !== auth.user.id) {
+    return jsonResponse({ error: 'You can only withdraw your own submissions' }, 403, env, request);
+  }
+  if (run.status !== 'pending') {
+    return jsonResponse({ error: 'Only pending submissions can be withdrawn' }, 400, env, request);
+  }
+  if (run.claimed_by && isClaimActive(run.claimed_at)) {
+    return jsonResponse({ error: 'This submission is currently under review and cannot be withdrawn' }, 423, env, request);
+  }
+
+  const deleteResult = await supabaseQuery(env,
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}`, { method: 'DELETE' });
+
+  if (!deleteResult.ok) {
+    console.error('Withdraw pending run error:', deleteResult.data);
+    return jsonResponse({ error: 'Failed to withdraw submission' }, 500, env, request);
+  }
+
+  return jsonResponse({ ok: true, message: 'Submission withdrawn' }, 200, env, request);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /edit-pending-game (User edits own pending game)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function handleEditPendingGame(body, env, request) {
+  const auth = await authenticateUser(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+
+  const gameId = body.game_id;
+  if (!gameId) return jsonResponse({ error: 'Missing game_id' }, 400, env, request);
+  if (!isValidId(gameId)) return jsonResponse({ error: 'Invalid game_id format' }, 400, env, request);
+
+  // Fetch by pending_games.id (UUID)
+  const gameResult = await supabaseQuery(env,
+    `pending_games?id=eq.${encodeURIComponent(gameId)}&select=*`, { method: 'GET' });
+  if (!gameResult.ok || !gameResult.data?.length) {
+    return jsonResponse({ error: 'Game not found' }, 404, env, request);
+  }
+  const game = gameResult.data[0];
+
+  if (game.submitted_by !== auth.user.id) {
+    return jsonResponse({ error: 'You can only edit your own submissions' }, 403, env, request);
+  }
+  if (game.status !== 'pending') {
+    return jsonResponse({ error: 'Only pending submissions can be edited' }, 400, env, request);
+  }
+  if (game.claimed_by && isClaimActive(game.claimed_at)) {
+    return jsonResponse({ error: 'This submission is currently under review and cannot be edited' }, 423, env, request);
+  }
+
+  // Build update object (allowlisted fields only)
+  const updates = { updated_at: new Date().toISOString() };
+
+  if (body.game_name !== undefined) {
+    const name = sanitizeInput(body.game_name, 200);
+    if (!name) return jsonResponse({ error: 'Game name cannot be empty' }, 400, env, request);
+    updates.game_name = name;
+  }
+  if (body.aliases !== undefined)         updates.game_name_aliases = (body.aliases || []).map(a => sanitizeInput(a, 200)).filter(Boolean);
+  if (body.platforms !== undefined)       updates.platforms = body.platforms || [];
+  if (body.genres !== undefined)          updates.genres = body.genres || [];
+  if (body.description !== undefined)     updates.description = body.description ? sanitizeInput(body.description, 2000) : null;
+  if (body.rules !== undefined)           updates.rules = body.rules ? sanitizeInput(body.rules, 5000) : null;
+  if (body.cover_image_url !== undefined) updates.cover_image_url = body.cover_image_url ? sanitizeInput(body.cover_image_url, 500) : null;
+  if (body.submitter_notes !== undefined) updates.submitter_notes = body.submitter_notes ? sanitizeInput(body.submitter_notes, 2000) : null;
+
+  // game_data is the full JSONB blob — if sent, replace entirely (same sanitization as submit)
+  if (body.game_data !== undefined && typeof body.game_data === 'object') {
+    const gd = body.game_data;
+    updates.game_data = {
+      timing_method: gd.timing_method || 'RTA',
+      character_column: {
+        enabled: gd.character_column?.enabled || false,
+        label: sanitizeInput(gd.character_column?.label || 'Character', 50),
+      },
+      characters_data: (gd.characters_data || []).map(c =>
+        typeof c === 'string' ? { slug: slugify(c), label: sanitizeInput(c, 100) } : c
+      ),
+      difficulty_column: {
+        enabled: gd.difficulty_column?.enabled || false,
+        label: sanitizeInput(gd.difficulty_column?.label || 'Difficulty', 50),
+      },
+      difficulties_data: (gd.difficulties_data || []).map(d =>
+        typeof d === 'string' ? { slug: slugify(d), label: sanitizeInput(d, 100) } : d
+      ),
+      challenges_data: (gd.challenges_data || []).map(c =>
+        typeof c === 'string' ? { slug: slugify(c), label: sanitizeInput(c, 100) } : c
+      ),
+      custom_challenge_description: gd.custom_challenge_description
+        ? sanitizeInput(gd.custom_challenge_description, 2000)
+        : null,
+      restrictions_data: (gd.restrictions_data || []).map(r =>
+        typeof r === 'string' ? { slug: slugify(r), label: sanitizeInput(r, 100) } : r
+      ),
+      glitches_data: (gd.glitches_data || []).map(g =>
+        typeof g === 'string'
+          ? { slug: slugify(g), label: sanitizeInput(g, 100) }
+          : {
+              slug: g.slug || slugify(g.label || ''),
+              label: sanitizeInput(g.label || '', 100),
+              ...(g.description ? { description: sanitizeInput(g.description, 1000) } : {}),
+            }
+      ),
+      nmg_rules: gd.nmg_rules ? sanitizeInput(gd.nmg_rules, 3000) : null,
+      full_runs: (gd.full_runs || []).map(c =>
+        typeof c === 'string'
+          ? { slug: slugify(c), label: sanitizeInput(c, 100) }
+          : {
+              slug: c.slug || slugify(c.label || ''),
+              label: sanitizeInput(c.label || '', 100),
+              ...(c.description ? { description: sanitizeInput(c.description, 2000) } : {}),
+              ...(c.exceptions ? { exceptions: sanitizeInput(c.exceptions, 2000) } : {}),
+              ...(c.fixed_loadout ? { fixed_loadout: c.fixed_loadout } : {}),
+            }
+      ),
+      mini_challenges: (gd.mini_challenges || []).map(mc => {
+        if (typeof mc === 'string') return { slug: slugify(mc), label: sanitizeInput(mc, 100), children: [] };
+        return {
+          slug: mc.slug || slugify(mc.label || ''),
+          label: sanitizeInput(mc.label || '', 100),
+          ...(mc.description ? { description: sanitizeInput(mc.description, 2000) } : {}),
+          ...(mc.exceptions ? { exceptions: sanitizeInput(mc.exceptions, 2000) } : {}),
+          children: (mc.children || []).map(ch =>
+            typeof ch === 'string'
+              ? { slug: slugify(ch), label: sanitizeInput(ch, 100) }
+              : {
+                  slug: ch.slug || slugify(ch.label || ''),
+                  label: sanitizeInput(ch.label || '', 100),
+                  ...(ch.description ? { description: sanitizeInput(ch.description, 2000) } : {}),
+                  ...(ch.exceptions ? { exceptions: sanitizeInput(ch.exceptions, 2000) } : {}),
+                  ...(ch.fixed_loadout ? { fixed_loadout: ch.fixed_loadout } : {}),
+                }
+          ),
+        };
+      }),
+      custom_genres: (gd.custom_genres || []).map(g => sanitizeInput(g, 60)).filter(Boolean),
+      custom_platforms: (gd.custom_platforms || []).map(p => sanitizeInput(p, 60)).filter(Boolean),
+      glitch_doc_links: gd.glitch_doc_links || null,
+      involvement: gd.involvement || [],
+    };
+  }
+
+  // Validate game name still present
+  const finalName = updates.game_name || game.game_name;
+  if (!finalName) return jsonResponse({ error: 'Game name is required' }, 400, env, request);
+
+  const patchResult = await supabaseQuery(env,
+    `pending_games?id=eq.${encodeURIComponent(gameId)}`, {
+      method: 'PATCH',
+      body: updates,
+    });
+
+  if (!patchResult.ok) {
+    console.error('Edit pending game error:', patchResult.data);
+    return jsonResponse({ error: 'Failed to update submission' }, 500, env, request);
+  }
+
+  return jsonResponse({ ok: true, message: 'Game submission updated' }, 200, env, request);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /withdraw-pending-game (User withdraws own pending game)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function handleWithdrawPendingGame(body, env, request) {
+  const auth = await authenticateUser(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+
+  const gameId = body.game_id;
+  if (!gameId) return jsonResponse({ error: 'Missing game_id' }, 400, env, request);
+  if (!isValidId(gameId)) return jsonResponse({ error: 'Invalid game_id format' }, 400, env, request);
+
+  const gameResult = await supabaseQuery(env,
+    `pending_games?id=eq.${encodeURIComponent(gameId)}&select=submitted_by,status,claimed_by,claimed_at`, { method: 'GET' });
+  if (!gameResult.ok || !gameResult.data?.length) {
+    return jsonResponse({ error: 'Game not found' }, 404, env, request);
+  }
+  const game = gameResult.data[0];
+
+  if (game.submitted_by !== auth.user.id) {
+    return jsonResponse({ error: 'You can only withdraw your own submissions' }, 403, env, request);
+  }
+  if (game.status !== 'pending') {
+    return jsonResponse({ error: 'Only pending submissions can be withdrawn' }, 400, env, request);
+  }
+  if (game.claimed_by && isClaimActive(game.claimed_at)) {
+    return jsonResponse({ error: 'This submission is currently under review and cannot be withdrawn' }, 423, env, request);
+  }
+
+  const deleteResult = await supabaseQuery(env,
+    `pending_games?id=eq.${encodeURIComponent(gameId)}`, { method: 'DELETE' });
+
+  if (!deleteResult.ok) {
+    console.error('Withdraw pending game error:', deleteResult.data);
+    return jsonResponse({ error: 'Failed to withdraw submission' }, 500, env, request);
+  }
+
+  return jsonResponse({ ok: true, message: 'Game submission withdrawn' }, 200, env, request);
+}
+
 export default {
   async fetch(request, env) {
     // CORS preflight
@@ -2844,6 +3145,18 @@ export default {
 
         case '/game-editor/rollback':
           return handleGameEditorRollback(body, env, request);
+
+        case '/edit-pending-run':
+          return handleEditPendingRun(body, env, request);
+
+        case '/withdraw-pending-run':
+          return handleWithdrawPendingRun(body, env, request);
+
+        case '/edit-pending-game':
+          return handleEditPendingGame(body, env, request);
+
+        case '/withdraw-pending-game':
+          return handleWithdrawPendingGame(body, env, request);
 
         default:
           return jsonResponse({ error: 'Not found' }, 404, env, request);
