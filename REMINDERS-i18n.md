@@ -204,3 +204,80 @@ For detecting active nav state on localized paths, use `deLocalizeHref` to strip
 | Vite plugin config | `vite.config.ts` |
 | URL reroute hook | `src/hooks.js` |
 | Adding languages guide | `docs/ADDING-LANGUAGES.md` |
+
+---
+
+## Remaining Pages Audit (March 9, 2026)
+
+**Priority:** Low — finishing what we started, not critically important. Community is English-speaking; user-generated content (game names, bios, run notes, rules) stays English regardless. This is a completeness task, not a growth task.
+
+### Not Started (no paraglide import)
+
+| File | ~Strings |
+|-|-|
+| `src/routes/legal/privacy/+page.svelte` | 78 |
+| `src/routes/support/+page.svelte` | 55 |
+| `src/routes/admin/games/[id]/review/+page.svelte` | 52 |
+| `src/routes/guidelines/+page.svelte` | 49 |
+| `src/routes/admin/game-editor/[game_id]/CategoriesTab.svelte` | 38 |
+| `src/routes/legal/cookies/+page.svelte` | 35 |
+| `src/routes/legal/terms/+page.svelte` | 30 |
+| `src/routes/profile/status/+page.svelte` | 27 |
+| `src/routes/profile/settings/+page.svelte` | 26 |
+| `src/routes/games/[game_id]/runs/[tier]/[category]/+page.svelte` | 22 |
+| `src/routes/games/[game_id]/+page.svelte` | 21 |
+| `src/routes/games/[game_id]/rules/+page.svelte` | 19 |
+| `src/routes/admin/game-editor/[game_id]/ChallengesTab.svelte` | 19 |
+| `src/routes/admin/game-editor/[game_id]/GeneralTab.svelte` | 18 |
+| `src/lib/components/CookieConsent.svelte` | 17 |
+| `src/routes/admin/game-editor/[game_id]/RestrictionsTab.svelte` | 13 |
+| `src/routes/rules/+page.svelte` | 12 |
+| `src/routes/games/[game_id]/history/+page.svelte` | 9 |
+| `src/routes/teams/[team_id]/+page.svelte` | 8 |
+| `src/routes/profile/settings/link-callback/+page.svelte` | 8 |
+| `src/routes/admin/game-editor/[game_id]/+page.svelte` | 8 |
+| `src/routes/submit/+page.svelte` | 7 |
+| `src/routes/games/[game_id]/resources/+page.svelte` | 6 |
+| `src/routes/games/[game_id]/forum/+page.svelte` | 6 |
+| `src/routes/games/+page.svelte` | 6 |
+| `src/routes/admin/game-editor/[game_id]/CustomTabsSettings.svelte` | 6 |
+| `src/lib/components/ReportModal.svelte` | 6 |
+| `src/routes/runners/+page.svelte` | 5 |
+| `src/routes/games/[game_id]/guides/+page.svelte` | 5 |
+| `src/routes/admin/game-editor/[game_id]/HistoryTab.svelte` | 5 |
+| `src/routes/teams/+page.svelte` | 4 |
+| `src/routes/news/+page.svelte` | 4 |
+| `src/routes/games/[game_id]/runs/+page.svelte` | 4 |
+| `src/lib/components/auth/AuthGuard.svelte` | 4 |
+| `src/routes/admin/game-editor/[game_id]/DifficultiesTab.svelte` | 3 |
+| `src/routes/admin/game-editor/[game_id]/CharactersTab.svelte` | 3 |
+| `src/routes/admin/game-editor/[game_id]/RulesTab.svelte` | 1 |
+| `src/routes/admin/game-editor/[game_id]/AdditionalContentTab.svelte` | 1 |
+
+### Partially Converted (imports paraglide but still has hardcoded English)
+
+| File | ~Remaining |
+|-|-|
+| `src/routes/profile/edit/+page.svelte` | 71 |
+| `src/routes/admin/runs/+page.svelte` | 63 |
+| `src/routes/submit-game/+page.svelte` | 42 |
+| `src/routes/admin/games/+page.svelte` | 40 |
+| `src/routes/profile/theme/+page.svelte` | 35 |
+| `src/routes/profile/create/+page.svelte` | 34 |
+| `src/routes/admin/financials/+page.svelte` | 30 |
+| `src/routes/admin/profiles/+page.svelte` | 29 |
+| `src/routes/admin/reports/+page.svelte` | 22 |
+| `src/routes/profile/submissions/update/[id]/+page.svelte` | 20 |
+| `src/routes/games/[game_id]/suggest/+page.svelte` | 20 |
+| `src/routes/admin/users/+page.svelte` | 20 |
+| `src/routes/runners/[runner_id]/+page.svelte` | 19 |
+| `src/routes/admin/news/+page.svelte` | 19 |
+| `src/routes/admin/game-updates/+page.svelte` | 17 |
+| `src/routes/profile/setup/+page.svelte` | 11 |
+| `src/routes/admin/health/+page.svelte` | 11 |
+| `src/routes/admin/debug/+page.svelte` | 10 |
+| `src/routes/profile/submissions/game/[id]/+page.svelte` | 8 |
+| `src/routes/profile/submissions/+page.svelte` | 6 |
+| `src/routes/admin/game-editor/+page.svelte` | 5 |
+
+**Totals:** 38 untouched + 21 partial = 59 files remaining. String counts are approximate (regex-based).

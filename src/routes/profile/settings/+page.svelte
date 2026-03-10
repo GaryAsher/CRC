@@ -46,11 +46,52 @@
 		// Wait for auth session before querying
 		const { data: { session: sess } } = await supabase.auth.getSession();
 		if (sess?.user) {
+			await syncLinkedAccounts(sess.user.id);
 			await loadLinkedAccounts(sess.user.id);
 		} else {
 			linkedLoading = false;
 		}
 	});
+
+	/**
+	 * Sync auth.identities → linked_accounts table.
+	 * Supabase linkIdentity() adds identities at the auth layer but nothing
+	 * writes to our linked_accounts table. This function bridges that gap.
+	 */
+	async function syncLinkedAccounts(userId: string) {
+		try {
+			const { data: identityData } = await supabase.auth.getUserIdentities();
+			const identities = identityData?.identities || [];
+			if (!identities.length) return;
+
+			// Get existing linked_accounts rows
+			const { data: existing } = await supabase
+				.from('linked_accounts')
+				.select('provider')
+				.eq('user_id', userId);
+
+			const existingProviders = new Set((existing || []).map((r: any) => r.provider));
+
+			// Insert any identities missing from linked_accounts
+			for (const identity of identities) {
+				if (existingProviders.has(identity.provider)) continue;
+
+				const meta = identity.identity_data || {};
+				await supabase.from('linked_accounts').insert({
+					user_id: userId,
+					provider: identity.provider,
+					provider_user_id: identity.id,
+					provider_username: meta.full_name || meta.name || meta.preferred_username || null,
+					provider_avatar_url: meta.avatar_url || meta.picture || null,
+					provider_email: meta.email || null,
+					provider_metadata: meta,
+					linked_at: identity.created_at || new Date().toISOString(),
+				});
+			}
+		} catch (err) {
+			console.error('syncLinkedAccounts error:', err);
+		}
+	}
 
 	async function loadLinkedAccounts(userId?: string) {
 		linkedLoading = true;

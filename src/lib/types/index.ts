@@ -501,3 +501,28 @@ export interface GlossarySection {
 export interface GlossaryConfig {
 	[sectionKey: string]: GlossarySection;
 }
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | 'run_approved'
+  | 'run_rejected'
+  | 'run_needs_changes'
+  | 'game_approved'
+  | 'game_rejected'
+  | 'game_needs_changes'
+  | 'profile_approved'
+  | 'profile_rejected'
+  | 'profile_needs_changes';
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  message: string | null;
+  link: string | null;
+  metadata: Record<string, any>;
+  read: boolean;
+  created_at: string;
+}

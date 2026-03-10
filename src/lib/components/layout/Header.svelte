@@ -7,6 +7,9 @@
 	import { supabase, signOut as doSignOut } from '$lib/supabase';
 	import { fetchPending } from '$lib/admin';
 	import LanguageSwitcher from '$components/LanguageSwitcher.svelte';
+	import NotificationBell from '$components/NotificationBell.svelte';
+	import { loadNotifications } from '$stores/notifications';
+	import { loadUnreadCount, unreadMessages } from '$stores/messages';
 	import { localizeHref, deLocalizeHref } from '$lib/paraglide/runtime';
 	import * as m from '$lib/paraglide/messages';
 
@@ -170,6 +173,14 @@
 		}
 	});
 
+	// Load notifications and unread message count when user is signed in
+	$effect(() => {
+		if (profileLoaded && $session) {
+			loadNotifications();
+			loadUnreadCount();
+		}
+	});
+
 	async function loadAdminCounts() {
 		try {
 			const [profiles, games, runs] = await Promise.all([
@@ -316,6 +327,18 @@
 		<div class="nav-group nav-user">
 			<LanguageSwitcher />
 			{#if showAsSignedIn}
+				<a
+					href={localizeHref('/messages')}
+					class="nav-messages-link"
+					aria-label="Messages"
+					title="Messages"
+				>
+					💬
+					{#if $unreadMessages > 0}
+						<span class="nav-messages-link__badge">{$unreadMessages > 9 ? '9+' : $unreadMessages}</span>
+					{/if}
+				</a>
+				<NotificationBell />
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div class="nav-user__wrap" onclick={(e) => { e.stopPropagation(); userMenuOpen = !userMenuOpen; }}>
@@ -498,6 +521,38 @@
 	}
 	.theme-toggle:hover {
 		border-color: var(--border-hover, var(--accent));
+	}
+	.nav-messages-link {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		padding: 0.35rem 0.5rem;
+		font-size: 0.9rem;
+		line-height: 1;
+		text-decoration: none;
+		transition: border-color 0.15s ease;
+	}
+	.nav-messages-link:hover {
+		border-color: var(--accent);
+	}
+	.nav-messages-link__badge {
+		position: absolute;
+		top: -5px;
+		right: -5px;
+		background: #ef4444;
+		color: #fff;
+		font-size: 0.65rem;
+		font-weight: 700;
+		min-width: 16px;
+		height: 16px;
+		line-height: 16px;
+		text-align: center;
+		border-radius: 10px;
+		padding: 0 4px;
+		pointer-events: none;
 	}
 	.nav-user__wrap {
 		position: relative;

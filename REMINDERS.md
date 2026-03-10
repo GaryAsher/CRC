@@ -52,19 +52,18 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - [ ] Inbox UI at `/messages` with conversation list + thread view
 - [ ] Staff-to-user messaging (for review feedback, moderation)
 - [ ] User-to-user messaging (for co-op run verification, team coordination)
-- [ ] Real-time updates via Supabase Realtime (optional, nice-to-have)
 - [ ] Unread message count in header alongside notification bell
 
-### 5. User Report & Request Systems
+### 4. User Report & Request Systems
 - [ ] **Report buttons** — "Report" button on runner profiles, game pages, runs (table exists, needs frontend buttons)
 - [ ] **User requests** — feature requests, game suggestions, corrections. Could reuse `support_tickets` or a new `user_requests` table.
 - [ ] **Content moderation queue** — flag uploaded avatars/banners for review (graphic/sexual content). Consider automated image moderation (Cloudflare Images or similar) when budget allows.
 
-### 6. Verifier CMS
+### 5. Verifier CMS
 - [ ] Inline editing on game pages with diff preview
 - [ ] Require 2 verifiers to approve rule changes
 
-### 7. Multi-Runner Support
+### 6. Multi-Runner Support
 Requires messaging system to be built first (runners must verify co-op participation).
 - [ ] Runner search component (typeahead, searches `profiles` table)
 - [ ] `co_runners` column on `pending_runs` (JSONB array of user_ids)
@@ -72,19 +71,19 @@ Requires messaging system to be built first (runners must verify co-op participa
 - [ ] Co-runners displayed on approved run cards
 - [ ] Submit form: "Add Additional Runners" section (currently stubbed as Coming Soon)
 
-### 8. Modded Game Support
+### 7. Modded Game Support
 - [ ] Separate game pages for modded versions (Option A from earlier discussion)
 
-### 9. Leaderboards
+### 8. Leaderboards
 - [ ] Per-game leaderboards
 - [ ] Per-challenge leaderboards
 - [ ] Sortable/filterable tables
 
-### 10. Multi-Run Support
+### 9. Multi-Run Support
 For runs that span multiple games (e.g., marathon challenge runs).
 - [ ] Scope and design TBD — related to Multi-Game Run Support in Future Features
 
-### 11. Badges & Achievements System
+### 10. Badges & Achievements System
 - [ ] Design badge types (run count, challenge completion, community milestones)
 - [ ] Run count badges on game cards
 - [ ] Badge display on runner profiles
@@ -129,8 +128,10 @@ Decision needed: GitHub Discussions vs Discord vs embedded mini-forum
 ### Supabase
 - [ ] Upgrade to paid plan (first service upgrade)
   - After upgrade: enable "Prevent use of leaked passwords" in Auth → Attack Protection
+- [ ] Real-time updates via Supabase Realtime (optional, nice-to-have)
 - [ ] GDPR export gap: `runs` and `game_achievements` RLS filters by `status = 'approved'` — admin can't export non-approved entries (minor, since tables only contain approved rows in practice)
 - [ ]  Supabase DPA — Open a support ticket or email support@supabase.io saying something like: "Hi, I'd like to execute the Data Processing Addendum for my Supabase project. My organization is Challenge Run Community (challengerun.net). Please send me the PandaDoc to sign." Then sign it when they send it.
+
 
 ### Security
 - [ ] **Cloudflare WAF rate limiting** — Free plan only allows 1 rate limiting rule (currently protecting `/submit` endpoints). Worker now uses KV-backed global rate limiting (upgraded from per-isolate in-memory `Map`). Upgrade to Pro ($20/mo) for full WAF with multiple rules when budget allows.

@@ -155,6 +155,7 @@ const RATE_LIMITS = {
   '/check-game-exists': 10, // lookup only — 10/min/IP
   '/support-game': 5,       // supporter submissions
   '/game-editor/rollback': 5,
+  '/messages/create-thread': 10, // messaging — 10 threads/min/IP
 };
 
 async function checkRateLimit(ip, path, env) {
@@ -255,6 +256,34 @@ async function supabaseQuery(env, path, { method = 'GET', body, headers: extra }
     return { ok: res.ok, status: res.status, data: JSON.parse(text) };
   } catch {
     return { ok: res.ok, status: res.status, data: text };
+  }
+}
+
+/**
+ * Insert an in-app notification for a user.
+ * Fire-and-forget — failures are logged but don't block the response.
+ * @param {object} env - Worker env with SUPABASE_URL, SUPABASE_SERVICE_KEY
+ * @param {string} userId - Target user's auth.users UUID
+ * @param {string} type - e.g. 'run_approved', 'profile_rejected'
+ * @param {string} title - Short notification title
+ * @param {object} opts - Optional: { message, link, metadata }
+ */
+async function insertNotification(env, userId, type, title, opts = {}) {
+  if (!userId) return;
+  try {
+    await supabaseQuery(env, 'notifications', {
+      method: 'POST',
+      body: {
+        user_id: userId,
+        type,
+        title,
+        message: opts.message || null,
+        link: opts.link || null,
+        metadata: opts.metadata || {},
+      },
+    });
+  } catch (err) {
+    console.error('insertNotification failed:', err);
   }
 }
 
@@ -931,6 +960,16 @@ async function handleApproveRun(body, env, request) {
     actor_id: auth.user.id,
   });
 
+  // In-app notification to submitter
+  await insertNotification(env, run.submitted_by, 'run_approved',
+    `Your ${run.game_id} run was approved`,
+    {
+      message: body.notes || null,
+      link: `/games/${run.game_id}/runs`,
+      metadata: { game_id: run.game_id, category: run.category },
+    }
+  );
+
   return jsonResponse({
     ok: true,
     message: 'Run published — visible on site. Awaiting game moderator verification.',
@@ -1023,6 +1062,16 @@ async function handleApproveProfile(body, env, request) {
     timestamp: now,
   });
 
+  // In-app notification to user
+  await insertNotification(env, profile.user_id, 'profile_approved',
+    'Your profile has been approved!',
+    {
+      message: body.notes || null,
+      link: runnerId ? `/runners/${runnerId}` : '/profile',
+      metadata: { runner_id: runnerId },
+    }
+  );
+
   return jsonResponse({
     ok: true,
     message: 'Profile approved — visible on site immediately',
@@ -1059,6 +1108,9 @@ async function handleRejectProfile(body, env, request) {
 
   if (!updateResult.ok) return jsonResponse({ error: 'Failed to reject profile' }, 500, env, request);
 
+  // Get user_id from the PATCH response (Prefer: return=representation)
+  const rejectedProfile = Array.isArray(updateResult.data) ? updateResult.data[0] : null;
+
   await sendDiscordNotification(env, 'profiles', {
     title: '❌ Profile Rejected',
     color: 0xdc3545,
@@ -1069,6 +1121,17 @@ async function handleRejectProfile(body, env, request) {
     ],
     timestamp: now,
   });
+
+  // In-app notification to user
+  if (rejectedProfile?.user_id) {
+    await insertNotification(env, rejectedProfile.user_id, 'profile_rejected',
+      'Your profile was not approved',
+      {
+        message: reason,
+        link: '/profile/submissions',
+      }
+    );
+  }
 
   return jsonResponse({ ok: true, message: 'Profile rejected.' }, 200, env, request);
 }
@@ -1102,6 +1165,9 @@ async function handleRequestProfileChanges(body, env, request) {
 
   if (!updateResult.ok) return jsonResponse({ error: 'Failed to update profile' }, 500, env, request);
 
+  // Get user_id from the PATCH response
+  const changesProfile = Array.isArray(updateResult.data) ? updateResult.data[0] : null;
+
   await sendDiscordNotification(env, 'profiles', {
     title: '✏️ Profile Changes Requested',
     color: 0x17a2b8,
@@ -1111,6 +1177,17 @@ async function handleRequestProfileChanges(body, env, request) {
     ],
     timestamp: now,
   });
+
+  // In-app notification to user
+  if (changesProfile?.user_id) {
+    await insertNotification(env, changesProfile.user_id, 'profile_needs_changes',
+      'Changes requested on your profile',
+      {
+        message: notes,
+        link: '/profile/submissions',
+      }
+    );
+  }
 
   return jsonResponse({ ok: true, message: 'Changes requested.' }, 200, env, request);
 }
@@ -1286,6 +1363,16 @@ async function handleApproveGame(body, env, request) {
 
   });
 
+  // In-app notification to submitter
+  await insertNotification(env, game.submitted_by, 'game_approved',
+    `${game.game_name} has been approved!`,
+    {
+      message: body.notes || null,
+      link: `/games/${game.game_id}`,
+      metadata: { game_id: game.game_id },
+    }
+  );
+
   return jsonResponse({
     ok: true,
     message: 'Game approved — visible on site immediately',
@@ -1306,7 +1393,7 @@ async function handleRejectRun(body, env, request) {
 
   // Fetch run to check game-level permissions and claim
   const runResult = await supabaseQuery(env,
-    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=game_id,claimed_by,claimed_at`, { method: 'GET' });
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=game_id,claimed_by,claimed_at,submitted_by`, { method: 'GET' });
   if (!runResult.ok || !runResult.data?.length) {
     return jsonResponse({ error: 'Run not found' }, 404, env, request);
   }
@@ -1363,6 +1450,16 @@ async function handleRejectRun(body, env, request) {
     actor_id: auth.user.id,
   });
 
+  // In-app notification to submitter
+  await insertNotification(env, rejRun.submitted_by, 'run_rejected',
+    'Your run submission was not approved',
+    {
+      message: reason,
+      link: '/profile/submissions',
+      metadata: { game_id: rejRun.game_id },
+    }
+  );
+
   return jsonResponse({ ok: true, message: 'Run rejected.' }, 200, env, request);
 }
 
@@ -1383,7 +1480,7 @@ async function handleRequestRunChanges(body, env, request) {
 
   // Fetch run to check game-level permissions and claim
   const runResult = await supabaseQuery(env,
-    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=game_id,claimed_by,claimed_at`, { method: 'GET' });
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=game_id,claimed_by,claimed_at,submitted_by`, { method: 'GET' });
   if (!runResult.ok || !runResult.data?.length) {
     return jsonResponse({ error: 'Run not found' }, 404, env, request);
   }
@@ -1433,6 +1530,16 @@ async function handleRequestRunChanges(body, env, request) {
     note: notes,
     actor_id: auth.user.id,
   });
+
+  // In-app notification to submitter
+  await insertNotification(env, chgRun.submitted_by, 'run_needs_changes',
+    'Changes requested on your run submission',
+    {
+      message: notes,
+      link: '/profile/submissions',
+      metadata: { game_id: chgRun.game_id },
+    }
+  );
 
   return jsonResponse({ ok: true, message: 'Changes requested.' }, 200, env, request);
 }
@@ -1711,6 +1818,9 @@ async function handleRejectGame(body, env, request) {
 
   if (!updateResult.ok) return jsonResponse({ error: 'Failed to reject game' }, 500, env, request);
 
+  // Get submitted_by from the PATCH response
+  const rejectedGame = Array.isArray(updateResult.data) ? updateResult.data[0] : null;
+
   await sendDiscordNotification(env, 'games', {
     title: '❌ Game Rejected',
     color: 0xdc3545,
@@ -1721,6 +1831,18 @@ async function handleRejectGame(body, env, request) {
     ],
     timestamp: now,
   });
+
+  // In-app notification to submitter
+  if (rejectedGame?.submitted_by) {
+    await insertNotification(env, rejectedGame.submitted_by, 'game_rejected',
+      'Your game request was not approved',
+      {
+        message: reason,
+        link: '/profile/submissions',
+        metadata: { game_id: rejectedGame.game_id },
+      }
+    );
+  }
 
   return jsonResponse({ ok: true, message: 'Game rejected.' }, 200, env, request);
 }
@@ -1754,6 +1876,9 @@ async function handleRequestGameChanges(body, env, request) {
 
   if (!updateResult.ok) return jsonResponse({ error: 'Failed to update game' }, 500, env, request);
 
+  // Get submitted_by from the PATCH response
+  const changesGame = Array.isArray(updateResult.data) ? updateResult.data[0] : null;
+
   await sendDiscordNotification(env, 'games', {
     title: '✏️ Game Changes Requested',
     color: 0x17a2b8,
@@ -1763,6 +1888,18 @@ async function handleRequestGameChanges(body, env, request) {
     ],
     timestamp: now,
   });
+
+  // In-app notification to submitter
+  if (changesGame?.submitted_by) {
+    await insertNotification(env, changesGame.submitted_by, 'game_needs_changes',
+      'Changes requested on your game submission',
+      {
+        message: notes,
+        link: '/profile/submissions',
+        metadata: { game_id: changesGame.game_id },
+      }
+    );
+  }
 
   return jsonResponse({ ok: true, message: 'Changes requested.' }, 200, env, request);
 }
@@ -3038,6 +3175,181 @@ async function handleWithdrawPendingGame(body, env, request) {
   return jsonResponse({ ok: true, message: 'Game submission withdrawn' }, 200, env, request);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /messages/create-thread
+// ═══════════════════════════════════════════════════════════════════════════════
+// Creates a new message thread. Any authenticated user can call this, but
+// non-staff users can only create threads where all other participants are staff.
+
+async function handleCreateThread(body, env, request) {
+  const auth = await authenticateUser(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+
+  const { participant_ids, subject, type, submission_type, submission_id, initial_message } = body;
+
+  // Validate required fields
+  if (!participant_ids || !Array.isArray(participant_ids) || participant_ids.length === 0) {
+    return jsonResponse({ error: 'At least one participant is required' }, 400, env, request);
+  }
+  if (!initial_message || typeof initial_message !== 'string' || initial_message.trim().length === 0) {
+    return jsonResponse({ error: 'Initial message is required' }, 400, env, request);
+  }
+  if (initial_message.trim().length > 2000) {
+    return jsonResponse({ error: 'Message too long (max 2000 characters)' }, 400, env, request);
+  }
+  if (participant_ids.length > 10) {
+    return jsonResponse({ error: 'Maximum 10 participants per thread' }, 400, env, request);
+  }
+
+  // Validate all participant IDs are valid UUIDs
+  for (const pid of participant_ids) {
+    if (!isValidId(pid)) {
+      return jsonResponse({ error: `Invalid participant ID: ${pid}` }, 400, env, request);
+    }
+  }
+
+  // Remove self from participant list if included (we add self automatically)
+  const otherIds = participant_ids.filter(id => id !== auth.user.id);
+  if (otherIds.length === 0) {
+    return jsonResponse({ error: 'Cannot create a thread with only yourself' }, 400, env, request);
+  }
+
+  // Determine thread type
+  let threadType = type || (otherIds.length === 1 ? 'direct' : 'group');
+  if (submission_type && submission_id) {
+    threadType = 'submission';
+  }
+
+  // Check if sender is staff
+  const senderRole = await isAdmin(env, auth.user.id);
+  const senderIsStaff = senderRole.admin || senderRole.verifier || senderRole.moderator;
+
+  // If sender is NOT staff, verify all other participants ARE staff
+  if (!senderIsStaff) {
+    for (const pid of otherIds) {
+      const recipientRole = await isAdmin(env, pid);
+      const recipientIsStaff = recipientRole.admin || recipientRole.verifier || recipientRole.moderator;
+      if (!recipientIsStaff) {
+        return jsonResponse({
+          error: 'You can only send messages to staff members. If you need to contact another runner, please reach out via the community Discord.'
+        }, 403, env, request);
+      }
+    }
+  }
+
+  // For direct threads, check if a thread already exists between these two users
+  if (threadType === 'direct' && otherIds.length === 1) {
+    const existingResult = await supabaseQuery(env,
+      `thread_participants?user_id=eq.${encodeURIComponent(auth.user.id)}&select=thread_id`, { method: 'GET' });
+    if (existingResult.ok && existingResult.data?.length) {
+      const myThreadIds = existingResult.data.map(r => r.thread_id);
+      // Check if the other user is in any of these threads that are 'direct' type
+      for (const tid of myThreadIds) {
+        const checkResult = await supabaseQuery(env,
+          `threads?id=eq.${encodeURIComponent(tid)}&type=eq.direct&select=id`, { method: 'GET' });
+        if (checkResult.ok && checkResult.data?.length) {
+          const otherCheck = await supabaseQuery(env,
+            `thread_participants?thread_id=eq.${encodeURIComponent(tid)}&user_id=eq.${encodeURIComponent(otherIds[0])}&select=id`,
+            { method: 'GET' });
+          if (otherCheck.ok && otherCheck.data?.length) {
+            // Thread exists — add message to it instead
+            await supabaseQuery(env, 'messages', {
+              method: 'POST',
+              body: {
+                thread_id: tid,
+                sender_id: auth.user.id,
+                content: sanitizeInput(initial_message.trim(), 2000),
+              },
+            });
+            return jsonResponse({
+              ok: true,
+              thread_id: tid,
+              message: 'Message added to existing conversation',
+            }, 200, env, request);
+          }
+        }
+      }
+    }
+  }
+
+  const now = new Date().toISOString();
+
+  // Create thread
+  const threadInsert = await supabaseQuery(env, 'threads', {
+    method: 'POST',
+    body: {
+      subject: subject ? sanitizeInput(subject, 200) : null,
+      type: threadType,
+      submission_type: submission_type || null,
+      submission_id: submission_id || null,
+      created_by: auth.user.id,
+      created_at: now,
+      updated_at: now,
+    },
+  });
+
+  if (!threadInsert.ok || !threadInsert.data?.length) {
+    console.error('Failed to create thread:', threadInsert.data);
+    return jsonResponse({ error: 'Failed to create thread' }, 500, env, request);
+  }
+
+  const threadId = threadInsert.data[0].id;
+
+  // Add all participants (including sender)
+  const allParticipants = [auth.user.id, ...otherIds];
+  const participantRows = allParticipants.map(uid => ({
+    thread_id: threadId,
+    user_id: uid,
+    last_read_at: uid === auth.user.id ? now : null,
+    joined_at: now,
+  }));
+
+  const tpInsert = await supabaseQuery(env, 'thread_participants', {
+    method: 'POST',
+    body: participantRows,
+  });
+
+  if (!tpInsert.ok) {
+    console.error('Failed to add participants:', tpInsert.data);
+    // Clean up the thread
+    await supabaseQuery(env, `threads?id=eq.${encodeURIComponent(threadId)}`, { method: 'DELETE' });
+    return jsonResponse({ error: 'Failed to create thread' }, 500, env, request);
+  }
+
+  // Insert initial message
+  const msgInsert = await supabaseQuery(env, 'messages', {
+    method: 'POST',
+    body: {
+      thread_id: threadId,
+      sender_id: auth.user.id,
+      content: sanitizeInput(initial_message.trim(), 2000),
+      created_at: now,
+    },
+  });
+
+  if (!msgInsert.ok) {
+    console.error('Failed to insert initial message:', msgInsert.data);
+  }
+
+  // Send notification to other participants
+  for (const pid of otherIds) {
+    await insertNotification(env, pid, 'message_received',
+      subject ? `New message: ${sanitizeInput(subject, 100)}` : 'You have a new message',
+      {
+        message: sanitizeInput(initial_message.trim(), 200),
+        link: `/messages/${threadId}`,
+        metadata: { thread_id: threadId },
+      }
+    );
+  }
+
+  return jsonResponse({
+    ok: true,
+    thread_id: threadId,
+    message: 'Thread created',
+  }, 200, env, request);
+}
+
 export default {
   async fetch(request, env) {
     // CORS preflight
@@ -3157,6 +3469,9 @@ export default {
 
         case '/withdraw-pending-game':
           return handleWithdrawPendingGame(body, env, request);
+
+        case '/messages/create-thread':
+          return handleCreateThread(body, env, request);
 
         default:
           return jsonResponse({ error: 'Not found' }, 404, env, request);
