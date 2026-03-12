@@ -279,7 +279,7 @@
 								onblur={() => handleBlur(() => { challengeOpen = false; challengeSearch = ''; })} />
 							{#if challengeOpen}
 								{@const matches = filterItems(game.challenges_data || [], challengeSearch, selectedChallenges)}
-								<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">{selectedChallenges.size === (game.challenges_data?.length || 0) ? {m.game_category_all_selected()} : 'No matches'}</li>{:else}{#each matches as c}<li><button class="ta__opt" onmousedown={() => addChallenge(c)}>{c.label}</button></li>{/each}{/if}</ul>
+								<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">{selectedChallenges.size === (game.challenges_data?.length || 0) ? m.game_category_all_selected() : 'No matches'}</li>{:else}{#each matches as c}<li><button class="ta__opt" onmousedown={() => addChallenge(c)}>{c.label}</button></li>{/each}{/if}</ul>
 							{/if}
 						</div>
 					</div>
@@ -294,7 +294,7 @@
 								onblur={() => handleBlur(() => { restrictionOpen = false; restrictionSearch = ''; })} />
 							{#if restrictionOpen}
 								{@const matches = filterItems(game.restrictions_data || [], restrictionSearch, selectedRestrictions)}
-								<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">{selectedRestrictions.size === (game.restrictions_data?.length || 0) ? {m.game_category_all_selected()} : 'No matches'}</li>{:else}{#each matches as r}<li><button class="ta__opt" onmousedown={() => addRestriction(r)}>{r.label}</button></li>{/each}{/if}</ul>
+								<ul class="ta__list">{#if matches.length === 0}<li class="ta__empty">{selectedRestrictions.size === (game.restrictions_data?.length || 0) ? m.game_category_all_selected() : 'No matches'}</li>{:else}{#each matches as r}<li><button class="ta__opt" onmousedown={() => addRestriction(r)}>{r.label}</button></li>{/each}{/if}</ul>
 							{/if}
 						</div>
 					</div>

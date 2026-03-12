@@ -443,7 +443,7 @@
 												{/each}
 											</ul>
 										{:else}
-											<ul class="typeahead__list"><li class="typeahead__empty"{m.create_no_countries()}</li></ul>
+											<ul class="typeahead__list"><li class="typeahead__empty">{m.create_no_countries()}</li></ul>
 										{/if}
 									{/if}
 								</div>
@@ -471,7 +471,7 @@
 												{/each}
 											</ul>
 										{:else}
-											<ul class="typeahead__list"><li class="typeahead__empty"{m.create_no_countries()}</li></ul>
+											<ul class="typeahead__list"><li class="typeahead__empty">{m.create_no_countries()}</li></ul>
 										{/if}
 									{/if}
 								</div>
