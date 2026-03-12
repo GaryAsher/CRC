@@ -543,7 +543,8 @@ export interface InboxThread {
   submission_type: string | null;
   submission_id: string | null;
   last_message_at: string;
-  last_message_preview: string | null;
+  last_message_content: string | null;
+  thread_updated_at: string | null;
   unread_count: number;
   participants: ThreadParticipant[];
 }
