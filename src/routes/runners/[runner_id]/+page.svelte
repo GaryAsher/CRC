@@ -197,7 +197,13 @@
 				<div class="highlights-grid">
 					{#each (runner.featured_runs as any[]) as fr}
 						{#if fr.type === 'playlist'}
-							<div class="highlight-card card-lift">
+							<a
+								href={fr.playlist_url || '#'}
+								target="_blank"
+								rel="noopener"
+								class="highlight-card card-lift"
+								class:highlight-card--no-link={!fr.playlist_url}
+							>
 								{#if fr.cover_url}
 									<div class="highlight-card__bg" style="background-image: url('{fr.cover_url}')"></div>
 								{:else}
@@ -213,14 +219,19 @@
 									<div class="highlight-card__category">{fr.title || m.runner_untitled_playlist()}</div>
 									{#if fr.description}<div class="highlight-card__note">{fr.description}</div>{/if}
 									{#if fr.playlist_url}
-										<a href={fr.playlist_url} target="_blank" rel="noopener" class="highlight-card__video">{m.runner_view_playlist()}</a>
+										<span class="highlight-card__video">{m.runner_view_playlist()}</span>
 									{/if}
 								</div>
-							</div>
+							</a>
 						{:else}
 							{@const frGame = data.allGames.find(g => g.game_id === fr.game_id)}
 							{@const thumb = fr.video_url ? getVideoThumbnail(fr.video_url) : null}
-							<div class="highlight-card card-lift">
+							<a
+								href={fr.video_url && fr.video_approved ? fr.video_url : localizeHref(`/games/${fr.game_id}`)}
+								target={fr.video_url && fr.video_approved ? '_blank' : undefined}
+								rel={fr.video_url && fr.video_approved ? 'noopener' : undefined}
+								class="highlight-card card-lift"
+							>
 								{#if thumb}
 									<div class="highlight-card__bg" style="background-image: url('{thumb}')"></div>
 								{:else if frGame?.cover}
@@ -231,10 +242,10 @@
 									<div class="highlight-card__category">{fr.category}</div>
 									{#if fr.achievement}<div class="highlight-card__note">{fr.achievement}</div>{/if}
 									{#if fr.video_url && fr.video_approved}
-										<a href={fr.video_url} target="_blank" rel="noopener" class="highlight-card__video">{m.runner_watch()}</a>
+										<span class="highlight-card__video">{m.runner_watch()}</span>
 									{/if}
 								</div>
-							</div>
+							</a>
 						{/if}
 					{/each}
 				</div>
@@ -700,7 +711,8 @@
 
 	.highlights-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
 	@media (max-width: 768px) { .highlights-grid { grid-template-columns: 1fr; } }
-	.highlight-card { position: relative; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface); }
+	.highlight-card { display: block; position: relative; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--surface); text-decoration: none; color: inherit; cursor: pointer; }
+	.highlight-card--no-link { cursor: default; }
 	.highlight-card__bg { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform 0.3s ease; }
 	.highlight-card__playlist-bg { position: absolute; inset: 0; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
 	.highlight-card__playlist-bg::after { content: '🎬'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2.5rem; opacity: 0.3; }
