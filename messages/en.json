@@ -1830,5 +1830,42 @@
   "sub_game_structured_hint": "These fields were set during your initial submission. To change categories, challenges, characters, or restrictions, please withdraw this submission and resubmit with corrections.",
   "sub_type_game": "Game",
   "sub_type_run": "Run",
-  "sub_type_update": "Update"
+  "sub_type_update": "Update",
+
+  "__NOTIFICATIONS": "── Notification Bell ──",
+  "notif_title": "Notifications",
+  "notif_mark_read": "Mark all read",
+  "notif_loading": "Loading notifications…",
+  "notif_empty": "No notifications yet.",
+
+  "__FORUM": "── Game Forum (placeholder) ──",
+  "forum_title": "Forum",
+  "forum_coming_soon": "Coming Soon",
+  "forum_desc": "The forum feature is under development.",
+  "forum_discord_hint": "In the meantime, join us on Discord to chat with the community!",
+
+  "__GUIDES": "── Game Guides (placeholder) ──",
+  "guides_title": "Guides",
+  "guides_coming_soon": "Coming Soon",
+  "guides_desc": "Community guides and tutorials are on the way.",
+
+  "__MESSAGES": "── Messages ──",
+  "msg_page_title": "Messages | CRC",
+  "msg_heading": "Messages",
+  "msg_new": "New Message",
+  "msg_sign_in_required": "You must be signed in to view messages.",
+  "msg_sign_in": "Sign In",
+  "msg_loading": "Loading messages…",
+  "msg_empty": "No messages yet.",
+  "msg_empty_hint": "Start a conversation by clicking New Message.",
+  "msg_thread_sign_in": "Sign in to view this conversation.",
+  "msg_thread_loading": "Loading conversation…",
+  "msg_thread_not_found": "Conversation not found.",
+  "msg_thread_empty": "No messages in this conversation yet.",
+  "msg_new_title": "New Message | CRC",
+  "msg_new_heading": "New Message",
+  "msg_new_sign_in_required": "You must be signed in to send messages.",
+  "msg_new_to": "To",
+  "msg_new_hint": "Search for a user by name or runner ID.",
+  "msg_new_message": "Message"
 }

@@ -27,8 +27,20 @@ import {
  *  data or perform mutations. */
 const PROTECTED_PREFIXES = ['/profile', '/messages', '/admin', '/submit', '/support'];
 
+/** Supported locale prefixes (Paraglide URL strategy). reroute() in hooks.js
+ *  strips these for routing, but event.url.pathname still has them. */
+const LOCALE_PREFIXES = ['/es'];
+
 function isProtectedRoute(pathname: string): boolean {
-	return PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
+	// Strip locale prefix before checking (e.g. /es/profile → /profile)
+	let normalized = pathname;
+	for (const lp of LOCALE_PREFIXES) {
+		if (pathname.startsWith(lp + '/') || pathname === lp) {
+			normalized = pathname.slice(lp.length) || '/';
+			break;
+		}
+	}
+	return PROTECTED_PREFIXES.some((p) => normalized.startsWith(p));
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -44,7 +56,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (
 		!isPrerender &&
 		event.url.searchParams.has('code') &&
-		!event.url.pathname.startsWith('/auth/callback')
+		!event.url.pathname.startsWith('/auth/callback') &&
+		!event.url.pathname.startsWith('/es/auth/callback')
 	) {
 		redirect(303, '/sign-in');
 	}

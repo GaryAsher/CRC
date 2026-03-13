@@ -1830,5 +1830,42 @@
   "sub_game_structured_hint": "Estos campos fueron establecidos durante tu envío inicial. Para cambiar categorías, desafíos, personajes o restricciones, retira este envío y reenvía con correcciones.",
   "sub_type_game": "Juego",
   "sub_type_run": "Run",
-  "sub_type_update": "Actualización"
+  "sub_type_update": "Actualización",
+
+  "__NOTIFICATIONS": "── Campana de notificaciones ──",
+  "notif_title": "Notificaciones",
+  "notif_mark_read": "Marcar todo como leído",
+  "notif_loading": "Cargando notificaciones…",
+  "notif_empty": "No hay notificaciones aún.",
+
+  "__FORUM": "── Foro del juego (próximamente) ──",
+  "forum_title": "Foro",
+  "forum_coming_soon": "Próximamente",
+  "forum_desc": "La función de foro está en desarrollo.",
+  "forum_discord_hint": "Mientras tanto, ¡únete a nosotros en Discord para charlar con la comunidad!",
+
+  "__GUIDES": "── Guías del juego (próximamente) ──",
+  "guides_title": "Guías",
+  "guides_coming_soon": "Próximamente",
+  "guides_desc": "Las guías y tutoriales de la comunidad están en camino.",
+
+  "__MESSAGES": "── Mensajes ──",
+  "msg_page_title": "Mensajes | CRC",
+  "msg_heading": "Mensajes",
+  "msg_new": "Nuevo mensaje",
+  "msg_sign_in_required": "Debes iniciar sesión para ver los mensajes.",
+  "msg_sign_in": "Iniciar sesión",
+  "msg_loading": "Cargando mensajes…",
+  "msg_empty": "No hay mensajes aún.",
+  "msg_empty_hint": "Inicia una conversación haciendo clic en Nuevo mensaje.",
+  "msg_thread_sign_in": "Inicia sesión para ver esta conversación.",
+  "msg_thread_loading": "Cargando conversación…",
+  "msg_thread_not_found": "Conversación no encontrada.",
+  "msg_thread_empty": "No hay mensajes en esta conversación aún.",
+  "msg_new_title": "Nuevo mensaje | CRC",
+  "msg_new_heading": "Nuevo mensaje",
+  "msg_new_sign_in_required": "Debes iniciar sesión para enviar mensajes.",
+  "msg_new_to": "Para",
+  "msg_new_hint": "Busca un usuario por nombre o ID de runner.",
+  "msg_new_message": "Mensaje"
 }
