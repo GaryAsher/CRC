@@ -15,10 +15,10 @@
   justify-content: center;
   background: none;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm, 4px);
+  padding: 0.3rem 0.5rem;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   line-height: 1;
   transition: border-color 0.15s ease;
 }

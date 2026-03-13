@@ -275,7 +275,7 @@
 				aria-label="Toggle admin panel"
 				title="Admin Panel"
 			>
-				🛡️
+				Admin
 			</button>
 		{/if}
 
@@ -534,8 +534,12 @@
 
 			<hr class="profile-panel__divider" />
 
-			<!-- Accessibility -->
+			<!-- Settings -->
 			<div class="profile-panel__section-title">{m.user_menu_settings()}</div>
+			<button type="button" class="profile-panel__item" onclick={() => { toggleTheme(); }}>
+				<span class="profile-panel__icon">{$theme === 'dark' ? '☀️' : '🌙'}</span>
+				<span class="profile-panel__text">{$theme === 'dark' ? m.user_menu_light_mode() : m.user_menu_dark_mode()}</span>
+			</button>
 			<a href={localizeHref('/profile/settings')} class="profile-panel__item" onclick={closeProfilePanel}>
 				<span class="profile-panel__icon">⚙️</span>
 				<span class="profile-panel__text">{m.user_menu_settings()}</span>
@@ -715,18 +719,25 @@
 
 	/* ── Admin toggle button (next to CRC) ── */
 	.admin-toggle {
+		display: inline-flex;
+		align-items: center;
+		min-height: var(--tap, 36px);
+		padding: 0.35rem 0.65rem;
 		background: none;
 		border: 1px solid var(--border);
-		border-radius: 8px;
-		padding: 0.25rem 0.4rem;
+		border-radius: var(--radius-sm, 6px);
 		cursor: pointer;
-		font-size: 2rem;
+		font-size: 0.9rem;
+		font-weight: 600;
+		font-family: inherit;
+		color: var(--fg);
 		line-height: 1;
 		transition: border-color 0.15s, background 0.15s;
 	}
 	.admin-toggle:hover {
 		border-color: var(--accent);
 		background: var(--surface);
+		color: var(--accent);
 	}
 
 	/* ── Admin panel (left slide) ──────────── */
