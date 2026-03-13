@@ -98,7 +98,10 @@
 					</button>
 				</div>
 			{:else}
-				<p class="muted">{m.support_report_sign_in()} <a href={localizeHref('/sign-in')}>{m.nav_login()}</a></p>
+				<div class="report-signin">
+					<p>{m.support_report_sign_in()}</p>
+					<a href={localizeHref('/sign-in')} class="btn btn--primary">{m.nav_login()}</a>
+				</div>
 			{/if}
 		</div>
 
@@ -479,4 +482,15 @@
 		border-color: var(--accent);
 		background: var(--panel);
 	}
+	.report-signin {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 1rem;
+		margin-top: 0.75rem;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 8px;
+	}
+	.report-signin p { margin: 0; font-size: 0.9rem; color: var(--muted); }
 </style>

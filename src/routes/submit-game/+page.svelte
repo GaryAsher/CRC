@@ -900,16 +900,16 @@
 					</div>
 
 					<!-- Mode toggle -->
-					<div class="mode-toggle">
-						<button class="mode-toggle__btn" class:mode-toggle__btn--active={formMode === 'simple'}
+					<nav class="game-tabs mode-tabs">
+						<button class="game-tab" class:game-tab--active={formMode === 'simple'}
 							onclick={() => { formMode = 'simple'; activeTab = 'general'; }}>
 							📝 {m.submit_game_mode_quick()}
 						</button>
-						<button class="mode-toggle__btn" class:mode-toggle__btn--active={formMode === 'advanced'}
+						<button class="game-tab" class:game-tab--active={formMode === 'advanced'}
 							onclick={() => { formMode = 'advanced'; activeTab = 'general'; }}>
 							⚙️ {m.submit_game_mode_detailed()}
 						</button>
-					</div>
+					</nav>
 					{#if formMode === 'simple'}
 						<p class="mode-hint muted">{m.submit_game_mode_quick_desc()} <button class="link-btn" onclick={() => { formMode = 'advanced'; activeTab = 'general'; }}>{m.submit_game_mode_switch_detailed()}</button></p>
 					{:else}
@@ -1737,14 +1737,7 @@
 	/* Section accordion */
 	.draft-hint { display: flex; align-items: center; gap: 0.6rem; padding: 0.75rem 1rem; margin-top: 1.5rem; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; font-size: 0.88rem; color: var(--fg); }
 
-	.mode-toggle { display: flex; gap: 0; margin-top: 1.25rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
-	.mode-toggle__btn {
-		padding: 0.55rem 1.1rem; font-size: 0.88rem; font-weight: 600;
-		background: var(--surface); color: var(--muted); border: none; cursor: pointer;
-		transition: background 0.15s, color 0.15s;
-	}
-	.mode-toggle__btn:hover { color: var(--fg); }
-	.mode-toggle__btn--active { background: var(--accent); color: #fff; }
+	.mode-tabs { margin-top: 1.25rem; margin-bottom: 0; }
 	.mode-hint { font-size: 0.84rem; margin: 0.5rem 0 0; line-height: 1.5; }
 	.link-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: inherit; font-family: inherit; text-decoration: underline; padding: 0; }
 	.link-btn:hover { opacity: 0.8; }

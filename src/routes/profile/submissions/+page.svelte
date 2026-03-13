@@ -380,7 +380,7 @@
 	}
 
 	.tab-body {
-		padding: 0.5rem 0;
+		padding: 1.25rem;
 		background: var(--surface);
 		border: 1px solid var(--border);
 		border-top: none;
