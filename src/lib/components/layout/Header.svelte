@@ -15,8 +15,15 @@
 	import * as m from '$lib/paraglide/messages';
 
 	let moreOpen = $state(false);
+	let notifOpen = $state(false);
+	let langOpen = $state(false);
 	let profilePanelOpen = $state(false);
 	let mobileOpen = $state(false);
+
+	// Only one dropdown open at a time
+	$effect(() => { if (moreOpen) { notifOpen = false; langOpen = false; } });
+	$effect(() => { if (notifOpen) { moreOpen = false; langOpen = false; } });
+	$effect(() => { if (langOpen) { moreOpen = false; notifOpen = false; } });
 	let searchQuery = $state('');
 	let adminPanelOpen = $state(false);
 	let authPopupOpen = $state(false);
@@ -228,6 +235,8 @@
 
 	function closeMenus() {
 		moreOpen = false;
+		notifOpen = false;
+		langOpen = false;
 	}
 
 	function closeProfilePanel() {
@@ -330,9 +339,9 @@
 
 		<!-- Right: User -->
 		<div class="nav-group nav-user">
-			<LanguageSwitcher />
+			<LanguageSwitcher bind:open={langOpen} />
 			{#if showAsSignedIn}
-				<NotificationBell />
+				<NotificationBell bind:open={notifOpen} />
 				<button
 					type="button"
 					class="nav-user__avatar-btn"
@@ -490,8 +499,6 @@
 		</div>
 
 		<nav class="profile-panel__nav">
-			<hr class="profile-panel__divider" />
-
 			<!-- My Profile -->
 			<div class="profile-panel__section-title">{m.user_menu_my_profile()}</div>
 			<a href={localizeHref(profileLink.href)} class="profile-panel__item" onclick={closeProfilePanel}>

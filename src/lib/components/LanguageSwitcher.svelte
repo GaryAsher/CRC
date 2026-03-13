@@ -13,7 +13,7 @@
 		es: () => m.language_spanish()
 	};
 
-	let open = $state(false);
+	let { open = $bindable(false) } = $props();
 	const currentLocale = $derived(getLocale());
 	const otherLocales = $derived(locales.filter(l => l !== currentLocale));
 

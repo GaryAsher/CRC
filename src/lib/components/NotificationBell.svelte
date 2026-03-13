@@ -12,7 +12,7 @@
 	} from '$stores/notifications';
 	import type { Notification } from '$lib/types';
 
-	let open = $state(false);
+	let { open = $bindable(false) } = $props();
 
 	function toggle(e: MouseEvent) {
 		e.stopPropagation();
