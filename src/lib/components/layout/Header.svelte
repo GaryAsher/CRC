@@ -332,6 +332,7 @@
 		<div class="nav-group nav-user">
 			<LanguageSwitcher />
 			{#if showAsSignedIn}
+				<NotificationBell />
 				<button
 					type="button"
 					class="nav-user__avatar-btn"
@@ -489,21 +490,9 @@
 		</div>
 
 		<nav class="profile-panel__nav">
-			<!-- Notifications & Messages -->
-			<div class="profile-panel__section-title">{m.notif_title()}</div>
-			<a href={localizeHref('/messages')} class="profile-panel__item" onclick={closeProfilePanel}>
-				<span class="profile-panel__icon">💬</span>
-				<span class="profile-panel__text">{m.msg_heading()}</span>
-				{#if $unreadMessages > 0}<span class="profile-panel__badge">{$unreadMessages}</span>{/if}
-			</a>
-			<button type="button" class="profile-panel__item" onclick={(e) => { e.stopPropagation(); closeProfilePanel(); loadNotifications(); }}>
-				<span class="profile-panel__icon">🔔</span>
-				<span class="profile-panel__text">{m.notif_title()}</span>
-			</button>
-
 			<hr class="profile-panel__divider" />
 
-			<!-- Profile -->
+			<!-- My Profile -->
 			<div class="profile-panel__section-title">{m.user_menu_my_profile()}</div>
 			<a href={localizeHref(profileLink.href)} class="profile-panel__item" onclick={closeProfilePanel}>
 				<span class="profile-panel__icon">{profileLink.icon}</span>
@@ -515,27 +504,35 @@
 					<span class="profile-panel__text">{m.user_menu_edit_profile()}</span>
 				</a>
 			{/if}
-			<a href={localizeHref('/profile/submissions')} class="profile-panel__item" onclick={closeProfilePanel}>
-				<span class="profile-panel__icon">📋</span>
-				<span class="profile-panel__text">{m.user_menu_submissions()}</span>
-			</a>
-
-			<hr class="profile-panel__divider" />
-
-			<!-- Settings -->
-			<div class="profile-panel__section-title">{m.user_menu_settings()}</div>
 			<a href={localizeHref('/profile/theme')} class="profile-panel__item" onclick={closeProfilePanel}>
 				<span class="profile-panel__icon">🎨</span>
 				<span class="profile-panel__text">{m.user_menu_theme()}</span>
-			</a>
-			<a href={localizeHref('/profile/settings')} class="profile-panel__item" onclick={closeProfilePanel}>
-				<span class="profile-panel__icon">⚙️</span>
-				<span class="profile-panel__text">{m.user_menu_settings()}</span>
 			</a>
 			<button type="button" class="profile-panel__item" onclick={() => { toggleTheme(); }}>
 				<span class="profile-panel__icon">{$theme === 'dark' ? '☀️' : '🌙'}</span>
 				<span class="profile-panel__text">{$theme === 'dark' ? m.user_menu_light_mode() : m.user_menu_dark_mode()}</span>
 			</button>
+
+			<!-- Messaging -->
+			<div class="profile-panel__section-title">{m.msg_heading()}</div>
+			<a href={localizeHref('/profile/submissions')} class="profile-panel__item" onclick={closeProfilePanel}>
+				<span class="profile-panel__icon">📋</span>
+				<span class="profile-panel__text">{m.user_menu_submissions()}</span>
+			</a>
+			<a href={localizeHref('/messages')} class="profile-panel__item" onclick={closeProfilePanel}>
+				<span class="profile-panel__icon">💬</span>
+				<span class="profile-panel__text">{m.msg_heading()}</span>
+				{#if $unreadMessages > 0}<span class="profile-panel__badge">{$unreadMessages}</span>{/if}
+			</a>
+
+			<hr class="profile-panel__divider" />
+
+			<!-- Accessibility -->
+			<div class="profile-panel__section-title">{m.user_menu_settings()}</div>
+			<a href={localizeHref('/profile/settings')} class="profile-panel__item" onclick={closeProfilePanel}>
+				<span class="profile-panel__icon">⚙️</span>
+				<span class="profile-panel__text">{m.user_menu_settings()}</span>
+			</a>
 
 			<hr class="profile-panel__divider" />
 

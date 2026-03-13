@@ -39,10 +39,6 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 ## Medium-Term Priorities
 ### 3. Notifications & Messaging System
 **Tier 1 — Notifications (build first):**
-- [ ] `notifications` table in Supabase (id, user_id, type, title, message, link, metadata, read, created_at)
-- [ ] Bell icon in site header with unread count badge
-- [ ] Dropdown or `/notifications` page to view/mark-read
-- [ ] Wire into: game review changes, run approvals/rejections, profile approvals, report updates
 - [ ] RLS: users can only read/update their own notifications
 
 **Tier 2 — Messaging (build after Tier 1):**
@@ -51,7 +47,6 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - [ ] Staff-to-user messaging (for review feedback, moderation)
 - [ ] User-to-user messaging (for co-op run verification, team coordination)
 - [ ] Unread message count in header alongside notification bell
-
 - [ ] Build page in the same format as Game Editor
 
 ### 4. User Report & Request Systems
