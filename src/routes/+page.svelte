@@ -18,8 +18,8 @@
 	let autoplayInterval: ReturnType<typeof setInterval> | null = null;
 	let carouselHovered = $state(false);
 
-	const EXCERPT_LIMIT = 120;
-	const CONTENT_PREVIEW_LIMIT = 300;
+	const EXCERPT_LIMIT = 160;
+	const CONTENT_PREVIEW_LIMIT = 500;
 
 	function truncate(text: string | undefined, limit: number): string {
 		if (!text) return '';
@@ -252,9 +252,6 @@
 				</div>
 			</div>
 		{/if}
-		<p class="muted mt-3" style="font-size: 0.9rem;">
-			{m.home_partnership_cta()} <a href={localizeHref('/support')}>{m.home_contact_us()}</a>
-		</p>
 	</div>
 
 </div>

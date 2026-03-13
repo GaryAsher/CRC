@@ -14,8 +14,6 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - [ ] **Favicon** — update once we have a logo (currently empty placeholder)
 
 ### Rework Visuals (Revisit later):
-- Submit Page (https://www.challengerun.net/submit):
-  - [ ] Transform to populate the respective game? or is that too much work?
 - Runner Page:
   - Run Statistics:
     - [ ] Update how the runs are displayed when you click into a game.

@@ -7,6 +7,7 @@
 	let search = $state('');
 	let open = $state(false);
 	let highlightIndex = $state(-1);
+	let selectedGame = $state<{ game_id: string; game_name: string } | null>(null);
 
 	const filtered = $derived(
 		search.trim()
@@ -14,9 +15,10 @@
 			: data.games.slice(0, 12)
 	);
 
-	function selectGame(gameId: string) {
+	function selectGame(game: { game_id: string; game_name: string }) {
+		selectedGame = game;
+		search = game.game_name;
 		open = false;
-		goto(localizeHref(`/games/${gameId}/submit`));
 	}
 
 	function onKeydown(e: KeyboardEvent) {
@@ -29,7 +31,7 @@
 			highlightIndex = Math.max(highlightIndex - 1, 0);
 		} else if (e.key === 'Enter' && highlightIndex >= 0 && filtered[highlightIndex]) {
 			e.preventDefault();
-			selectGame(filtered[highlightIndex].game_id);
+			selectGame(filtered[highlightIndex]);
 		} else if (e.key === 'Escape') {
 			open = false;
 		}
@@ -49,6 +51,10 @@
 	$effect(() => {
 		search;
 		highlightIndex = -1;
+		// Clear selection if user edits the search after selecting
+		if (selectedGame && search !== selectedGame.game_name) {
+			selectedGame = null;
+		}
 	});
 </script>
 
@@ -88,7 +94,7 @@
 									aria-selected={i === highlightIndex}
 									class="typeahead__item"
 									class:typeahead__item--active={i === highlightIndex}
-									onmousedown={() => selectGame(g.game_id)}
+									onmousedown={() => selectGame(g)}
 								>
 									{g.game_name}
 								</li>
@@ -100,6 +106,11 @@
 						</ul>
 					{/if}
 				</div>
+				{#if selectedGame}
+					<a href={localizeHref(`/games/${selectedGame.game_id}/submit`)} class="selected-game-link">
+						🏃 {m.submit_go_to_game({ name: selectedGame.game_name })}
+					</a>
+				{/if}
 				<p class="picker-hint">{m.submit_hint()}</p>
 			</div>
 
@@ -184,6 +195,26 @@
 	.typeahead__empty { padding: 0.75rem; font-size: 0.85rem; color: var(--text-muted); text-align: center; }
 
 	.picker-hint { margin: 1rem 0 0; font-size: 0.8rem; color: var(--text-muted); }
+
+	.selected-game-link {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		margin-top: 0.75rem;
+		padding: 0.65rem 1rem;
+		background: rgba(var(--accent-rgb, 59, 195, 110), 0.08);
+		border: 1px solid rgba(var(--accent-rgb, 59, 195, 110), 0.25);
+		border-radius: 8px;
+		color: var(--accent);
+		font-weight: 600;
+		font-size: 0.95rem;
+		text-decoration: none;
+		transition: background 0.15s, border-color 0.15s;
+	}
+	.selected-game-link:hover {
+		background: rgba(var(--accent-rgb, 59, 195, 110), 0.15);
+		border-color: var(--accent);
+	}
 
 	/* Right card */
 	.submit-card--request {

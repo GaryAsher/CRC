@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { formatDate } from '$lib/utils';
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import { localizeHref } from '$lib/paraglide/runtime';
+	import * as m from '$lib/paraglide/messages';
 
 	let { data } = $props();
 	const post = $derived(data.post);
+	const prevPost = $derived(data.prevPost);
+	const nextPost = $derived(data.nextPost);
 </script>
 
 <svelte:head>
@@ -14,7 +18,7 @@
 </svelte:head>
 
 <div class="page-width">
-	<p class="back"><a href="/news">← All News</a></p>
+	<p class="back"><a href={localizeHref('/news')}>← {m.news_all()}</a></p>
 
 	<article class="post">
 		<header class="post__header">
@@ -38,6 +42,29 @@
 			{@html renderMarkdown(post.content)}
 		</div>
 	</article>
+
+	<!-- Post Navigation -->
+	<nav class="post-nav">
+		<div class="post-nav__prev">
+			{#if prevPost}
+				<a href={localizeHref(`/news/${prevPost.slug}`)} class="post-nav__link">
+					<span class="post-nav__label">← {m.news_prev()}</span>
+					<span class="post-nav__title">{prevPost.title}</span>
+				</a>
+			{/if}
+		</div>
+		<div class="post-nav__center">
+			<a href={localizeHref('/news')} class="post-nav__all">{m.news_all()}</a>
+		</div>
+		<div class="post-nav__next">
+			{#if nextPost}
+				<a href={localizeHref(`/news/${nextPost.slug}`)} class="post-nav__link post-nav__link--next">
+					<span class="post-nav__label">{m.news_next()} →</span>
+					<span class="post-nav__title">{nextPost.title}</span>
+				</a>
+			{/if}
+		</div>
+	</nav>
 </div>
 
 <style>
@@ -81,4 +108,61 @@
 		font-size: 0.9em;
 	}
 	.post__body :global(img) { max-width: 100%; border-radius: 8px; }
+
+	/* Post Navigation */
+	.post-nav {
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
+		gap: 1rem;
+		align-items: start;
+		max-width: 720px;
+		margin: 2.5rem auto 0;
+		padding-top: 1.5rem;
+		border-top: 1px solid var(--border);
+	}
+	.post-nav__prev { text-align: left; }
+	.post-nav__center { text-align: center; align-self: center; }
+	.post-nav__next { text-align: right; }
+	.post-nav__link {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		text-decoration: none;
+		padding: 0.5rem 0.75rem;
+		border-radius: 8px;
+		transition: background 0.15s;
+	}
+	.post-nav__link:hover { background: var(--surface); }
+	.post-nav__link--next { align-items: flex-end; }
+	.post-nav__label {
+		font-size: 0.78rem;
+		font-weight: 600;
+		color: var(--muted);
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+	.post-nav__title {
+		font-size: 0.9rem;
+		color: var(--accent);
+		font-weight: 500;
+		line-height: 1.4;
+	}
+	.post-nav__all {
+		font-size: 0.85rem;
+		color: var(--muted);
+		text-decoration: none;
+		padding: 0.4rem 0.75rem;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		transition: border-color 0.15s, color 0.15s;
+	}
+	.post-nav__all:hover { border-color: var(--accent); color: var(--accent); }
+
+	@media (max-width: 600px) {
+		.post-nav {
+			grid-template-columns: 1fr 1fr;
+			grid-template-rows: auto auto;
+		}
+		.post-nav__center { grid-column: 1 / -1; grid-row: 1; margin-bottom: 0.5rem; }
+	}
 </style>
