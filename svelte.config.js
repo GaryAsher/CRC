@@ -27,19 +27,50 @@ const config = {
 
 		// CSP: SvelteKit generates per-request nonces for inline scripts,
 		// eliminating the need for 'unsafe-inline' in script-src.
-		// NOTE: When SvelteKit handles CSP, remove the Content-Security-Policy
-		// line from _headers to avoid conflicts (SvelteKit sets the header
-		// on SSR responses; _headers applies to all responses including static).
+		//
+		// This is the SINGLE SOURCE OF TRUTH for CSP. Do NOT set CSP in:
+		//   - _headers (already excluded)
+		//   - Cloudflare dashboard (response header transform rules, etc.)
+		// Duplicate static CSP headers conflict with SvelteKit's nonce-based
+		// policy and cause scripts to be blocked.
 		csp: {
 			mode: 'auto',
 			directives: {
 				'default-src': ['self'],
-				'script-src': ['self', 'https://challenges.cloudflare.com', 'https://static.cloudflareinsights.com', 'sha256-YoiQItOfTglMSQOXGDvfciKRxsG8+mEOtQSS6VFIMtQ='],
+
+				'script-src': [
+					'self',
+					'https://challenges.cloudflare.com',       // Turnstile CAPTCHA
+					'https://static.cloudflareinsights.com',   // CF Web Analytics beacon
+					'sha256-YoiQItOfTglMSQOXGDvfciKRxsG8+mEOtQSS6VFIMtQ=' // inline theme script in app.html
+				],
+
 				'style-src': ['self', 'unsafe-inline'],
+
+				// 'https:' covers all HTTPS image sources including:
+				// cdn.discordapp.com (Discord avatars), static-cdn.jtvnw.net (Twitch avatars),
+				// img.youtube.com (video thumbnails), flagcdn.com (country flags),
+				// *.supabase.co (storage: game covers, banners, news images)
 				'img-src': ['self', 'data:', 'https:'],
+
 				'font-src': ['self'],
-				'connect-src': ['self', 'https://*.supabase.co', 'https://crc-run-submissions.280sauce.workers.dev', 'https://challenges.cloudflare.com', 'https://noembed.com', 'https://cloudflareinsights.com'],
-				'frame-src': ['https://challenges.cloudflare.com', 'https://www.youtube-nocookie.com', 'https://player.twitch.tv'],
+
+				'connect-src': [
+					'self',
+					'https://*.supabase.co',                   // Supabase REST API + storage
+					'wss://*.supabase.co',                     // Supabase Realtime (WebSocket)
+					'https://*.workers.dev',                   // Cloudflare Worker (PUBLIC_WORKER_URL)
+					'https://challenges.cloudflare.com',       // Turnstile verification
+					'https://cloudflareinsights.com',          // CF Analytics beacon telemetry
+					'https://noembed.com'                      // Video URL metadata lookup
+				],
+
+				'frame-src': [
+					'https://challenges.cloudflare.com',       // Turnstile iframe
+					'https://www.youtube-nocookie.com',        // YouTube embeds
+					'https://player.twitch.tv'                 // Twitch embeds
+				],
+
 				'frame-ancestors': ['none'],
 				'base-uri': ['self'],
 				'form-action': ['self']
