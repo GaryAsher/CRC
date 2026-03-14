@@ -1,19 +1,18 @@
 # Reminders & Future Ideas
-
 This document consolidates all reminders, future ideas, and planned features for CRC.
 Cross-reference with `CLAUDE.md` Development Checklist for technical implementation details.
-
 **Last updated:** 2026/03/05
 
 ---
 
-## Revisit (Needs Polish)
+## Waiting / Revisit
 ### Global
 - [ ] Icons for Verifiers, Moderators, Admins, and Super Admins — attach to profiles
 - [ ] Add default profile picture and default banner
 - [ ] **Favicon** — update once we have a logo (currently empty placeholder)
+- [ ] Discord webhooks for profile waiting approval = waiting for someone to make a profile
 
-### Rework Visuals (Revisit later):
+### Visual Reworks:
 - Runner Page:
   - Run Statistics:
     - [ ] Update how the runs are displayed when you click into a game.
@@ -21,7 +20,8 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
   - For the front-page:
     - [ ] Needs more visual styling.
       - [ ] Allow News section to read markdown
-      - [ ] More -> News -> returns 500
+  - [ ] More -> News -> returns 500
+    - In the News url:
       - [ ] Add date search:
         - Year
         - Month
@@ -29,30 +29,22 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
         - Showing X of Y
       - [ ] Add tags to its own drop-down typeahead.
       - [ ] Make filtering similar experience as Admin Profile approval search
+      - [ ] Allow option to edit tags
 
 ---
 
-## Short-Term Priorities
-### 1 Bug Fixes
+## Immediate Priorities
+### 1. Bug Fixes
 - [ ] Discord webhooks for game submission not working
-- [ ] Discord webhooks for profile waiting approval = waiting for someone to make a profile
+- [ ] Update Notifications button to be the same size as the Languages button
 
 ### 2. Spanish Language Support
-**PROMISED TO COMMUNITY — HIGH PRIORITY**
-- [ ] Request community translation help early
+- [ ] Update translation excel file then ask for help
 
----
-
-## Medium-Term Priorities
 ### 3. Notifications & Messaging System
-**Tier 1 — Notifications (build first):**
+**Tier 1 — Notifications**
 - [ ] RLS: users can only read/update their own notifications
-
-**Tier 2 — Messaging (build after Tier 1):**
-- [ ] `messages` table with conversation threads (sender_id, recipient_id, thread_id, content, read_at)
-- [ ] Inbox UI at `/messages` with conversation list + thread view
-- [ ] Staff-to-user messaging (for review feedback, moderation)
-- [ ] User-to-user messaging (for co-op run verification, team coordination)
+**Tier 2 — Messaging**
 - [ ] Unread message count in header alongside notification bell
 - [ ] Build page in the same format as Game Editor
 
@@ -61,6 +53,9 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - [ ] **User requests** — feature requests, game suggestions, corrections. Could reuse `support_tickets` or a new `user_requests` table.
 - [ ] **Content moderation queue** — flag uploaded avatars/banners for review (graphic/sexual content). Consider automated image moderation (Cloudflare Images or similar) when budget allows.
 
+---
+
+## Medium-Term Priorities
 ### 5. Verifier CMS
 - [ ] Inline editing on game pages with diff preview
 - [ ] Require 2 verifiers to approve rule changes

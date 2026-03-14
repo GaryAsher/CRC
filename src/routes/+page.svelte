@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formatDate } from '$lib/utils';
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import { sanitizeText } from '$lib/utils/markdown';
 	import { onMount } from 'svelte';
 	import { localizeHref } from '$lib/paraglide/runtime';
 	import * as m from '$lib/paraglide/messages';
@@ -19,7 +20,7 @@
 	let carouselHovered = $state(false);
 
 	const EXCERPT_LIMIT = 160;
-	const CONTENT_PREVIEW_LIMIT = 500;
+	const CONTENT_PREVIEW_LIMIT = 300;
 
 	function truncate(text: string | undefined, limit: number): string {
 		if (!text) return '';
@@ -27,21 +28,12 @@
 		return text.slice(0, limit).trimEnd() + '…';
 	}
 
-	/** Strip markdown/HTML for a plain-text content preview */
-	function stripToPlain(text: string): string {
-		return text
-			.replace(/#{1,6}\s+/g, '')
-			.replace(/\*\*([^*]+)\*\*/g, '$1')
-			.replace(/\*([^*]+)\*/g, '$1')
-			.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-			.replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
-			.replace(/```[\s\S]*?```/g, '')
-			.replace(/`([^`]+)`/g, '$1')
-			.replace(/>\s?/gm, '')
-			.replace(/[-*+]\s/g, '')
-			.replace(/\n{2,}/g, ' ')
-			.replace(/\n/g, ' ')
-			.trim();
+	/** Render a truncated markdown preview — renders to HTML, then caps by stripping for length check */
+	function renderPreview(content: string | undefined, limit: number): string {
+		if (!content) return '';
+		// Take a reasonable chunk of raw markdown, render it, then let CSS handle overflow
+		const chunk = content.slice(0, limit * 2);
+		return renderMarkdown(chunk);
 	}
 
 	function showSlide(index: number) {
@@ -103,15 +95,22 @@
 								<a href={localizeHref(`/news/${post.slug}`)} class="news-slide" class:is-active={currentSlide === i}>
 									<span class="news-slide__date muted">{formatDate(post.date)}</span>
 									<h3 class="news-slide__title">{post.title}</h3>
+									{#if post.tags?.length > 0}
+										<div class="news-slide__tags">
+											{#each post.tags.slice(0, 3) as tag}
+												<span class="news-slide__tag">{tag}</span>
+											{/each}
+										</div>
+									{/if}
 									{#if post.excerpt}
 										<p class="news-slide__excerpt muted">
 											{truncate(post.excerpt, EXCERPT_LIMIT)}
 										</p>
 									{/if}
 									{#if post.content}
-										<p class="news-slide__content-preview">
-											{truncate(stripToPlain(post.content), CONTENT_PREVIEW_LIMIT)}
-										</p>
+										<div class="news-slide__content-preview markdown-preview">
+											{@html renderPreview(post.content, CONTENT_PREVIEW_LIMIT)}
+										</div>
 									{/if}
 									<span class="news-slide__read-more">{m.home_read_more()}</span>
 								</a>
@@ -276,10 +275,49 @@
 	a.news-slide { cursor: pointer; border-radius: 8px; padding: 0.5rem; margin: 0 -0.5rem; transition: background 0.15s; }
 	a.news-slide:hover { background: rgba(255,255,255,0.03); }
 	.news-slide__date { font-size: 0.8rem; }
-	.news-slide__title { font-size: 1.15rem; margin: 0.25rem 0 0.5rem; color: var(--fg); }
+	.news-slide__title { font-size: 1.15rem; margin: 0.25rem 0 0.35rem; color: var(--fg); }
 	a.news-slide:hover .news-slide__title { color: var(--accent); }
+
+	/* Tags in carousel */
+	.news-slide__tags { display: flex; gap: 0.3rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+	.news-slide__tag {
+		display: inline-block; padding: 0.1rem 0.4rem;
+		background: var(--surface); border: 1px solid var(--border);
+		border-radius: 4px; font-size: 0.7rem; color: var(--muted);
+	}
+
 	.news-slide__excerpt { font-size: 0.9rem; line-height: 1.5; margin: 0 0 0.5rem; color: var(--muted); }
-	.news-slide__content-preview { font-size: 0.88rem; line-height: 1.6; margin: 0 0 0.75rem; color: var(--fg); opacity: 0.8; }
+
+	/* Markdown content preview in carousel */
+	.news-slide__content-preview {
+		font-size: 0.88rem; line-height: 1.6; margin: 0 0 0.75rem; color: var(--fg); opacity: 0.8;
+		max-height: 6.4em; overflow: hidden; position: relative;
+	}
+	.news-slide__content-preview::after {
+		content: '';
+		position: absolute; bottom: 0; left: 0; right: 0;
+		height: 2em;
+		background: linear-gradient(transparent, var(--surface));
+		pointer-events: none;
+	}
+	/* Markdown elements inside the preview */
+	.news-slide__content-preview :global(p) { margin: 0 0 0.5rem; }
+	.news-slide__content-preview :global(h2),
+	.news-slide__content-preview :global(h3) { font-size: 1rem; margin: 0.5rem 0 0.25rem; }
+	.news-slide__content-preview :global(ul),
+	.news-slide__content-preview :global(ol) { padding-left: 1.25rem; margin: 0 0 0.5rem; }
+	.news-slide__content-preview :global(li) { margin-bottom: 0.15rem; }
+	.news-slide__content-preview :global(strong) { font-weight: 600; }
+	.news-slide__content-preview :global(a) { color: var(--accent); text-decoration: none; pointer-events: none; }
+	.news-slide__content-preview :global(code) {
+		background: rgba(255,255,255,0.06); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.85em;
+	}
+	.news-slide__content-preview :global(blockquote) {
+		border-left: 2px solid var(--accent); margin: 0.25rem 0; padding: 0.25rem 0.75rem;
+		color: var(--muted); font-size: 0.9em;
+	}
+	.news-slide__content-preview :global(img) { display: none; }
+
 	.news-slide__read-more { font-size: 0.85rem; color: var(--accent); font-weight: 500; }
 
 	/* Prev/Next Arrows */
