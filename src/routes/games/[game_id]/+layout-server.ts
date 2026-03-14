@@ -1,5 +1,5 @@
-import { getGame, getRunsForGame, getGames } from '$lib/server/supabase';
-import { getAllCategories, getChallenges } from '$lib/server/data';
+import { getGame, getRunsForGame, getGames, getChallengesConfig } from '$lib/server/supabase';
+import { getAllCategories } from '$lib/server/data';
 import { error } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 
@@ -10,13 +10,13 @@ export const load: LayoutServerLoad = async ({ params, locals }) => {
 		throw error(404, 'Game not found');
 	}
 
-	const [runs, allGames] = await Promise.all([
+	const [runs, allGames, globalChallenges] = await Promise.all([
 		getRunsForGame(locals.supabase, params.game_id),
-		getGames(locals.supabase)
+		getGames(locals.supabase),
+		getChallengesConfig(locals.supabase)
 	]);
 
 	const categories = getAllCategories(game);
-	const globalChallenges = getChallenges();
 
 	// Find modded versions of this game
 	const moddedVersions = allGames.filter(

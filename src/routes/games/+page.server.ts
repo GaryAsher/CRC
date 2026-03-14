@@ -1,5 +1,5 @@
-import { getActiveGames, getRunCountForGame } from '$lib/server/supabase';
-import { getPlatforms, getGenres, getChallenges } from '$lib/server/data';
+import { getActiveGames, getRunCountForGame, getChallengesConfig } from '$lib/server/supabase';
+import { getPlatforms, getGenres } from '$lib/server/data';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -12,12 +12,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}))
 	);
 
-	// Load filter options from YAML configs (already in data.ts)
+	// Load filter options
 	const platformsRaw = getPlatforms();
 	const genresRaw = getGenres();
-	const challengesRaw = getChallenges();
+	const challengesRaw = await getChallengesConfig(locals.supabase);
 
-	// Transform YAML → TagItem[] for TagPicker
+	// Transform → TagItem[] for TagPicker
 	const platforms = Object.entries(platformsRaw)
 		.map(([id, val]) => ({
 			id,

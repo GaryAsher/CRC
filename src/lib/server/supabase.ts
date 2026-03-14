@@ -392,3 +392,34 @@ export async function getCounts(supabase: SupabaseClient) {
 		teamCount: teams.count ?? 0
 	};
 }
+
+// ─── Site Settings (DB with YAML fallback) ──────────────────────────────────
+
+import { getChallenges as getChallengesYaml, getGlossary as getGlossaryYaml } from '$lib/server/data';
+import type { ChallengesConfig, GlossaryConfig } from '$lib/types';
+
+/** Get challenges config — DB first, YAML fallback */
+export async function getChallengesConfig(supabase: SupabaseClient): Promise<ChallengesConfig> {
+	try {
+		const { data } = await supabase
+			.from('site_settings')
+			.select('value')
+			.eq('key', 'challenges_config')
+			.maybeSingle();
+		if (data?.value && typeof data.value === 'object') return data.value as ChallengesConfig;
+	} catch { /* fall through to YAML */ }
+	return getChallengesYaml();
+}
+
+/** Get glossary config — DB first, YAML fallback */
+export async function getGlossaryConfig(supabase: SupabaseClient): Promise<GlossaryConfig> {
+	try {
+		const { data } = await supabase
+			.from('site_settings')
+			.select('value')
+			.eq('key', 'glossary_config')
+			.maybeSingle();
+		if (data?.value && typeof data.value === 'object') return data.value as GlossaryConfig;
+	} catch { /* fall through to YAML */ }
+	return getGlossaryYaml();
+}
