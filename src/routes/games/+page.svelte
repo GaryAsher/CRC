@@ -188,6 +188,9 @@
 						{#if game.is_modded}
 							<span class="modded-badge">{m.games_modded_badge()}</span>
 						{/if}
+						{#if game.status === 'Community Review'}
+							<span class="review-badge">📋 In Review</span>
+						{/if}
 					</div>
 				{/if}
 				<div class="game-card__body">
@@ -285,5 +288,16 @@
 		padding: 0.2rem 0.5rem;
 		border-radius: 4px;
 		font-size: 0.75rem;
+	}
+	.review-badge {
+		position: absolute;
+		top: 0.5rem;
+		left: 0.5rem;
+		background: rgba(59, 130, 246, 0.85);
+		padding: 0.2rem 0.5rem;
+		border-radius: 4px;
+		font-size: 0.75rem;
+		color: #fff;
+		font-weight: 600;
 	}
 </style>

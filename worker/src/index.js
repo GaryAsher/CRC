@@ -159,6 +159,7 @@ const RATE_LIMITS = {
   '/game-editor/rollback': 5,
   '/messages/create-thread': 10, // messaging — 10 threads/min/IP
   '/report': 3,                  // reports — 3/min/IP
+  '/review-rule-suggestion': 30,  // admin reviews — 30/min/IP
 };
 
 async function checkRateLimit(ip, path, env) {
@@ -540,6 +541,19 @@ async function handleRunSubmission(body, env, request) {
     return jsonResponse({ error: 'Captcha verification failed. Please try again.' }, 403, env, request);
   }
 
+  // ── 5b. Fetch game to stamp rules_version ─────────────────────────────────
+  const gameResult = await supabaseQuery(env,
+    `games?game_id=eq.${encodeURIComponent(body.game_id)}&select=rules_version,status`,
+    { method: 'GET' });
+  const gameData = (gameResult.ok && Array.isArray(gameResult.data) && gameResult.data.length > 0)
+    ? gameResult.data[0] : null;
+  if (!gameData) {
+    return jsonResponse({ error: 'Game not found' }, 404, env, request);
+  }
+  if (gameData.status !== 'Active' && gameData.status !== 'Community Review') {
+    return jsonResponse({ error: 'This game is not currently accepting submissions.' }, 400, env, request);
+  }
+
   // ── 6. Build DB row (correct column names, sanitized) ─────────────────────
   const submissionId = generateSubmissionId();
   const row = {
@@ -567,6 +581,7 @@ async function handleRunSubmission(body, env, request) {
     schema_version:       body.schema_version || 7,
     submission_id:        submissionId,
     submitted_at:         new Date().toISOString(),
+    rules_version:        gameData.rules_version || 1,
   };
 
   // ── 7. Insert into pending_runs ───────────────────────────────────────────
@@ -929,6 +944,7 @@ async function handleApproveRun(body, env, request) {
       verified_by: null,
       verified_at: null,
       verifier_notes: body.notes || null,
+      rules_version: run.rules_version || 1,
     },
   });
 
@@ -1302,7 +1318,7 @@ async function handleApproveGame(body, env, request) {
       game_id: game.game_id,
       game_name: game.game_name,
       game_name_aliases: game.game_name_aliases || [],
-      status: 'Active',
+      status: (body.approve_as === 'Community Review') ? 'Community Review' : 'Active',
       reviewers: [],
       is_modded: false,
       base_game: null,
@@ -2284,6 +2300,68 @@ async function handleNotifyProfileSubmitted(body, env, request) {
 
   return jsonResponse({ ok: true }, 200, env, request);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /review-rule-suggestion (Admin reviews a rule suggestion)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function handleReviewRuleSuggestion(body, env, request) {
+  const auth = await authenticateAdmin(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+  if (!auth.role.admin) return jsonResponse({ error: 'Admin required' }, 403, env, request);
+
+  const { suggestion_id, status, admin_response } = body;
+  if (!suggestion_id) return jsonResponse({ error: 'Missing suggestion_id' }, 400, env, request);
+  if (!['accepted', 'rejected', 'noted'].includes(status)) {
+    return jsonResponse({ error: 'Invalid status. Must be accepted, rejected, or noted.' }, 400, env, request);
+  }
+
+  // Fetch the suggestion
+  const sugResult = await supabaseQuery(env,
+    `rule_suggestions?id=eq.${encodeURIComponent(suggestion_id)}&select=*`, { method: 'GET' });
+  if (!sugResult.ok || !sugResult.data?.length) {
+    return jsonResponse({ error: 'Suggestion not found' }, 404, env, request);
+  }
+  const suggestion = sugResult.data[0];
+
+  if (suggestion.status !== 'pending') {
+    return jsonResponse({ error: 'Suggestion has already been reviewed' }, 400, env, request);
+  }
+
+  // Update the suggestion
+  const patchResult = await supabaseQuery(env,
+    `rule_suggestions?id=eq.${encodeURIComponent(suggestion_id)}`, {
+      method: 'PATCH',
+      body: {
+        status,
+        admin_response: admin_response ? sanitizeInput(admin_response, 500) : null,
+        reviewed_by: auth.user.id,
+        reviewed_at: new Date().toISOString(),
+      },
+    });
+
+  if (!patchResult.ok) {
+    return jsonResponse({ error: 'Failed to update suggestion' }, 500, env, request);
+  }
+
+  // Notify the user
+  const statusLabels = { accepted: 'accepted', rejected: 'reviewed', noted: 'noted for consideration' };
+  const gameResult = await supabaseQuery(env,
+    `games?game_id=eq.${encodeURIComponent(suggestion.game_id)}&select=game_name`, { method: 'GET' });
+  const gameName = (gameResult.ok && gameResult.data?.length) ? gameResult.data[0].game_name : suggestion.game_id;
+
+  await insertNotification(env, suggestion.user_id, `rule_suggestion_${status}`,
+    `Your rule suggestion for ${gameName} was ${statusLabels[status]}`,
+    {
+      message: admin_response || null,
+      link: `/games/${suggestion.game_id}`,
+      metadata: { suggestion_id, game_id: suggestion.game_id, status },
+    }
+  );
+
+  return jsonResponse({ ok: true, message: `Suggestion ${status}` }, 200, env, request);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // GAME EDITOR ENDPOINTS — Server-side validation for game data changes
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2387,6 +2465,33 @@ async function handleGameEditorSave(body, env, request) {
       }
     });
   } catch { /* best-effort */ }
+
+  // 5b. Auto-increment rules_version for rules-related sections + write changelog
+  const RULES_SECTIONS = ['rules', 'challenges', 'restrictions', 'categories'];
+  if (RULES_SECTIONS.includes(section_name)) {
+    const newVersion = (currentGame.rules_version || 1) + 1;
+    sanitized.rules_version = newVersion;
+
+    // Write changelog entry (best-effort)
+    try {
+      const oldRulesData = {};
+      for (const key of Object.keys(sanitized)) oldRulesData[key] = currentGame[key];
+      await supabaseQuery(env, 'rules_changelog', {
+        method: 'POST',
+        body: {
+          game_id,
+          rules_version: newVersion,
+          changed_by: auth.user.id,
+          change_summary: body.change_summary || `${section_name} updated`,
+          sections_changed: [section_name],
+          old_rules: oldRulesData,
+          new_rules: sanitized,
+        },
+      });
+    } catch (err) {
+      console.error('Rules changelog write failed:', err);
+    }
+  }
 
   // 6. Update game
   const updateResult = await supabaseQuery(env,
@@ -3678,6 +3783,9 @@ export default {
 
         case '/notify-profile-submitted':
           return handleNotifyProfileSubmitted(body, env, request);
+
+        case '/review-rule-suggestion':
+          return handleReviewRuleSuggestion(body, env, request);
 
         case '/export-data':
           return handleDataExport(body, env, request);

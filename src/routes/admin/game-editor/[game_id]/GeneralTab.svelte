@@ -241,6 +241,7 @@
 			<option value="Active">{m.ge_general_active()}</option>
 			<option value="Inactive">{m.ge_general_inactive()}</option>
 			<option value="Coming Soon">{m.ge_general_coming_soon()}</option>
+			<option value="Community Review">Community Review</option>
 		</select>
 	</div>
 	<div class="field-row">

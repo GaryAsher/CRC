@@ -134,8 +134,9 @@ export interface Game {
 	game_id: string;
 	game_name: string;
 	game_name_aliases?: string[];
-	status: 'Active' | 'Inactive' | 'Coming Soon';
+	status: 'Active' | 'Inactive' | 'Coming Soon' | 'Community Review';
 	reviewers: string[];
+	rules_version?: number;
 
 	// Modded game support
 	is_modded?: boolean;
@@ -351,6 +352,7 @@ export interface Run {
 	verified_by?: string;
 	verified_at?: string | Date;
 	verifier_notes?: string;
+	rules_version?: number;
 
 	// Timestamps
 	created_at?: string | Date;
@@ -556,4 +558,33 @@ export interface MessageWithSender {
   content: string;
   created_at: string;
   sender: ThreadParticipant;
+}
+
+// ─── Rules System ─────────────────────────────────────────────────────────────
+
+export interface RuleSuggestion {
+	id: string;
+	game_id: string;
+	user_id: string;
+	suggestion: string;
+	status: 'pending' | 'accepted' | 'rejected' | 'noted';
+	admin_response?: string;
+	reviewed_by?: string;
+	reviewed_at?: string;
+	created_at: string;
+	display_name?: string;
+	runner_id?: string;
+}
+
+export interface RulesChangelog {
+	id: string;
+	game_id: string;
+	rules_version: number;
+	changed_by: string;
+	change_summary?: string;
+	sections_changed: string[];
+	old_rules?: Record<string, any>;
+	new_rules?: Record<string, any>;
+	created_at: string;
+	changed_by_name?: string;
 }

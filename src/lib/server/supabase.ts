@@ -31,7 +31,7 @@ export async function getActiveGames(supabase: SupabaseClient): Promise<Game[]> 
 	const { data, error } = await supabase
 		.from('games')
 		.select('*')
-		.eq('status', 'Active')
+		.in('status', ['Active', 'Community Review'])
 		.order('game_name')
 		.limit(500);
 
@@ -377,7 +377,7 @@ export async function getTeam(supabase: SupabaseClient, teamId: string): Promise
 
 export async function getCounts(supabase: SupabaseClient) {
 	const [games, runners, runs, achievements, teams] = await Promise.all([
-		supabase.from('games').select('*', { count: 'exact', head: true }).eq('status', 'Active'),
+		supabase.from('games').select('*', { count: 'exact', head: true }).in('status', ['Active', 'Community Review']),
 		supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
 		supabase.from('runs').select('*', { count: 'exact', head: true }).eq('status', 'approved'),
 		supabase.from('game_achievements').select('*', { count: 'exact', head: true }).eq('status', 'approved'),

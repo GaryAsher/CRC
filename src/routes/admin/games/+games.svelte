@@ -134,13 +134,14 @@
 		setTimeout(() => actionMessage = null, 3000);
 	}
 
-	async function approveGame(id: string) {
-		if (!confirm('Approve this game?')) return;
+	async function approveGame(id: string, approveAs: 'Active' | 'Community Review' = 'Active') {
+		const label = approveAs === 'Community Review' ? 'Approve as Community Review (rules open for input)?' : 'Approve this game?';
+		if (!confirm(label)) return;
 		processingId = id;
-		const result = await adminAction('/admin/approve-game', { game_id: id });
+		const result = await adminAction('/admin/approve-game', { game_id: id, approve_as: approveAs });
 		if (result.ok) {
 			games = games.map(g => g.id === id ? { ...g, status: 'approved' } : g);
-			actionMessage = { type: 'success', text: 'Game approved!' };
+			actionMessage = { type: 'success', text: approveAs === 'Community Review' ? 'Game approved in Community Review!' : 'Game approved!' };
 		} else { actionMessage = { type: 'error', text: result.message }; }
 		processingId = null;
 		setTimeout(() => actionMessage = null, 3000);
@@ -424,6 +425,7 @@
 								{#if canAct}
 									<div class="actions mt-2">
 										<button class="btn btn--approve" onclick={() => approveGame(g.id)} disabled={processingId === g.id}>{processingId === g.id ? '...' : '✅ Approve'}</button>
+									<button class="btn btn--review-approve" onclick={() => approveGame(g.id, 'Community Review')} disabled={processingId === g.id}>{processingId === g.id ? '...' : '📋 Approve as Review'}</button>
 										<a href={localizeHref(`/admin/games/${g.id}/review`)} class="btn btn--changes">✏️ Request Changes</a>
 										<button class="btn btn--reject" onclick={() => openRejectModal(g)} disabled={processingId === g.id}>❌ Reject</button>
 									</div>
@@ -466,6 +468,7 @@
 	.btn { display: inline-flex; align-items: center; padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: none; color: var(--fg); cursor: pointer; font-size: 0.9rem; text-decoration: none; }
 	.btn:hover { border-color: var(--accent); color: var(--accent); } .btn--small { padding: 0.35rem 0.75rem; font-size: 0.85rem; } .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 	.btn--approve { background: #28a745; color: white; border-color: #28a745; } .btn--approve:hover { background: #218838; color: white; }
+	.btn--review-approve { background: #3b82f6; color: white; border-color: #3b82f6; } .btn--review-approve:hover { background: #2563eb; color: white; }
 	.btn--reject { border-color: #dc3545; color: #dc3545; } .btn--reject:hover { background: #dc3545; color: white; }
 	.btn--changes { border-color: #17a2b8; color: #17a2b8; } .btn--changes:hover { background: #17a2b8; color: white; }
 	.toast { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 500; }

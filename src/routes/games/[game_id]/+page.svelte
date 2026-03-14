@@ -3,6 +3,8 @@
 	import { formatDate } from '$lib/utils';
 	import { localizeHref } from '$lib/paraglide/runtime';
 	import * as m from '$lib/paraglide/messages';
+	import { supabase } from '$lib/supabase';
+	import { user } from '$stores/auth';
 
 	let { data } = $props();
 	const game = $derived(data.game);
@@ -16,6 +18,40 @@
 		game.general_rules || data.defaultGeneralRules || null
 	);
 	const isDefaultRules = $derived(!game.general_rules && !!data.defaultGeneralRules);
+
+	// ── Rules system ─────────────────────────────────────────────────────
+	const isReview = $derived(game.status === 'Community Review');
+	const defaultRules = $derived(data.defaultRules || null);
+	const rulesChangelog = $derived(data.rulesChangelog || []);
+	const ruleSuggestions = $derived(data.ruleSuggestions || []);
+
+	// Suggestion form state
+	let suggestionText = $state('');
+	let suggestionSubmitting = $state(false);
+	let suggestionMsg = $state<{ type: 'success' | 'error'; text: string } | null>(null);
+	let hasPendingSuggestion = $derived(
+		ruleSuggestions.some((s: any) => s.user_id === $user?.id && s.status === 'pending')
+	);
+
+	async function submitSuggestion() {
+		if (!$user || !suggestionText.trim() || suggestionSubmitting) return;
+		suggestionSubmitting = true;
+		suggestionMsg = null;
+
+		const { error } = await supabase.from('rule_suggestions').insert({
+			game_id: game.game_id,
+			user_id: $user.id,
+			suggestion: suggestionText.trim().slice(0, 1000)
+		});
+
+		if (error) {
+			suggestionMsg = { type: 'error', text: error.message.includes('unique') ? 'You already have a pending suggestion for this game.' : error.message };
+		} else {
+			suggestionMsg = { type: 'success', text: 'Thanks! Your suggestion is under review.' };
+			suggestionText = '';
+		}
+		suggestionSubmitting = false;
+	}
 
 	// Description: detect placeholder/empty
 	const hasDescription = $derived(
@@ -40,6 +76,16 @@
 		return map;
 	});
 </script>
+
+<!-- 0. Community Review Banner -->
+{#if game.status === 'Community Review'}
+	<div class="game-link-banner game-link-banner--review">
+		<span class="game-link-banner__icon">📋</span>
+		<span class="game-link-banner__text">
+			<strong>Rules Under Community Review</strong> — This game's rules are being shaped by the community. Runs submitted now will be honored even if rules change.
+		</span>
+	</div>
+{/if}
 
 <!-- 1. Modded/Base Game Links -->
 {#if game.is_modded && data.baseGame}
@@ -94,31 +140,142 @@
 	<a href={localizeHref(`/games/${game.game_id}/submit`)} class="btn btn--accent">{m.game_submit_run()}</a>
 </section>
 
-<!-- 3. General Rules (Accordion) -->
+<!-- 3. General Rules -->
 <div class="card card--compact">
-	<details class="rules-accordion" open>
-		<summary class="rules-accordion__header">
-			<h2 class="rules-accordion__title">{m.game_general_rules()}</h2>
-			<span class="accordion-icon">▼</span>
-		</summary>
-		<div class="rules-accordion__content">
-			{#if generalRules}
-				<p class="muted mb-2">{isDefaultRules ? m.game_rules_default() : m.game_rules_specific({ name: game.game_name })}</p>
+	{#if isReview && defaultRules}
+		<!-- Community Review: show default rules + proposed rules separately -->
+		<details class="rules-accordion" open>
+			<summary class="rules-accordion__header">
+				<h2 class="rules-accordion__title">📘 Active Rules (CRC Defaults)</h2>
+				<span class="accordion-icon">▼</span>
+			</summary>
+			<div class="rules-accordion__content">
 				<div class="md">
-					{@html renderMarkdown(generalRules)}
+					{@html renderMarkdown(defaultRules)}
 				</div>
+			</div>
+		</details>
+
+		{#if game.general_rules}
+			<hr class="rules-divider" />
+			<details class="rules-accordion" open>
+				<summary class="rules-accordion__header">
+					<h2 class="rules-accordion__title">📋 Proposed Game-Specific Rules</h2>
+					<span class="accordion-icon">▼</span>
+				</summary>
+				<div class="rules-accordion__content">
+					<p class="rules-review-note muted mb-2">These rules have been proposed by the community and are under review. They will become official when this game moves to Active status.</p>
+					<div class="md">
+						{@html renderMarkdown(game.general_rules)}
+					</div>
+				</div>
+			</details>
+		{/if}
+
+		<!-- Suggestion form -->
+		<hr class="rules-divider" />
+		<div class="rules-suggestions">
+			<h3 class="rules-suggestions__title">💬 Suggest a Rule Change</h3>
+			{#if $user && !hasPendingSuggestion}
+				<textarea
+					class="rules-suggestions__input"
+					bind:value={suggestionText}
+					placeholder="What rule would you change, and why?"
+					maxlength="1000"
+					rows="3"
+					disabled={suggestionSubmitting}
+				></textarea>
+				<div class="rules-suggestions__actions">
+					<button
+						class="btn btn--accent btn--small"
+						onclick={submitSuggestion}
+						disabled={!suggestionText.trim() || suggestionSubmitting}
+					>{suggestionSubmitting ? 'Submitting...' : 'Submit Suggestion'}</button>
+					<span class="muted" style="font-size: 0.8rem;">{suggestionText.length}/1000</span>
+				</div>
+			{:else if $user && hasPendingSuggestion}
+				<p class="muted">⏳ You have a pending suggestion for this game.</p>
 			{:else}
-				<ul>
-					<li><strong>{m.game_timing_method()}</strong> {game.timing_method || 'RTA (Real Time Attack)'}</li>
-					<li><strong>{m.game_video_required()}</strong> {m.game_video_required_desc()}</li>
-					<li><strong>{m.game_no_cheats()}</strong> {m.game_no_cheats_desc()}</li>
-				</ul>
+				<p class="muted"><a href={localizeHref('/sign-in')}>Sign in</a> to suggest rule changes.</p>
 			{/if}
-			<p class="muted mt-2" style="font-size: 0.85rem;">
-				<em>{@html m.game_rules_detail_link({ link_start: `<a href="${localizeHref(`/games/${game.game_id}/rules`)}">`, link_end: '</a>' })}</em>
-			</p>
+			{#if suggestionMsg}
+				<div class="rules-suggestions__msg rules-suggestions__msg--{suggestionMsg.type}">{suggestionMsg.text}</div>
+			{/if}
 		</div>
-	</details>
+
+		<!-- Show accepted/noted suggestions -->
+		{#if ruleSuggestions.filter((s) => s.status !== 'pending').length > 0}
+			<hr class="rules-divider" />
+			<div class="rules-suggestions-list">
+				<h3 class="rules-suggestions__title">Community Feedback</h3>
+				{#each ruleSuggestions.filter((s) => s.status !== 'pending') as s}
+					<div class="suggestion-card suggestion-card--{s.status}">
+						<div class="suggestion-card__body">{s.suggestion}</div>
+						{#if s.admin_response}
+							<div class="suggestion-card__response"><strong>Response:</strong> {s.admin_response}</div>
+						{/if}
+						<div class="suggestion-card__meta muted">
+							{#if s.status === 'accepted'}✅ Accepted{:else if s.status === 'noted'}📌 Noted{/if}
+							 · {formatDate(s.created_at)}
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+	{:else}
+		<!-- Active / standard display -->
+		<details class="rules-accordion" open>
+			<summary class="rules-accordion__header">
+				<h2 class="rules-accordion__title">{m.game_general_rules()}</h2>
+				<span class="accordion-icon">▼</span>
+			</summary>
+			<div class="rules-accordion__content">
+				{#if generalRules}
+					<p class="muted mb-2">{isDefaultRules ? m.game_rules_default() : m.game_rules_specific({ name: game.game_name })}</p>
+					<div class="md">
+						{@html renderMarkdown(generalRules)}
+					</div>
+				{:else}
+					<ul>
+						<li><strong>{m.game_timing_method()}</strong> {game.timing_method || 'RTA (Real Time Attack)'}</li>
+						<li><strong>{m.game_video_required()}</strong> {m.game_video_required_desc()}</li>
+						<li><strong>{m.game_no_cheats()}</strong> {m.game_no_cheats_desc()}</li>
+					</ul>
+				{/if}
+				<p class="muted mt-2" style="font-size: 0.85rem;">
+					<em>{@html m.game_rules_detail_link({ link_start: `<a href="${localizeHref(`/games/${game.game_id}/rules`)}">`, link_end: '</a>' })}</em>
+				</p>
+			</div>
+		</details>
+	{/if}
+
+	<!-- Rules Changelog (shown for both Community Review and Active) -->
+	{#if rulesChangelog.length > 0}
+		<hr class="rules-divider" />
+		<details class="rules-accordion">
+			<summary class="rules-accordion__header">
+				<h2 class="rules-accordion__title">📝 Rules History {#if game.rules_version}<span class="muted" style="font-size: 0.85rem; font-weight: 400;">(v{game.rules_version})</span>{/if}</h2>
+				<span class="accordion-icon">▼</span>
+			</summary>
+			<div class="rules-accordion__content">
+				<div class="changelog-list">
+					{#each rulesChangelog as entry}
+						<div class="changelog-entry">
+							<div class="changelog-entry__version">v{entry.rules_version}</div>
+							<div class="changelog-entry__body">
+								<span class="changelog-entry__date muted">{formatDate(entry.created_at)}</span>
+								{#if entry.change_summary}
+									<span class="changelog-entry__summary">{entry.change_summary}</span>
+								{/if}
+								<span class="changelog-entry__sections muted">Updated: {entry.sections_changed.join(', ')}</span>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+		</details>
+	{/if}
 </div>
 
 <!-- 4. Community Achievements -->
@@ -390,4 +547,36 @@
 		.quick-stats { justify-content: flex-start; }
 		.btn--accent { margin-left: 0; }
 	}
+
+	/* Rules system */
+	.rules-divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+	.rules-review-note { font-style: italic; font-size: 0.9rem; }
+
+	/* Suggestions */
+	.rules-suggestions { padding: 0.5rem 0; }
+	.rules-suggestions__title { font-size: 1rem; margin: 0 0 0.75rem; }
+	.rules-suggestions__input { width: 100%; padding: 0.6rem 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-family: inherit; font-size: 0.9rem; resize: vertical; box-sizing: border-box; }
+	.rules-suggestions__input:focus { outline: none; border-color: var(--accent); }
+	.rules-suggestions__actions { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.5rem; }
+	.rules-suggestions__msg { margin-top: 0.5rem; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.85rem; }
+	.rules-suggestions__msg--success { background: rgba(40, 167, 69, 0.1); border: 1px solid rgba(40, 167, 69, 0.3); color: #28a745; }
+	.rules-suggestions__msg--error { background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.3); color: #dc3545; }
+
+	/* Suggestion cards */
+	.rules-suggestions-list { padding: 0.5rem 0; }
+	.suggestion-card { padding: 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 0.5rem; }
+	.suggestion-card--accepted { border-left: 3px solid #28a745; }
+	.suggestion-card--noted { border-left: 3px solid #f59e0b; }
+	.suggestion-card__body { font-size: 0.9rem; line-height: 1.5; margin-bottom: 0.35rem; }
+	.suggestion-card__response { font-size: 0.85rem; color: var(--fg); margin-bottom: 0.35rem; padding: 0.4rem 0.6rem; background: rgba(255,255,255,0.03); border-radius: 4px; }
+	.suggestion-card__meta { font-size: 0.78rem; }
+
+	/* Changelog */
+	.changelog-list { display: flex; flex-direction: column; gap: 0.5rem; }
+	.changelog-entry { display: flex; gap: 0.75rem; align-items: flex-start; }
+	.changelog-entry__version { font-weight: 700; font-size: 0.85rem; color: var(--accent); min-width: 2.5rem; padding-top: 0.1rem; }
+	.changelog-entry__body { display: flex; flex-direction: column; gap: 0.15rem; }
+	.changelog-entry__date { font-size: 0.78rem; }
+	.changelog-entry__summary { font-size: 0.9rem; }
+	.changelog-entry__sections { font-size: 0.78rem; }
 </style>
