@@ -71,6 +71,7 @@
 		// Super Admin
 		{ key: 'health',       icon: '💚', title: m.admin_nav_health(),      desc: m.admin_nav_health_desc(),               href: '/admin/health' },
 		{ key: 'financials',   icon: '💰', title: m.admin_nav_financials(),       desc: m.admin_nav_financials_desc(),                         href: '/admin/financials' },
+		{ key: 'site-settings', icon: '⚙️', title: 'Site Settings',               desc: 'Default rules template and global config',           href: '/admin/site-settings' },
 		// Admin (left = games, right = profiles)
 		{ key: 'games',        icon: '🎮', title: m.admin_nav_games(),            desc: m.admin_nav_games_desc(),    href: '/admin/games',       countKey: 'pendingGames' },
 		{ key: 'profiles',     icon: '👥', title: m.admin_nav_profiles(),         desc: m.admin_nav_profiles_desc(),  href: '/admin/profiles',    countKey: 'pendingProfiles' },
@@ -81,6 +82,7 @@
 		{ key: 'game-updates', icon: '📝', title: m.admin_nav_game_updates(),     desc: m.admin_nav_game_updates_desc(), href: '/admin/game-updates', countKey: 'pendingUpdates' },
 		{ key: 'runs',         icon: '🏃', title: m.admin_nav_runs(),             desc: m.admin_nav_runs_desc(),            href: '/admin/runs',        countKey: 'pendingRuns' },
 		{ key: 'reports',      icon: '🚩', title: m.admin_nav_reports(),          desc: m.admin_nav_reports_desc(), href: '/admin/reports',    countKey: 'pendingReports' },
+		{ key: 'rule-suggestions', icon: '💬', title: 'Rule Suggestions',          desc: 'Community rule change proposals',                     href: '/admin/rule-suggestions' },
 		// All staff
 		{ key: 'staff-guides', icon: '📖', title: m.admin_nav_staff_guides(),     desc: m.admin_nav_staff_guides_desc(),                       href: '/admin/staff-guides' },
 		{ key: 'debug',        icon: '🔧', title: m.admin_nav_debug(),      desc: m.admin_nav_debug_desc(),                    href: '/admin/debug' },
