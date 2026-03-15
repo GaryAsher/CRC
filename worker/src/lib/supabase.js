@@ -1,8 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// SUPABASE HELPERS
+// Supabase Helpers — Query, Notifications, Token Verification, Roles
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/** Service-role query helper */
 export async function supabaseQuery(env, path, { method = 'GET', body, headers: extra } = {}) {
   const url = `${env.SUPABASE_URL}/rest/v1/${path}`;
   const headers = {
@@ -22,6 +21,34 @@ export async function supabaseQuery(env, path, { method = 'GET', body, headers: 
     return { ok: res.ok, status: res.status, data: JSON.parse(text) };
   } catch {
     return { ok: res.ok, status: res.status, data: text };
+  }
+}
+
+/**
+ * Insert an in-app notification for a user.
+ * Fire-and-forget — failures are logged but don't block the response.
+ * @param {object} env - Worker env with SUPABASE_URL, SUPABASE_SERVICE_KEY
+ * @param {string} userId - Target user's auth.users UUID
+ * @param {string} type - e.g. 'run_approved', 'profile_rejected'
+ * @param {string} title - Short notification title
+ * @param {object} opts - Optional: { message, link, metadata }
+ */
+export async function insertNotification(env, userId, type, title, opts = {}) {
+  if (!userId) return;
+  try {
+    await supabaseQuery(env, 'notifications', {
+      method: 'POST',
+      body: {
+        user_id: userId,
+        type,
+        title,
+        message: opts.message || null,
+        link: opts.link || null,
+        metadata: opts.metadata || {},
+      },
+    });
+  } catch (err) {
+    console.error('insertNotification failed:', err);
   }
 }
 
@@ -83,25 +110,4 @@ export async function isAdmin(env, userId) {
     runnerId,
     assignedGames
   };
-}
-
-/** Write a game_history entry (best-effort, never throws) */
-export async function writeGameHistory(env, { game_id, action, target, note, actor_id }) {
-  try {
-    // Best-effort actor name lookup — use runner_id from profiles
-    let actor_name = null;
-    try {
-      const profResult = await supabaseQuery(env,
-        `profiles?user_id=eq.${encodeURIComponent(actor_id)}&select=runner_id,display_name`,
-        { method: 'GET' });
-      if (profResult.ok && profResult.data?.length) {
-        actor_name = profResult.data[0].display_name || profResult.data[0].runner_id || null;
-      }
-    } catch { /* ignore */ }
-
-    await supabaseQuery(env, 'game_history', {
-      method: 'POST',
-      body: { game_id, action, target: target || null, note: note || null, actor_id, actor_name }
-    });
-  } catch { /* best-effort — never block main flow */ }
 }

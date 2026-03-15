@@ -22,8 +22,10 @@ import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/publi
 export const supabase = createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
 	auth: {
 		flowType: 'pkce',
-		// Server hook handles token refresh via getSession()
-		autoRefreshToken: false,
+		// Auto-refresh keeps the session alive during long client-side sessions
+		// (profile edit, game submit, game editor). The server hook writes
+		// refreshed tokens back to cookies via setAll().
+		autoRefreshToken: true,
 		// Server callback handles the code exchange — don't try client-side
 		detectSessionInUrl: false
 	}

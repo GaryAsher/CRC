@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// DISCORD WEBHOOK
+// Discord Webhook Notifications
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const SITE_URL = 'https://www.challengerun.net';
 
 /** Pick the right Discord webhook URL for the notification type */
-function getWebhookUrl(env, channel) {
+export function getWebhookUrl(env, channel) {
   switch (channel) {
     case 'runs':     return env.DISCORD_WEBHOOK_RUNS;
     case 'games':    return env.DISCORD_WEBHOOK_GAMES;
@@ -17,11 +17,18 @@ function getWebhookUrl(env, channel) {
 export async function sendDiscordNotification(env, channel, embed) {
   const webhookUrl = getWebhookUrl(env, channel);
   if (!webhookUrl) {
-    console.warn(`Discord webhook not configured for channel: ${channel}`);
+    console.warn(`Discord webhook: no URL configured for channel "${channel}"`);
     return;
   }
 
   try {
+    // Discord rejects embeds with empty field values — sanitize them
+    if (embed.fields) {
+      embed.fields = embed.fields
+        .filter(f => f && f.name)
+        .map(f => ({ ...f, value: String(f.value || '—').slice(0, 1024) }));
+    }
+
     const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -30,11 +37,12 @@ export async function sendDiscordNotification(env, channel, embed) {
         embeds: [embed],
       }),
     });
+
     if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      console.error(`Discord webhook ${channel} failed (${res.status}):`, text);
+      const body = await res.text().catch(() => '');
+      console.error(`Discord webhook error [${channel}]: ${res.status} ${res.statusText}`, body);
     }
   } catch (err) {
-    console.error('Discord webhook error:', err);
+    console.error(`Discord webhook fetch failed [${channel}]:`, err);
   }
 }

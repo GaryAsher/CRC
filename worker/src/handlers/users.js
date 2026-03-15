@@ -1,40 +1,17 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// USER / ROLE HANDLERS
+// User Handlers — Assign Role, Data Export, Delete Account
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { jsonResponse } from '../lib/cors.js';
 import { sanitizeInput } from '../lib/utils.js';
-import { supabaseQuery, verifySupabaseToken, isAdmin, writeGameHistory } from '../lib/supabase.js';
-
-/**
- * Role hierarchy levels (higher = more powerful):
- *   4 = super_admin   (can assign: admin, moderator, verifier)
- *   3 = admin         (can assign: moderator, verifier)
- *   2 = moderator     (can assign: verifier)
- *   1 = verifier      (cannot assign anyone)
- *   0 = user          (cannot assign anyone)
- */
-function getRoleLevel(roleObj) {
-  if (roleObj.superAdmin) return 4;
-  if (roleObj.admin) return 3;
-  if (roleObj.moderator) return 2;
-  if (roleObj.verifier) return 1;
-  return 0;
-}
-
-function targetRoleLevel(roleName) {
-  switch (roleName) {
-    case 'admin': return 3;
-    case 'moderator': return 2;
-    case 'verifier': return 1;
-    case 'user': return 0;
-    default: return -1;
-  }
-}
+import { verifyTurnstile } from '../lib/turnstile.js';
+import { supabaseQuery, verifySupabaseToken, isAdmin, insertNotification } from '../lib/supabase.js';
+import { extractBearerToken } from '../lib/auth.js';
+import { writeGameHistory, getRoleLevel, targetRoleLevel } from '../lib/game-helpers.js';
 
 export async function handleAssignRole(body, env, request) {
   // 1. Authenticate the caller
-  const token = body.token;
+  const token = extractBearerToken(request);
   if (!token) return jsonResponse({ error: 'Missing token' }, 401, env, request);
 
   const callerUser = await verifySupabaseToken(env, token);
@@ -155,4 +132,193 @@ export async function handleAssignRole(body, env, request) {
     console.error('assign-role error:', err);
     return jsonResponse({ error: 'Internal error during role assignment' }, 500, env, request);
   }
+}
+
+export async function handleDataExport(body, env, request) {
+  // Authenticate — any signed-in user can export their own data
+  const auth = await authenticateUser(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+
+  const userId = auth.user.id;
+  const exportData = {
+    exported_at: new Date().toISOString(),
+    user_id: userId,
+    categories_collected: [
+      'Profile information (display name, bio, social links)',
+      'Run submissions and gaming activity',
+      'Account connections (Discord, Twitch)',
+      'Support communications',
+      'Moderation history (if applicable)',
+    ],
+    sections: {},
+  };
+
+  // 1. Profile
+  const profile = await supabaseQuery(env,
+    `profiles?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
+  exportData.sections.profile = profile.ok ? (profile.data || []) : [];
+
+  // 2. Pending profiles (in-progress profile edits)
+  const pendingProfiles = await supabaseQuery(env,
+    `pending_profiles?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
+  exportData.sections.pending_profiles = pendingProfiles.ok ? (pendingProfiles.data || []) : [];
+
+  // 3. Pending run submissions
+  const runs = await supabaseQuery(env,
+    `pending_runs?submitted_by=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
+  exportData.sections.pending_runs = runs.ok ? (runs.data || []) : [];
+
+  // 3b. Approved runs (GDPR Article 15 — all personal data must be included)
+  const runnerId = profile.ok && profile.data?.[0]?.runner_id;
+  if (runnerId) {
+    const approvedRuns = await supabaseQuery(env,
+      `runs?runner_id=eq.${encodeURIComponent(runnerId)}&select=*`, { method: 'GET' });
+    exportData.sections.approved_runs = approvedRuns.ok ? (approvedRuns.data || []) : [];
+
+    // 3c. Achievements
+    const achievements = await supabaseQuery(env,
+      `game_achievements?runner_id=eq.${encodeURIComponent(runnerId)}&select=*`, { method: 'GET' });
+    exportData.sections.achievements = achievements.ok ? (achievements.data || []) : [];
+  }
+
+  // 4. Linked accounts
+  const linked = await supabaseQuery(env,
+    `linked_accounts?user_id=eq.${encodeURIComponent(userId)}&select=provider,provider_username,created_at`, { method: 'GET' });
+  exportData.sections.linked_accounts = linked.ok ? (linked.data || []) : [];
+
+  // 5. Game submissions
+  const games = await supabaseQuery(env,
+    `pending_games?submitted_by=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
+  exportData.sections.game_submissions = games.ok ? (games.data || []) : [];
+
+  // 6. Game update requests
+  const updates = await supabaseQuery(env,
+    `game_update_requests?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
+  exportData.sections.game_update_requests = updates.ok ? (updates.data || []) : [];
+
+  // 7. Support tickets
+  const tickets = await supabaseQuery(env,
+    `support_tickets?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
+  exportData.sections.support_tickets = tickets.ok ? (tickets.data || []) : [];
+
+  // 8. Support messages
+  const messages = await supabaseQuery(env,
+    `support_messages?user_id=eq.${encodeURIComponent(userId)}&select=*`, { method: 'GET' });
+  exportData.sections.support_messages = messages.ok ? (messages.data || []) : [];
+
+  // 9. Profile audit log (actions performed on this user's profile)
+  if (runnerId) {
+    const audit = await supabaseQuery(env,
+      `audit_profile_log?runner_id=eq.${encodeURIComponent(runnerId)}&select=*`, { method: 'GET' });
+    exportData.sections.audit_log = audit.ok ? (audit.data || []) : [];
+  }
+
+  // 10. Moderator/admin record (reuses profile query from section 1)
+  if (profile.ok && profile.data?.length > 0) {
+    const p = profile.data[0];
+    if (p.is_admin || p.is_super_admin || p.role === 'moderator') {
+      exportData.sections.moderator_record = profile.data;
+    }
+  }
+
+  return jsonResponse(exportData, 200, env, request);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /delete-account (GDPR Article 17 — Right to Erasure)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export async function handleDeleteAccount(body, env, request) {
+  // Authenticate — user can only delete their own account
+  const auth = await authenticateUser(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+
+  // SECURITY: Require Turnstile verification for irreversible account deletion
+  const ip = request.headers.get('CF-Connecting-IP');
+  const turnstileOk = await verifyTurnstile(body.turnstile_token, env, ip);
+  if (!turnstileOk) {
+    return jsonResponse({ error: 'Verification failed. Please try again.' }, 403, env, request);
+  }
+
+  const userId = auth.user.id;
+
+  // 1. Look up profile to get runner_id (needed for anonymizing runs)
+  const profile = await supabaseQuery(env,
+    `profiles?user_id=eq.${encodeURIComponent(userId)}&select=runner_id,display_name`, { method: 'GET' });
+  const runnerId = profile.ok && profile.data?.[0]?.runner_id;
+
+  // 2. Anonymize approved runs (preserve leaderboard integrity)
+  if (runnerId) {
+    await supabaseQuery(env,
+      `runs?runner_id=eq.${encodeURIComponent(runnerId)}`, {
+        method: 'PATCH',
+        body: { runner_id: 'deleted-user', runner_name: 'Deleted User' },
+      });
+
+    // 3. Delete achievements
+    await supabaseQuery(env,
+      `game_achievements?runner_id=eq.${encodeURIComponent(runnerId)}`, { method: 'DELETE' });
+
+    // 4. Delete audit log entries
+    await supabaseQuery(env,
+      `audit_profile_log?runner_id=eq.${encodeURIComponent(runnerId)}`, { method: 'DELETE' });
+  }
+
+  // 5. Delete pending runs
+  await supabaseQuery(env,
+    `pending_runs?submitted_by=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 6. Delete support messages
+  await supabaseQuery(env,
+    `support_messages?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 7. Delete support tickets
+  await supabaseQuery(env,
+    `support_tickets?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 8. Delete game update requests
+  await supabaseQuery(env,
+    `game_update_requests?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 9. Delete pending games
+  await supabaseQuery(env,
+    `pending_games?submitted_by=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 10. Delete linked accounts
+  await supabaseQuery(env,
+    `linked_accounts?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 11. Delete role assignments
+  await supabaseQuery(env,
+    `role_game_verifiers?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+  await supabaseQuery(env,
+    `role_game_moderators?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 12. Delete pending profiles
+  await supabaseQuery(env,
+    `pending_profiles?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 13. Delete profile
+  await supabaseQuery(env,
+    `profiles?user_id=eq.${encodeURIComponent(userId)}`, { method: 'DELETE' });
+
+  // 14. Delete the auth user via Supabase Admin API
+  const authDeleteRes = await fetch(
+    `${env.SUPABASE_URL}/auth/v1/admin/users/${encodeURIComponent(userId)}`,
+    {
+      method: 'DELETE',
+      headers: {
+        apikey: env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      },
+    }
+  );
+
+  if (!authDeleteRes.ok) {
+    console.error('Failed to delete auth user:', authDeleteRes.status, await authDeleteRes.text());
+    // Data is already cleaned up — log the error but don't fail the request
+    // The orphaned auth record will have no associated data
+  }
+
+  return jsonResponse({ ok: true, message: 'Account deleted successfully' }, 200, env, request);
 }

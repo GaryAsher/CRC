@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// TURNSTILE
+// Turnstile CAPTCHA Verification
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function verifyTurnstile(token, env, ip) {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { user, session } from '$stores/auth';
 	import { supabase } from '$lib/supabase';
-	import { PUBLIC_SITE_URL, PUBLIC_WORKER_URL } from '$env/static/public';
+	import { PUBLIC_SITE_URL, PUBLIC_WORKER_URL, PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
 	import { getAccessToken } from '$lib/admin';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -17,6 +17,10 @@
 	let deleteError = $state('');
 	let exporting = $state(false);
 	let exportMessage = $state('');
+
+	// Turnstile for account deletion
+	let deleteTurnstileToken = $state('');
+	let deleteTurnstileWidgetId = $state<string | null>(null);
 
 	// Linked accounts
 	interface LinkedAccount {
@@ -52,6 +56,42 @@
 			await loadLinkedAccounts(sess.user.id);
 		} else {
 			linkedLoading = false;
+		}
+	});
+
+	// Render Turnstile widget when delete confirmation is shown
+	$effect(() => {
+		if (!showDeleteConfirm || !browser) return;
+		deleteTurnstileToken = '';
+
+		function renderWidget() {
+			const container = document.getElementById('turnstile-container-delete');
+			if (!container || !(window as any).turnstile) return;
+			if (deleteTurnstileWidgetId !== null) {
+				(window as any).turnstile.reset(deleteTurnstileWidgetId);
+				return;
+			}
+			deleteTurnstileWidgetId = (window as any).turnstile.render('#turnstile-container-delete', {
+				sitekey: PUBLIC_TURNSTILE_SITE_KEY,
+				callback: (token: string) => { deleteTurnstileToken = token; },
+				'expired-callback': () => { deleteTurnstileToken = ''; },
+				theme: 'auto',
+				size: 'normal',
+			});
+		}
+
+		// Load Turnstile script if not already present
+		if (!(window as any).turnstile) {
+			if (!document.querySelector('script[src*="turnstile"]')) {
+				const script = document.createElement('script');
+				script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoadDelete&render=explicit';
+				script.async = true;
+				document.head.appendChild(script);
+			}
+			(window as any).onTurnstileLoadDelete = renderWidget;
+		} else {
+			// Small delay to ensure the DOM container is mounted
+			requestAnimationFrame(renderWidget);
 		}
 	});
 
@@ -203,6 +243,10 @@
 	}
 
 	async function deleteAccount() {
+		if (!deleteTurnstileToken) {
+			deleteError = 'Please complete the verification challenge.';
+			return;
+		}
 		deleting = true;
 		deleteError = '';
 		try {
@@ -215,7 +259,7 @@
 					'Content-Type': 'application/json',
 					'Authorization': `Bearer ${token}`
 				},
-				body: JSON.stringify({})
+				body: JSON.stringify({ turnstile_token: deleteTurnstileToken })
 			});
 
 			const data = await res.json().catch(() => ({ error: 'Deletion failed' }));
@@ -231,6 +275,11 @@
 			deleteError = err?.message || 'Failed to delete account. Please try again.';
 		} finally {
 			deleting = false;
+			// Reset Turnstile widget so user can retry
+			if (deleteTurnstileWidgetId !== null && (window as any).turnstile) {
+				(window as any).turnstile.reset(deleteTurnstileWidgetId);
+				deleteTurnstileToken = '';
+			}
 		}
 	}
 </script>
@@ -364,9 +413,10 @@
 							bind:value={deleteConfirmText}
 							placeholder={m.settings_delete_placeholder()}
 						/>
+						<div id="turnstile-container-delete" style="margin: 0.75rem 0;"></div>
 						<button
 							class="btn btn--danger"
-							disabled={deleteConfirmText !== 'DELETE' || deleting}
+							disabled={deleteConfirmText !== 'DELETE' || !deleteTurnstileToken || deleting}
 							onclick={deleteAccount}
 						>
 							{deleting ? m.settings_deleting() : m.settings_delete_permanent()}

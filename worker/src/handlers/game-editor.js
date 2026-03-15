@@ -1,48 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// GAME EDITOR HANDLERS
+// Game Editor Handlers — Save, Freeze, Delete, Rollback
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { jsonResponse } from '../lib/cors.js';
-import { supabaseQuery, isAdmin, writeGameHistory } from '../lib/supabase.js';
+import { supabaseQuery } from '../lib/supabase.js';
 import { authenticateAdmin } from '../lib/auth.js';
-
-/** Fields that only admins (not moderators/verifiers) can change */
-const GAME_ADMIN_ONLY_FIELDS = ['game_name', 'game_name_aliases', 'status'];
-
-/** All allowed game data fields — anything not in this list is stripped */
-const GAME_ALLOWED_FIELDS = [
-  'game_name', 'game_name_aliases', 'status', 'timing_method',
-  'genres', 'platforms', 'cover', 'cover_position',
-  'full_runs', 'mini_challenges', 'player_made',
-  'general_rules', 'challenges_data', 'glitches_data',
-  'restrictions_data', 'character_column', 'characters_data',
-  'difficulty_column', 'difficulties_data',
-  'additional_tabs', 'community_achievements', 'credits',
-  'is_modded', 'base_game', 'tabs', 'reviewers',
-  'nmg_rules', 'glitch_doc_links'
-];
-
-/** Verify caller has game editor access for a specific game */
-export async function checkGameEditorAccess(env, userId, gameId) {
-  const role = await isAdmin(env, userId);
-
-  // Admins and super admins can edit any game
-  if (role.admin) return { allowed: true, role, isAdmin: true };
-
-  // Moderators can edit games they're assigned to
-  if (role.moderator) {
-    const modCheck = await supabaseQuery(env,
-      `role_game_moderators?user_id=eq.${encodeURIComponent(userId)}&game_id=eq.${encodeURIComponent(gameId)}&select=id`,
-      { method: 'GET' });
-    if (modCheck.ok && Array.isArray(modCheck.data) && modCheck.data.length > 0) {
-      return { allowed: true, role, isAdmin: false };
-    }
-  }
-
-  return { allowed: false, role, isAdmin: false };
-}
-
-// ── POST /game-editor/save ──────────────────────────────────────────────────
+import { writeGameHistory, checkGameEditorAccess, GAME_ALLOWED_FIELDS, GAME_ADMIN_ONLY_FIELDS } from '../lib/game-helpers.js';
 
 export async function handleGameEditorSave(body, env, request) {
   // 1. Authenticate
@@ -106,6 +69,33 @@ export async function handleGameEditorSave(body, env, request) {
     });
   } catch { /* best-effort */ }
 
+  // 5b. Auto-increment rules_version for rules-related sections + write changelog
+  const RULES_SECTIONS = ['rules', 'challenges', 'restrictions', 'categories'];
+  if (RULES_SECTIONS.includes(section_name)) {
+    const newVersion = (currentGame.rules_version || 1) + 1;
+    sanitized.rules_version = newVersion;
+
+    // Write changelog entry (best-effort)
+    try {
+      const oldRulesData = {};
+      for (const key of Object.keys(sanitized)) oldRulesData[key] = currentGame[key];
+      await supabaseQuery(env, 'rules_changelog', {
+        method: 'POST',
+        body: {
+          game_id,
+          rules_version: newVersion,
+          changed_by: auth.user.id,
+          change_summary: body.change_summary || `${section_name} updated`,
+          sections_changed: [section_name],
+          old_rules: oldRulesData,
+          new_rules: sanitized,
+        },
+      });
+    } catch (err) {
+      console.error('Rules changelog write failed:', err);
+    }
+  }
+
   // 6. Update game
   const updateResult = await supabaseQuery(env,
     `games?game_id=eq.${encodeURIComponent(game_id)}`, {
@@ -135,24 +125,15 @@ export async function handleGameEditorSave(body, env, request) {
     });
   } catch { /* best-effort */ }
 
-  await writeGameHistory(env, {
-    game_id,
-    action: 'info_updated',
-    target: section_name,
-    note: null,
-    actor_id: auth.user.id,
-  });
-
   const updatedGame = Array.isArray(updateResult.data) ? updateResult.data[0] : updateResult.data;
 
-  // History audit
-  writeGameHistory(env, {
+  // Game history audit (single entry — the duplicate 'info_updated' call was removed)
+  await writeGameHistory(env, {
     game_id,
     action: 'game_edited',
     target: section_name,
     note: `${section_name} updated`,
     actor_id: auth.user.id,
-
   });
 
   return jsonResponse({ ok: true, message: `${section_name} saved`, game: updatedGame }, 200, env, request);

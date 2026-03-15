@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// PROFILE HANDLERS
+// Profile Handlers — Approve, Reject, Request Changes
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { jsonResponse } from '../lib/cors.js';
-import { isValidId } from '../lib/utils.js';
-import { supabaseQuery } from '../lib/supabase.js';
+import { sanitizeInput, isValidId } from '../lib/utils.js';
+import { supabaseQuery, insertNotification } from '../lib/supabase.js';
 import { authenticateAdmin } from '../lib/auth.js';
 import { sendDiscordNotification, SITE_URL } from '../lib/discord.js';
 
@@ -90,6 +90,16 @@ export async function handleApproveProfile(body, env, request) {
     timestamp: now,
   });
 
+  // In-app notification to user
+  await insertNotification(env, profile.user_id, 'profile_approved',
+    'Your profile has been approved!',
+    {
+      message: body.notes || null,
+      link: runnerId ? `/runners/${runnerId}` : '/profile',
+      metadata: { runner_id: runnerId },
+    }
+  );
+
   return jsonResponse({
     ok: true,
     message: 'Profile approved — visible on site immediately',
@@ -126,6 +136,9 @@ export async function handleRejectProfile(body, env, request) {
 
   if (!updateResult.ok) return jsonResponse({ error: 'Failed to reject profile' }, 500, env, request);
 
+  // Get user_id from the PATCH response (Prefer: return=representation)
+  const rejectedProfile = Array.isArray(updateResult.data) ? updateResult.data[0] : null;
+
   await sendDiscordNotification(env, 'profiles', {
     title: '❌ Profile Rejected',
     color: 0xdc3545,
@@ -136,6 +149,17 @@ export async function handleRejectProfile(body, env, request) {
     ],
     timestamp: now,
   });
+
+  // In-app notification to user
+  if (rejectedProfile?.user_id) {
+    await insertNotification(env, rejectedProfile.user_id, 'profile_rejected',
+      'Your profile was not approved',
+      {
+        message: reason,
+        link: '/profile/submissions',
+      }
+    );
+  }
 
   return jsonResponse({ ok: true, message: 'Profile rejected.' }, 200, env, request);
 }
@@ -169,6 +193,9 @@ export async function handleRequestProfileChanges(body, env, request) {
 
   if (!updateResult.ok) return jsonResponse({ error: 'Failed to update profile' }, 500, env, request);
 
+  // Get user_id from the PATCH response
+  const changesProfile = Array.isArray(updateResult.data) ? updateResult.data[0] : null;
+
   await sendDiscordNotification(env, 'profiles', {
     title: '✏️ Profile Changes Requested',
     color: 0x17a2b8,
@@ -179,5 +206,21 @@ export async function handleRequestProfileChanges(body, env, request) {
     timestamp: now,
   });
 
+  // In-app notification to user
+  if (changesProfile?.user_id) {
+    await insertNotification(env, changesProfile.user_id, 'profile_needs_changes',
+      'Changes requested on your profile',
+      {
+        message: notes,
+        link: '/profile/submissions',
+      }
+    );
+  }
+
   return jsonResponse({ ok: true, message: 'Changes requested.' }, 200, env, request);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /approve-game
+// ═══════════════════════════════════════════════════════════════════════════════
+

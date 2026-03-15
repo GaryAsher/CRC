@@ -49,10 +49,14 @@ export async function loadNotifications(): Promise<void> {
  * Mark a single notification as read.
  */
 export async function markRead(id: string): Promise<void> {
+	const { data: { session } } = await supabase.auth.getSession();
+	if (!session) return;
+
 	const { error } = await supabase
 		.from('notifications')
 		.update({ read: true })
-		.eq('id', id);
+		.eq('id', id)
+		.eq('user_id', session.user.id);
 
 	if (!error) {
 		notifications.update((all) =>

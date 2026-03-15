@@ -11,6 +11,7 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 - [ ] Add default profile picture and default banner
 - [ ] **Favicon** — update once we have a logo (currently empty placeholder)
 - [ ] Discord webhooks for profile waiting approval = waiting for someone to make a profile
+- [ ] Discord webhooks for game submission = waiting for someone to make a profile
 
 ### Visual Reworks:
 - Runner Page:
@@ -24,9 +25,6 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 
 ## Immediate Priorities
 ### 1. Bug Fixes
-- [ ] Discord webhooks for game submission not working
-- Header
-  - [ ] Update Notifications button to be the same size as the Languages button
 
 ### 2. Spanish Language Support
 - [ ] Update translation excel file then ask for help

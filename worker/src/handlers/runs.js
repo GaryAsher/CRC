@@ -1,20 +1,14 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// RUN HANDLERS
+// Run Handlers — Submit, Approve, Reject, Edit, Verify, Withdraw
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { jsonResponse } from '../lib/cors.js';
-import { sanitizeInput, sanitizeArray, isValidId, isValidSlug, isValidVideoUrl, generateSubmissionId } from '../lib/utils.js';
+import { sanitizeInput, sanitizeArray, isValidId, isValidVideoUrl, isValidSlug, generateSubmissionId } from '../lib/utils.js';
 import { verifyTurnstile } from '../lib/turnstile.js';
-import { supabaseQuery, writeGameHistory } from '../lib/supabase.js';
+import { supabaseQuery, insertNotification } from '../lib/supabase.js';
 import { authenticateAdmin, authenticateUser } from '../lib/auth.js';
 import { sendDiscordNotification, SITE_URL } from '../lib/discord.js';
-
-// Returns true if a claim is still within its 2-week enforcement window
-function isClaimActive(claimedAt) {
-  if (!claimedAt) return false;
-  const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
-  return (Date.now() - new Date(claimedAt).getTime()) < TWO_WEEKS_MS;
-}
+import { writeGameHistory, isClaimActive } from '../lib/game-helpers.js';
 
 export async function handleRunSubmission(body, env, request) {
   // ── 1. Authenticate user ──────────────────────────────────────────────────
@@ -70,6 +64,19 @@ export async function handleRunSubmission(body, env, request) {
     return jsonResponse({ error: 'Captcha verification failed. Please try again.' }, 403, env, request);
   }
 
+  // ── 5b. Fetch game to stamp rules_version ─────────────────────────────────
+  const gameResult = await supabaseQuery(env,
+    `games?game_id=eq.${encodeURIComponent(body.game_id)}&select=rules_version,status`,
+    { method: 'GET' });
+  const gameData = (gameResult.ok && Array.isArray(gameResult.data) && gameResult.data.length > 0)
+    ? gameResult.data[0] : null;
+  if (!gameData) {
+    return jsonResponse({ error: 'Game not found' }, 404, env, request);
+  }
+  if (gameData.status !== 'Active' && gameData.status !== 'Community Review') {
+    return jsonResponse({ error: 'This game is not currently accepting submissions.' }, 400, env, request);
+  }
+
   // ── 6. Build DB row (correct column names, sanitized) ─────────────────────
   const submissionId = generateSubmissionId();
   const row = {
@@ -97,6 +104,7 @@ export async function handleRunSubmission(body, env, request) {
     schema_version:       body.schema_version || 7,
     submission_id:        submissionId,
     submitted_at:         new Date().toISOString(),
+    rules_version:        gameData.rules_version || 1,
   };
 
   // ── 7. Insert into pending_runs ───────────────────────────────────────────
@@ -220,6 +228,7 @@ export async function handleApproveRun(body, env, request) {
       verified_by: null,
       verified_at: null,
       verifier_notes: body.notes || null,
+      rules_version: run.rules_version || 1,
     },
   });
 
@@ -264,11 +273,26 @@ export async function handleApproveRun(body, env, request) {
     actor_id: auth.user.id,
   });
 
+  // In-app notification to submitter
+  await insertNotification(env, run.submitted_by, 'run_approved',
+    `Your ${run.game_id} run was approved`,
+    {
+      message: body.notes || null,
+      link: `/games/${run.game_id}/runs`,
+      metadata: { game_id: run.game_id, category: run.category },
+    }
+  );
+
   return jsonResponse({
     ok: true,
     message: 'Run published — visible on site. Awaiting game moderator verification.',
   }, 200, env, request);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /approve-profile
+// ═══════════════════════════════════════════════════════════════════════════════
+
 
 export async function handleRejectRun(body, env, request) {
   const auth = await authenticateAdmin(env, body, request);
@@ -280,7 +304,7 @@ export async function handleRejectRun(body, env, request) {
 
   // Fetch run to check game-level permissions and claim
   const runResult = await supabaseQuery(env,
-    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=game_id,claimed_by,claimed_at`, { method: 'GET' });
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=game_id,claimed_by,claimed_at,submitted_by`, { method: 'GET' });
   if (!runResult.ok || !runResult.data?.length) {
     return jsonResponse({ error: 'Run not found' }, 404, env, request);
   }
@@ -337,6 +361,16 @@ export async function handleRejectRun(body, env, request) {
     actor_id: auth.user.id,
   });
 
+  // In-app notification to submitter
+  await insertNotification(env, rejRun.submitted_by, 'run_rejected',
+    'Your run submission was not approved',
+    {
+      message: reason,
+      link: '/profile/submissions',
+      metadata: { game_id: rejRun.game_id },
+    }
+  );
+
   return jsonResponse({ ok: true, message: 'Run rejected.' }, 200, env, request);
 }
 
@@ -357,7 +391,7 @@ export async function handleRequestRunChanges(body, env, request) {
 
   // Fetch run to check game-level permissions and claim
   const runResult = await supabaseQuery(env,
-    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=game_id,claimed_by,claimed_at`, { method: 'GET' });
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=game_id,claimed_by,claimed_at,submitted_by`, { method: 'GET' });
   if (!runResult.ok || !runResult.data?.length) {
     return jsonResponse({ error: 'Run not found' }, 404, env, request);
   }
@@ -407,6 +441,16 @@ export async function handleRequestRunChanges(body, env, request) {
     note: notes,
     actor_id: auth.user.id,
   });
+
+  // In-app notification to submitter
+  await insertNotification(env, chgRun.submitted_by, 'run_needs_changes',
+    'Changes requested on your run submission',
+    {
+      message: notes,
+      link: '/profile/submissions',
+      metadata: { game_id: chgRun.game_id },
+    }
+  );
 
   return jsonResponse({ ok: true, message: 'Changes requested.' }, 200, env, request);
 }
@@ -512,6 +556,150 @@ export async function handleEditApprovedRun(body, env, request) {
   return jsonResponse({
     ok: true,
     message: `Run updated (${changedFields.length} field${changedFields.length !== 1 ? 's' : ''}).`,
+  }, 200, env, request);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /staff-edit-pending-run (Verifier/admin edits a pending run)
+// ═══════════════════════════════════════════════════════════════════════════════
+// Unlike /edit-pending-run (runner edits own submission), this endpoint is for
+// staff correcting data before approval. It notifies the runner of changes.
+
+export async function handleStaffEditPendingRun(body, env, request) {
+  const auth = await authenticateAdmin(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+
+  const runId = body.run_id;
+  if (!runId) return jsonResponse({ error: 'Missing run_id' }, 400, env, request);
+  if (!isValidId(runId)) return jsonResponse({ error: 'Invalid run_id format' }, 400, env, request);
+
+  const edits = body.edits;
+  if (!edits || typeof edits !== 'object' || Object.keys(edits).length === 0) {
+    return jsonResponse({ error: 'No edits provided' }, 400, env, request);
+  }
+
+  // Fetch the pending run
+  const runResult = await supabaseQuery(env,
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=*`, { method: 'GET' });
+  if (!runResult.ok || !runResult.data?.length) {
+    return jsonResponse({ error: 'Run not found' }, 404, env, request);
+  }
+  const run = runResult.data[0];
+
+  if (run.status !== 'pending' && run.status !== 'needs_changes') {
+    return jsonResponse({ error: 'Only pending or needs_changes runs can be edited' }, 400, env, request);
+  }
+
+  // Verifiers can only edit runs for their assigned games
+  if (auth.role.verifier && !auth.role.admin) {
+    if (!auth.role.assignedGames?.includes(run.game_id)) {
+      return jsonResponse({ error: 'Not authorized for this game' }, 403, env, request);
+    }
+  }
+
+  // Allowlisted fields verifiers can correct on pending runs
+  const ALLOWED_FIELDS = [
+    'category', 'category_tier',
+    'character', 'standard_challenges', 'restrictions',
+    'time_primary', 'time_rta',
+    'run_date', 'platform'
+  ];
+
+  // Build sanitized update payload
+  const updates = {};
+  const changedFields = [];
+  for (const [key, value] of Object.entries(edits)) {
+    if (!ALLOWED_FIELDS.includes(key)) continue;
+
+    if (['standard_challenges', 'restrictions'].includes(key)) {
+      if (!Array.isArray(value)) continue;
+      if (value.some(v => typeof v !== 'string' || v.length > 100)) continue;
+      updates[key] = value;
+    } else if (typeof value === 'string') {
+      if (value.length > 500) continue;
+      updates[key] = value || null;
+    } else if (value === null) {
+      updates[key] = null;
+    }
+    changedFields.push(key);
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return jsonResponse({ error: 'No valid edits after validation' }, 400, env, request);
+  }
+
+  // Add verifier notes and timestamp
+  const notes = body.notes ? sanitizeInput(body.notes, 500) : `Fields edited: ${changedFields.join(', ')}`;
+  updates.verifier_notes = notes;
+  updates.updated_at = new Date().toISOString();
+
+  // Apply the update
+  const patchResult = await supabaseQuery(env,
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}`, {
+      method: 'PATCH',
+      body: updates,
+    });
+
+  if (!patchResult.ok) {
+    console.error('Staff edit pending run error:', patchResult.data);
+    return jsonResponse({ error: 'Failed to update submission' }, 500, env, request);
+  }
+
+  // Audit log
+  try {
+    await supabaseQuery(env, 'audit_log', {
+      method: 'POST',
+      body: {
+        table_name: 'pending_runs',
+        action: 'run_edited',
+        record_id: runId,
+        user_id: auth.user.id,
+        old_data: Object.fromEntries(changedFields.map(k => [k, run[k] ?? null])),
+        new_data: { ...updates, notes },
+      },
+    });
+  } catch (err) {
+    console.error('Audit log write failed:', err);
+  }
+
+  // Notify the runner that their submission was edited
+  if (run.submitted_by) {
+    const fieldLabels = {
+      category: 'Category', category_tier: 'Tier',
+      character: 'Character', standard_challenges: 'Challenges',
+      restrictions: 'Restrictions', time_primary: 'Primary Time',
+      time_rta: 'RTA Time', run_date: 'Date Completed', platform: 'Platform',
+    };
+    const readableFields = changedFields.map(k => fieldLabels[k] || k).join(', ');
+
+    await insertNotification(env, run.submitted_by, 'run_edited',
+      'A verifier corrected your pending submission',
+      {
+        message: `Updated: ${readableFields}. ${notes}`,
+        link: '/profile/submissions',
+        metadata: { run_id: runId, game_id: run.game_id, fields: changedFields },
+      }
+    );
+  }
+
+  // Discord notification
+  const now = new Date().toISOString();
+  await sendDiscordNotification(env, 'runs', {
+    title: '✏️ Pending Run Edited by Staff',
+    url: `${SITE_URL}/games/${run.game_id}`,
+    color: 0x17a2b8,
+    fields: [
+      { name: 'Game', value: run.game_id, inline: true },
+      { name: 'Runner', value: run.runner_id || 'Unknown', inline: true },
+      { name: 'Fields Changed', value: changedFields.join(', '), inline: false },
+      ...(notes ? [{ name: 'Notes', value: notes, inline: false }] : []),
+    ],
+    timestamp: now,
+  });
+
+  return jsonResponse({
+    ok: true,
+    message: `Pending run updated (${changedFields.length} field${changedFields.length !== 1 ? 's' : ''}).`,
   }, 200, env, request);
 }
 
@@ -655,3 +843,120 @@ export async function handleUnverifyRun(body, env, request) {
   return jsonResponse({ ok: true, message: 'Verification revoked.' }, 200, env, request);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /reject-game
+// ═══════════════════════════════════════════════════════════════════════════════
+
+
+export async function handleEditPendingRun(body, env, request) {
+  // ── 1. Authenticate ────────────────────────────────────────────────────────
+  const auth = await authenticateUser(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+
+  const runId = body.run_id;
+  if (!runId) return jsonResponse({ error: 'Missing run_id' }, 400, env, request);
+  if (!isValidId(runId)) return jsonResponse({ error: 'Invalid run_id format' }, 400, env, request);
+
+  // ── 2. Fetch and verify ownership ──────────────────────────────────────────
+  const runResult = await supabaseQuery(env,
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=*`, { method: 'GET' });
+  if (!runResult.ok || !runResult.data?.length) {
+    return jsonResponse({ error: 'Run not found' }, 404, env, request);
+  }
+  const run = runResult.data[0];
+
+  if (run.submitted_by !== auth.user.id) {
+    return jsonResponse({ error: 'You can only edit your own submissions' }, 403, env, request);
+  }
+  if (run.status !== 'pending') {
+    return jsonResponse({ error: 'Only pending submissions can be edited' }, 400, env, request);
+  }
+  if (run.claimed_by && isClaimActive(run.claimed_at)) {
+    return jsonResponse({ error: 'This submission is currently under review and cannot be edited' }, 423, env, request);
+  }
+
+  // ── 3. Build update object (allowlisted fields only) ──────────────────────
+  const updates = { updated_at: new Date().toISOString() };
+
+  // Only include fields the user actually sent
+  if (body.category !== undefined)            updates.category = sanitizeInput(body.category, 100);
+  if (body.category_tier !== undefined)       updates.category_tier = sanitizeInput(body.category_tier, 50);
+  if (body.standard_challenges !== undefined) updates.standard_challenges = sanitizeArray(body.standard_challenges);
+  if (body.community_challenge !== undefined) updates.community_challenge = body.community_challenge ? sanitizeInput(body.community_challenge, 200) : null;
+  if (body.character !== undefined)           updates.character = body.character ? sanitizeInput(body.character, 100) : null;
+  if (body.difficulty !== undefined)          updates.difficulty = body.difficulty ? sanitizeInput(body.difficulty, 100) : null;
+  if (body.glitch_id !== undefined)           updates.glitch_id = body.glitch_id ? sanitizeInput(body.glitch_id, 50) : null;
+  if (body.restrictions !== undefined)        updates.restrictions = sanitizeArray(body.restrictions);
+  if (body.platform !== undefined)            updates.platform = body.platform ? sanitizeInput(body.platform, 50) : null;
+  if (body.video_url !== undefined) {
+    if (!isValidVideoUrl(body.video_url)) {
+      return jsonResponse({ error: 'Invalid video URL' }, 400, env, request);
+    }
+    updates.video_url = sanitizeInput(body.video_url, 500);
+  }
+  if (body.run_date !== undefined)            updates.run_date = body.run_date ? sanitizeInput(body.run_date, 10) : null;
+  if (body.time_rta !== undefined)            updates.time_rta = body.time_rta ? sanitizeInput(body.time_rta, 20) : null;
+  if (body.time_primary !== undefined)        updates.time_primary = body.time_primary ? sanitizeInput(body.time_primary, 20) : null;
+  if (body.submitter_notes !== undefined)     updates.submitter_notes = body.submitter_notes ? sanitizeInput(body.submitter_notes, 500) : null;
+  if (body.additional_runners !== undefined)  updates.additional_runners = Array.isArray(body.additional_runners) ? sanitizeArray(body.additional_runners, 10, 60) : null;
+
+  // ── 4. Validate required fields still present ─────────────────────────────
+  const finalCategory = updates.category || run.category;
+  const finalVideo = updates.video_url || run.video_url;
+  if (!finalCategory) return jsonResponse({ error: 'Category is required' }, 400, env, request);
+  if (!finalVideo) return jsonResponse({ error: 'Video URL is required' }, 400, env, request);
+
+  // ── 5. Apply update ───────────────────────────────────────────────────────
+  const patchResult = await supabaseQuery(env,
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}`, {
+      method: 'PATCH',
+      body: updates,
+    });
+
+  if (!patchResult.ok) {
+    console.error('Edit pending run error:', patchResult.data);
+    return jsonResponse({ error: 'Failed to update submission' }, 500, env, request);
+  }
+
+  return jsonResponse({ ok: true, message: 'Submission updated' }, 200, env, request);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /withdraw-pending-run (User withdraws own pending run)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export async function handleWithdrawPendingRun(body, env, request) {
+  const auth = await authenticateUser(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+
+  const runId = body.run_id;
+  if (!runId) return jsonResponse({ error: 'Missing run_id' }, 400, env, request);
+  if (!isValidId(runId)) return jsonResponse({ error: 'Invalid run_id format' }, 400, env, request);
+
+  const runResult = await supabaseQuery(env,
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}&select=submitted_by,status,claimed_by,claimed_at`, { method: 'GET' });
+  if (!runResult.ok || !runResult.data?.length) {
+    return jsonResponse({ error: 'Run not found' }, 404, env, request);
+  }
+  const run = runResult.data[0];
+
+  if (run.submitted_by !== auth.user.id) {
+    return jsonResponse({ error: 'You can only withdraw your own submissions' }, 403, env, request);
+  }
+  if (run.status !== 'pending') {
+    return jsonResponse({ error: 'Only pending submissions can be withdrawn' }, 400, env, request);
+  }
+  if (run.claimed_by && isClaimActive(run.claimed_at)) {
+    return jsonResponse({ error: 'This submission is currently under review and cannot be withdrawn' }, 423, env, request);
+  }
+
+  const deleteResult = await supabaseQuery(env,
+    `pending_runs?public_id=eq.${encodeURIComponent(runId)}`, { method: 'DELETE' });
+
+  if (!deleteResult.ok) {
+    console.error('Withdraw pending run error:', deleteResult.data);
+    return jsonResponse({ error: 'Failed to withdraw submission' }, 500, env, request);
+  }
+
+  return jsonResponse({ ok: true, message: 'Submission withdrawn' }, 200, env, request);
+}

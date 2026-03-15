@@ -1,13 +1,14 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// GAME HANDLERS
+// Game Handlers — Submit, Approve, Reject, Edit, Withdraw, Support, Check
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { jsonResponse } from '../lib/cors.js';
 import { sanitizeInput, sanitizeArray, isValidId, slugify } from '../lib/utils.js';
 import { verifyTurnstile } from '../lib/turnstile.js';
-import { supabaseQuery, writeGameHistory } from '../lib/supabase.js';
+import { supabaseQuery, insertNotification } from '../lib/supabase.js';
 import { authenticateAdmin, authenticateUser } from '../lib/auth.js';
 import { sendDiscordNotification, SITE_URL } from '../lib/discord.js';
+import { writeGameHistory, isClaimActive } from '../lib/game-helpers.js';
 
 export async function handleGameSubmission(body, env, request) {
   // ── 1. Authenticate user ────────────────────────────────────────────────
@@ -27,20 +28,25 @@ export async function handleGameSubmission(body, env, request) {
     return jsonResponse({ error: 'Invalid game name' }, 400, env, request);
   }
 
-  // At least one category (full run or mini-challenge) required
-  const hasFullRun = Array.isArray(body.full_run_categories) && body.full_run_categories.some(c =>
-    typeof c === 'string' ? c.trim() : (c && c.label && c.label.trim())
-  );
-  const hasMini = Array.isArray(body.mini_challenges) && body.mini_challenges.some(c =>
-    typeof c === 'string' ? c.trim() : (c && c.label && c.label.trim())
-  );
-  if (!hasFullRun && !hasMini) {
-    return jsonResponse({ error: 'At least 1 run category is required' }, 400, env, request);
-  }
+  // Basic submissions skip structured data validation — admins will add it during review
+  const isBasicSubmission = body.submission_type === 'basic';
 
-  // At least one challenge required
-  if (!Array.isArray(body.challenges) || body.challenges.length === 0) {
-    return jsonResponse({ error: 'At least 1 challenge type is required' }, 400, env, request);
+  if (!isBasicSubmission) {
+    // At least one category (full run or mini-challenge) required
+    const hasFullRun = Array.isArray(body.full_run_categories) && body.full_run_categories.some(c =>
+      typeof c === 'string' ? c.trim() : (c && c.label && c.label.trim())
+    );
+    const hasMini = Array.isArray(body.mini_challenges) && body.mini_challenges.some(c =>
+      typeof c === 'string' ? c.trim() : (c && c.label && c.label.trim())
+    );
+    if (!hasFullRun && !hasMini) {
+      return jsonResponse({ error: 'At least 1 run category is required' }, 400, env, request);
+    }
+
+    // At least one challenge required
+    if (!Array.isArray(body.challenges) || body.challenges.length === 0) {
+      return jsonResponse({ error: 'At least 1 challenge type is required' }, 400, env, request);
+    }
   }
 
   // If characters enabled, need at least 2
@@ -90,6 +96,7 @@ export async function handleGameSubmission(body, env, request) {
     status: 'pending',
     // Rich structured data in JSONB
     game_data: {
+      submission_type: isBasicSubmission ? 'basic' : 'advanced',
       timing_method: body.timing_method || 'RTA',
       character_column: {
         enabled: body.character_enabled || false,
@@ -175,14 +182,18 @@ export async function handleGameSubmission(body, env, request) {
 
   // ── 5. Discord notification ─────────────────────────────────────────────
   await sendDiscordNotification(env, 'games', {
-    title: '🎮 New Game Submitted',
+    title: isBasicSubmission ? '🎮 New Game Submitted (Basic)' : '🎮 New Game Submitted',
     url: `${SITE_URL}/admin/games`,
     color: 0x5865f2,
     fields: [
       { name: 'Game', value: gameName, inline: true },
       { name: 'ID', value: gameId, inline: true },
-      { name: 'Categories', value: `${(body.full_run_categories || []).length} full, ${(body.mini_challenges || []).length} mini`, inline: true },
-      { name: 'Challenges', value: `${(body.challenges || []).length} selected`, inline: true },
+      ...(isBasicSubmission
+        ? [{ name: 'Type', value: '📝 Basic — needs structured data', inline: true }]
+        : [
+            { name: 'Categories', value: `${(body.full_run_categories || []).length} full, ${(body.mini_challenges || []).length} mini`, inline: true },
+            { name: 'Challenges', value: `${(body.challenges || []).length} selected`, inline: true },
+          ]),
       { name: 'Platforms', value: `${(body.platforms || []).length} selected`, inline: true },
       ...(body.custom_genres && body.custom_genres.length > 0
         ? [{ name: 'Custom Genres', value: body.custom_genres.join(', '), inline: true }]
@@ -292,7 +303,7 @@ export async function handleApproveGame(body, env, request) {
       game_id: game.game_id,
       game_name: game.game_name,
       game_name_aliases: game.game_name_aliases || [],
-      status: 'Active',
+      status: (body.approve_as === 'Community Review') ? 'Community Review' : 'Active',
       reviewers: [],
       is_modded: false,
       base_game: null,
@@ -366,6 +377,16 @@ export async function handleApproveGame(body, env, request) {
 
   });
 
+  // In-app notification to submitter
+  await insertNotification(env, game.submitted_by, 'game_approved',
+    `${game.game_name} has been approved!`,
+    {
+      message: body.notes || null,
+      link: `/games/${game.game_id}`,
+      metadata: { game_id: game.game_id },
+    }
+  );
+
   return jsonResponse({
     ok: true,
     message: 'Game approved — visible on site immediately',
@@ -398,6 +419,9 @@ export async function handleRejectGame(body, env, request) {
 
   if (!updateResult.ok) return jsonResponse({ error: 'Failed to reject game' }, 500, env, request);
 
+  // Get submitted_by from the PATCH response
+  const rejectedGame = Array.isArray(updateResult.data) ? updateResult.data[0] : null;
+
   await sendDiscordNotification(env, 'games', {
     title: '❌ Game Rejected',
     color: 0xdc3545,
@@ -408,6 +432,18 @@ export async function handleRejectGame(body, env, request) {
     ],
     timestamp: now,
   });
+
+  // In-app notification to submitter
+  if (rejectedGame?.submitted_by) {
+    await insertNotification(env, rejectedGame.submitted_by, 'game_rejected',
+      'Your game request was not approved',
+      {
+        message: reason,
+        link: '/profile/submissions',
+        metadata: { game_id: rejectedGame.game_id },
+      }
+    );
+  }
 
   return jsonResponse({ ok: true, message: 'Game rejected.' }, 200, env, request);
 }
@@ -441,6 +477,9 @@ export async function handleRequestGameChanges(body, env, request) {
 
   if (!updateResult.ok) return jsonResponse({ error: 'Failed to update game' }, 500, env, request);
 
+  // Get submitted_by from the PATCH response
+  const changesGame = Array.isArray(updateResult.data) ? updateResult.data[0] : null;
+
   await sendDiscordNotification(env, 'games', {
     title: '✏️ Game Changes Requested',
     color: 0x17a2b8,
@@ -451,8 +490,33 @@ export async function handleRequestGameChanges(body, env, request) {
     timestamp: now,
   });
 
+  // In-app notification to submitter
+  if (changesGame?.submitted_by) {
+    await insertNotification(env, changesGame.submitted_by, 'game_needs_changes',
+      'Changes requested on your game submission',
+      {
+        message: notes,
+        link: '/profile/submissions',
+        metadata: { game_id: changesGame.game_id },
+      }
+    );
+  }
+
   return jsonResponse({ ok: true, message: 'Changes requested.' }, 200, env, request);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /assign-role (Manage user roles — hierarchical)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Role hierarchy levels (higher = more powerful):
+ *   4 = super_admin   (can assign: admin, moderator, verifier)
+ *   3 = admin         (can assign: moderator, verifier)
+ *   2 = moderator     (can assign: verifier)
+ *   1 = verifier      (cannot assign anyone)
+ *   0 = user          (cannot assign anyone)
+ */
 
 export async function handleCheckGameExists(body, env, request) {
   if (!body.game_name || typeof body.game_name !== 'string') {
@@ -465,7 +529,9 @@ export async function handleCheckGameExists(body, env, request) {
   }
 
   const candidateId = slugify(name);
-  const lowerName = name.toLowerCase();
+  // SECURITY: Escape SQL ilike wildcards (% and _) to prevent wildcard injection.
+  // Without this, a user submitting "%" would match all games.
+  const lowerName = name.toLowerCase().replace(/%/g, '\\%').replace(/_/g, '\\_');
 
   // Check live games — exact slug match OR case-insensitive name match
   const liveResult = await supabaseQuery(env,
@@ -604,4 +670,188 @@ export async function handleSupportGame(body, env, request) {
   });
 
   return jsonResponse({ ok: true, message: 'Your contribution has been saved!' }, 200, env, request);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROUTER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /edit-pending-run (User edits own pending run)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export async function handleEditPendingGame(body, env, request) {
+  const auth = await authenticateUser(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+
+  const gameId = body.game_id;
+  if (!gameId) return jsonResponse({ error: 'Missing game_id' }, 400, env, request);
+  if (!isValidId(gameId)) return jsonResponse({ error: 'Invalid game_id format' }, 400, env, request);
+
+  // Fetch by pending_games.id (UUID)
+  const gameResult = await supabaseQuery(env,
+    `pending_games?id=eq.${encodeURIComponent(gameId)}&select=*`, { method: 'GET' });
+  if (!gameResult.ok || !gameResult.data?.length) {
+    return jsonResponse({ error: 'Game not found' }, 404, env, request);
+  }
+  const game = gameResult.data[0];
+
+  if (game.submitted_by !== auth.user.id) {
+    return jsonResponse({ error: 'You can only edit your own submissions' }, 403, env, request);
+  }
+  if (game.status !== 'pending') {
+    return jsonResponse({ error: 'Only pending submissions can be edited' }, 400, env, request);
+  }
+  if (game.claimed_by && isClaimActive(game.claimed_at)) {
+    return jsonResponse({ error: 'This submission is currently under review and cannot be edited' }, 423, env, request);
+  }
+
+  // Build update object (allowlisted fields only)
+  const updates = { updated_at: new Date().toISOString() };
+
+  if (body.game_name !== undefined) {
+    const name = sanitizeInput(body.game_name, 200);
+    if (!name) return jsonResponse({ error: 'Game name cannot be empty' }, 400, env, request);
+    updates.game_name = name;
+  }
+  if (body.aliases !== undefined)         updates.game_name_aliases = (body.aliases || []).map(a => sanitizeInput(a, 200)).filter(Boolean);
+  if (body.platforms !== undefined)       updates.platforms = body.platforms || [];
+  if (body.genres !== undefined)          updates.genres = body.genres || [];
+  if (body.description !== undefined)     updates.description = body.description ? sanitizeInput(body.description, 2000) : null;
+  if (body.rules !== undefined)           updates.rules = body.rules ? sanitizeInput(body.rules, 5000) : null;
+  if (body.cover_image_url !== undefined) updates.cover_image_url = body.cover_image_url ? sanitizeInput(body.cover_image_url, 500) : null;
+  if (body.submitter_notes !== undefined) updates.submitter_notes = body.submitter_notes ? sanitizeInput(body.submitter_notes, 2000) : null;
+
+  // game_data is the full JSONB blob — if sent, replace entirely (same sanitization as submit)
+  if (body.game_data !== undefined && typeof body.game_data === 'object') {
+    const gd = body.game_data;
+    updates.game_data = {
+      timing_method: gd.timing_method || 'RTA',
+      character_column: {
+        enabled: gd.character_column?.enabled || false,
+        label: sanitizeInput(gd.character_column?.label || 'Character', 50),
+      },
+      characters_data: (gd.characters_data || []).map(c =>
+        typeof c === 'string' ? { slug: slugify(c), label: sanitizeInput(c, 100) } : c
+      ),
+      difficulty_column: {
+        enabled: gd.difficulty_column?.enabled || false,
+        label: sanitizeInput(gd.difficulty_column?.label || 'Difficulty', 50),
+      },
+      difficulties_data: (gd.difficulties_data || []).map(d =>
+        typeof d === 'string' ? { slug: slugify(d), label: sanitizeInput(d, 100) } : d
+      ),
+      challenges_data: (gd.challenges_data || []).map(c =>
+        typeof c === 'string' ? { slug: slugify(c), label: sanitizeInput(c, 100) } : c
+      ),
+      custom_challenge_description: gd.custom_challenge_description
+        ? sanitizeInput(gd.custom_challenge_description, 2000)
+        : null,
+      restrictions_data: (gd.restrictions_data || []).map(r =>
+        typeof r === 'string' ? { slug: slugify(r), label: sanitizeInput(r, 100) } : r
+      ),
+      glitches_data: (gd.glitches_data || []).map(g =>
+        typeof g === 'string'
+          ? { slug: slugify(g), label: sanitizeInput(g, 100) }
+          : {
+              slug: g.slug || slugify(g.label || ''),
+              label: sanitizeInput(g.label || '', 100),
+              ...(g.description ? { description: sanitizeInput(g.description, 1000) } : {}),
+            }
+      ),
+      nmg_rules: gd.nmg_rules ? sanitizeInput(gd.nmg_rules, 3000) : null,
+      full_runs: (gd.full_runs || []).map(c =>
+        typeof c === 'string'
+          ? { slug: slugify(c), label: sanitizeInput(c, 100) }
+          : {
+              slug: c.slug || slugify(c.label || ''),
+              label: sanitizeInput(c.label || '', 100),
+              ...(c.description ? { description: sanitizeInput(c.description, 2000) } : {}),
+              ...(c.exceptions ? { exceptions: sanitizeInput(c.exceptions, 2000) } : {}),
+              ...(c.fixed_loadout ? { fixed_loadout: c.fixed_loadout } : {}),
+            }
+      ),
+      mini_challenges: (gd.mini_challenges || []).map(mc => {
+        if (typeof mc === 'string') return { slug: slugify(mc), label: sanitizeInput(mc, 100), children: [] };
+        return {
+          slug: mc.slug || slugify(mc.label || ''),
+          label: sanitizeInput(mc.label || '', 100),
+          ...(mc.description ? { description: sanitizeInput(mc.description, 2000) } : {}),
+          ...(mc.exceptions ? { exceptions: sanitizeInput(mc.exceptions, 2000) } : {}),
+          children: (mc.children || []).map(ch =>
+            typeof ch === 'string'
+              ? { slug: slugify(ch), label: sanitizeInput(ch, 100) }
+              : {
+                  slug: ch.slug || slugify(ch.label || ''),
+                  label: sanitizeInput(ch.label || '', 100),
+                  ...(ch.description ? { description: sanitizeInput(ch.description, 2000) } : {}),
+                  ...(ch.exceptions ? { exceptions: sanitizeInput(ch.exceptions, 2000) } : {}),
+                  ...(ch.fixed_loadout ? { fixed_loadout: ch.fixed_loadout } : {}),
+                }
+          ),
+        };
+      }),
+      custom_genres: (gd.custom_genres || []).map(g => sanitizeInput(g, 60)).filter(Boolean),
+      custom_platforms: (gd.custom_platforms || []).map(p => sanitizeInput(p, 60)).filter(Boolean),
+      glitch_doc_links: gd.glitch_doc_links || null,
+      involvement: gd.involvement || [],
+    };
+  }
+
+  // Validate game name still present
+  const finalName = updates.game_name || game.game_name;
+  if (!finalName) return jsonResponse({ error: 'Game name is required' }, 400, env, request);
+
+  const patchResult = await supabaseQuery(env,
+    `pending_games?id=eq.${encodeURIComponent(gameId)}`, {
+      method: 'PATCH',
+      body: updates,
+    });
+
+  if (!patchResult.ok) {
+    console.error('Edit pending game error:', patchResult.data);
+    return jsonResponse({ error: 'Failed to update submission' }, 500, env, request);
+  }
+
+  return jsonResponse({ ok: true, message: 'Game submission updated' }, 200, env, request);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENDPOINT: POST /withdraw-pending-game (User withdraws own pending game)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export async function handleWithdrawPendingGame(body, env, request) {
+  const auth = await authenticateUser(env, body, request);
+  if (auth.error) return jsonResponse({ error: auth.error }, auth.status, env, request);
+
+  const gameId = body.game_id;
+  if (!gameId) return jsonResponse({ error: 'Missing game_id' }, 400, env, request);
+  if (!isValidId(gameId)) return jsonResponse({ error: 'Invalid game_id format' }, 400, env, request);
+
+  const gameResult = await supabaseQuery(env,
+    `pending_games?id=eq.${encodeURIComponent(gameId)}&select=submitted_by,status,claimed_by,claimed_at`, { method: 'GET' });
+  if (!gameResult.ok || !gameResult.data?.length) {
+    return jsonResponse({ error: 'Game not found' }, 404, env, request);
+  }
+  const game = gameResult.data[0];
+
+  if (game.submitted_by !== auth.user.id) {
+    return jsonResponse({ error: 'You can only withdraw your own submissions' }, 403, env, request);
+  }
+  if (game.status !== 'pending') {
+    return jsonResponse({ error: 'Only pending submissions can be withdrawn' }, 400, env, request);
+  }
+  if (game.claimed_by && isClaimActive(game.claimed_at)) {
+    return jsonResponse({ error: 'This submission is currently under review and cannot be withdrawn' }, 423, env, request);
+  }
+
+  const deleteResult = await supabaseQuery(env,
+    `pending_games?id=eq.${encodeURIComponent(gameId)}`, { method: 'DELETE' });
+
+  if (!deleteResult.ok) {
+    console.error('Withdraw pending game error:', deleteResult.data);
+    return jsonResponse({ error: 'Failed to withdraw submission' }, 500, env, request);
+  }
+
+  return jsonResponse({ ok: true, message: 'Game submission withdrawn' }, 200, env, request);
 }

@@ -1,8 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// INPUT SANITIZATION & VALIDATION (Items 10, 11)
+// Input Sanitization & Validation
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/** Strip HTML tags and enforce max length */
 export function sanitizeInput(str, maxLength = 500) {
   if (!str || typeof str !== 'string') return '';
   return str
@@ -67,6 +66,8 @@ export function slugify(s) {
     .replace(/-{2,}/g, '-')
     .replace(/^-|-$/g, '');
 }
+
+// yamlQuote — REMOVED (was only used by markdown file builders)
 
 export function generateSubmissionId() {
   const ts = Date.now().toString(36);

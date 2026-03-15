@@ -1,15 +1,10 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// RATE LIMITING (Item 7) — KV-backed global rate limiting
+// Rate Limiting — KV-backed with in-memory fallback
 // ═══════════════════════════════════════════════════════════════════════════════
-// Primary: Cloudflare KV (global, persists across isolate restarts)
-// Fallback: In-memory Map (per-isolate, resets on cold start)
-// KV is eventually consistent (~60s), which is acceptable for rate limiting —
-// worst case a few extra requests sneak through during propagation.
 
-const rateLimitMap = new Map(); // fallback when KV is unavailable
-const RATE_LIMIT_WINDOW = 60_000; // 1 minute
-const RATE_LIMIT_TTL = 120;       // KV TTL in seconds (2x window for safety)
-
+export const rateLimitMap = new Map(); // fallback when KV is unavailable
+export const RATE_LIMIT_WINDOW = 60_000; // 1 minute
+export const RATE_LIMIT_TTL = 120;       // KV TTL in seconds (2x window for safety)
 export const RATE_LIMITS = {
   '/': 5,               // 5 submissions/min/IP
   '/submit': 5,
@@ -19,21 +14,29 @@ export const RATE_LIMITS = {
   '/reject-run': 30,
   '/request-changes': 30,
   '/edit-approved-run': 20,
+  '/staff-edit-pending-run': 20,
   '/verify-run': 30,
   '/unverify-run': 10,
   '/approve-profile': 30,
   '/reject-profile': 30,
   '/request-profile-changes': 30,
   '/approve-game': 30,
+  '/reject-game': 30,
+  '/request-game-changes': 30,
   '/assign-role': 10,
   '/notify': 10,
+  '/notify-profile-submitted': 3,  // User-facing — 3/min/IP
   '/export-data': 2,    // Heavy query — 2/min/IP
+  '/delete-account': 1, // Account deletion — 1/min/IP
   '/game-editor/save': 20,      // 20 saves/min/IP
   '/game-editor/freeze': 10,
   '/game-editor/delete': 3,
   '/check-game-exists': 10, // lookup only — 10/min/IP
   '/support-game': 5,       // supporter submissions
   '/game-editor/rollback': 5,
+  '/messages/create-thread': 10, // messaging — 10 threads/min/IP
+  '/report': 3,                  // reports — 3/min/IP
+  '/review-rule-suggestion': 30,  // admin reviews — 30/min/IP
 };
 
 export async function checkRateLimit(ip, path, env) {
