@@ -13,13 +13,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 0.3rem;
   background: none;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm, 4px);
   padding: 0.3rem 0.5rem;
   cursor: pointer;
   font-size: 0.8rem;
-  line-height: 1;
+  color: var(--fg);
+  font-family: inherit;
   transition: border-color 0.15s ease;
 }
 
