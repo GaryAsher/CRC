@@ -12,6 +12,18 @@
 	let userVotes = $state(data.userVotes);
 	let toast = $state<{ type: 'success' | 'error'; text: string } | null>(null);
 
+	// ── Admin check ──────────────────────────────────────────────────────
+	let isAdmin = $state(false);
+	$effect(() => {
+		const u = $user;
+		if (u) {
+			supabase.from('profiles').select('is_admin, is_super_admin').eq('user_id', u.id).maybeSingle()
+				.then(({ data: p }) => { isAdmin = !!(p?.is_admin || p?.is_super_admin); });
+		} else {
+			isAdmin = false;
+		}
+	});
+
 	// ── Derived state ────────────────────────────────────────────────────
 	const isMember = $derived(!!$user && members.some((m: any) => m.user_id === $user?.id));
 	const isEditor = $derived(!!$user && members.some((m: any) => m.user_id === $user?.id && m.role === 'editor'));
@@ -428,7 +440,7 @@
 						{#if p.status === 'open' && p.user_id === $user?.id}
 							<button class="btn btn--small btn--outline" onclick={() => withdrawProposal(p.id)}>Withdraw</button>
 						{/if}
-						{#if p.status === 'open' && (isEditor || data.staffRole === 'super_admin' || data.staffRole === 'admin')}
+						{#if p.status === 'open' && (isEditor || isAdmin)}
 							<button class="btn btn--small btn--approve" onclick={() => openResolveModal(p, 'accepted')}>✅ Accept</button>
 							<button class="btn btn--small btn--reject" onclick={() => openResolveModal(p, 'rejected')}>❌ Reject</button>
 						{/if}
