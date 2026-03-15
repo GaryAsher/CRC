@@ -277,14 +277,6 @@
 			</div>
 		{/if}
 		<span class="field-hint">{m.ge_general_cover_hint()}</span>
-		{#if canEdit}
-			<details class="url-fallback">
-				<summary class="url-fallback__toggle">{m.ge_general_paste_url()}</summary>
-				<div class="field-row mt-1">
-					<input type="text" class="field-input" bind:value={cover} placeholder="https://..." />
-				</div>
-			</details>
-		{/if}
 	</div>
 	<div class="field-row">
 		<label class="field-label">{m.ge_general_aliases()}</label>

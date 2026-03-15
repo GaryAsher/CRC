@@ -99,6 +99,12 @@
 	// Track original slugs (read-only after load)
 	let originalSlugs = $state<Set<string>>(new Set());
 
+	// ── Draft State ─────────────────────────────────────────────────────────
+	let draftStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
+	let draftExists = $state(false);
+	let draftLoading = $state(true);
+	let draftPromptVisible = $state(false);
+
 	// ── Helpers ──────────────────────────────────────────────────────────────
 	function showToast(type: 'success' | 'error', text: string) {
 		toast = { type, text };
@@ -176,6 +182,8 @@
 			if (result.data?.game) { game = result.data.game as Game; hydrate(game); }
 			else { game = { ...game, ...updates } as Game; }
 			showToast('success', `${sectionName.charAt(0).toUpperCase() + sectionName.slice(1)} saved!`);
+			// Clear draft after successful save
+			deleteDraft();
 			saving = false;
 			return true;
 		} catch (err: any) {
@@ -241,6 +249,119 @@
 		saving = false;
 	}
 
+	// ── Draft Save/Load ─────────────────────────────────────────────────────
+	function serializeEditorState() {
+		return {
+			gameName, aliases, gameStatus, timingMethod, genres, platforms,
+			cover, coverPosition, isModded, baseGame,
+			fullRuns, miniChallenges, playerMade, generalRules,
+			challengesData, glitchesData, restrictionsData,
+			characterColumn, charactersData, difficultyColumn, difficultiesData,
+			nmgRules, glitchDocLinks, additionalTabs,
+		};
+	}
+
+	function loadEditorFromDraft(d: any) {
+		if (!d) return;
+		gameName = d.gameName ?? gameName;
+		aliases = d.aliases ?? aliases;
+		gameStatus = d.gameStatus ?? gameStatus;
+		timingMethod = d.timingMethod ?? timingMethod;
+		genres = d.genres ?? genres;
+		platforms = d.platforms ?? platforms;
+		cover = d.cover ?? cover;
+		coverPosition = d.coverPosition ?? coverPosition;
+		isModded = d.isModded ?? isModded;
+		baseGame = d.baseGame ?? baseGame;
+		fullRuns = d.fullRuns ? deepClone(d.fullRuns) : fullRuns;
+		miniChallenges = d.miniChallenges ? deepClone(d.miniChallenges) : miniChallenges;
+		playerMade = d.playerMade ? deepClone(d.playerMade) : playerMade;
+		generalRules = d.generalRules ?? generalRules;
+		challengesData = d.challengesData ? deepClone(d.challengesData) : challengesData;
+		glitchesData = d.glitchesData ? deepClone(d.glitchesData) : glitchesData;
+		restrictionsData = d.restrictionsData ? deepClone(d.restrictionsData) : restrictionsData;
+		characterColumn = d.characterColumn ? deepClone(d.characterColumn) : characterColumn;
+		charactersData = d.charactersData ? deepClone(d.charactersData) : charactersData;
+		difficultyColumn = d.difficultyColumn ? deepClone(d.difficultyColumn) : difficultyColumn;
+		difficultiesData = d.difficultiesData ? deepClone(d.difficultiesData) : difficultiesData;
+		nmgRules = d.nmgRules ?? nmgRules;
+		glitchDocLinks = d.glitchDocLinks ?? glitchDocLinks;
+		additionalTabs = d.additionalTabs ? deepClone(d.additionalTabs) : additionalTabs;
+	}
+
+	async function checkForDraft() {
+		if (!userId) { draftLoading = false; return; }
+		try {
+			const { data: draft, error } = await supabase
+				.from('game_editor_drafts')
+				.select('draft_data')
+				.eq('user_id', userId)
+				.eq('game_id', gameId)
+				.maybeSingle();
+			if (!error && draft?.draft_data) {
+				draftExists = true;
+				draftPromptVisible = true;
+			}
+		} catch { /* silent — table may not exist yet */ }
+		draftLoading = false;
+	}
+
+	async function loadDraft() {
+		if (!userId) return;
+		try {
+			const { data: draft } = await supabase
+				.from('game_editor_drafts')
+				.select('draft_data')
+				.eq('user_id', userId)
+				.eq('game_id', gameId)
+				.maybeSingle();
+			if (draft?.draft_data) {
+				loadEditorFromDraft(draft.draft_data);
+				showToast('success', 'Draft loaded — unsaved changes restored.');
+			}
+		} catch { /* silent */ }
+		draftPromptVisible = false;
+	}
+
+	function dismissDraftPrompt() {
+		draftPromptVisible = false;
+	}
+
+	async function saveDraft() {
+		if (!userId) return;
+		draftStatus = 'saving';
+		try {
+			const { error } = await supabase
+				.from('game_editor_drafts')
+				.upsert({
+					user_id: userId,
+					game_id: gameId,
+					draft_data: serializeEditorState(),
+					updated_at: new Date().toISOString(),
+				}, { onConflict: 'user_id,game_id' });
+			if (error) throw error;
+			draftStatus = 'saved';
+			draftExists = true;
+			setTimeout(() => { if (draftStatus === 'saved') draftStatus = 'idle'; }, 3000);
+		} catch {
+			draftStatus = 'error';
+			setTimeout(() => { if (draftStatus === 'error') draftStatus = 'idle'; }, 4000);
+		}
+	}
+
+	async function deleteDraft() {
+		if (!userId) return;
+		try {
+			await supabase
+				.from('game_editor_drafts')
+				.delete()
+				.eq('user_id', userId)
+				.eq('game_id', gameId);
+			draftExists = false;
+			draftPromptVisible = false;
+		} catch { /* silent */ }
+	}
+
 	// ── Data Loading ─────────────────────────────────────────────────────────
 	async function loadGame() {
 		loading = true;
@@ -249,6 +370,8 @@
 		game = data as Game;
 		hydrate(data as Game);
 		loading = false;
+		// Check for draft after game loads
+		await checkForDraft();
 	}
 
 	onMount(() => {
@@ -317,8 +440,33 @@
 			<div class="role-notice">You are editing as a <strong>{m.ge_game_mod()}</strong>. Deletion and freeze controls are restricted to Admins.</div>
 		{/if}
 
+		{#if draftPromptVisible}
+			<div class="draft-bar">
+				<span class="draft-bar__text">📝 <strong>Unsaved draft found.</strong> You have a previous editing session for this game.</span>
+				<div class="draft-bar__actions">
+					<button class="btn btn--small btn--draft" onclick={loadDraft}>{m.btn_load_draft()}</button>
+					<button class="btn btn--small" onclick={dismissDraftPrompt}>{m.btn_start_fresh()}</button>
+				</div>
+			</div>
+		{/if}
+
 		{#if toast}
 			<div class="toast toast--{toast.type}">{toast.text}</div>
+		{/if}
+
+		<!-- Draft save bar -->
+		{#if canEdit}
+			<div class="draft-bar">
+				<span class="draft-bar__text">💾 Save your work-in-progress before navigating away.</span>
+				<div class="draft-bar__actions">
+					<button class="btn btn--small btn--draft" onclick={saveDraft} disabled={draftStatus === 'saving'}>
+						{#if draftStatus === 'saving'}{m.btn_draft_saving()}{:else if draftStatus === 'saved'}{m.btn_draft_saved()}{:else if draftStatus === 'error'}{m.btn_draft_save_failed()}{:else}{m.btn_save_draft()}{/if}
+					</button>
+					{#if draftExists}
+						<button class="btn btn--small btn--reset" onclick={deleteDraft}>Discard Draft</button>
+					{/if}
+				</div>
+			</div>
 		{/if}
 
 		<nav class="game-tabs">

@@ -8,6 +8,7 @@
 	import { fetchPending } from '$lib/admin';
 	import LanguageSwitcher from '$components/LanguageSwitcher.svelte';
 	import NotificationBell from '$components/NotificationBell.svelte';
+	import MessagePanel from '$components/MessagePanel.svelte';
 	import AuthPopup from '$components/auth/AuthPopup.svelte';
 	import { loadNotifications } from '$stores/notifications';
 	import { loadUnreadCount, unreadMessages } from '$stores/messages';
@@ -19,6 +20,7 @@
 	let langOpen = $state(false);
 	let profilePanelOpen = $state(false);
 	let mobileOpen = $state(false);
+	let messagePanelOpen = $state(false);
 
 	// Only one dropdown open at a time
 	$effect(() => { if (moreOpen) { notifOpen = false; langOpen = false; } });
@@ -531,11 +533,11 @@
 
 			<!-- Messaging -->
 			<div class="profile-panel__section-title">{m.msg_heading()}</div>
-			<a href={localizeHref('/messages')} class="profile-panel__item" onclick={closeProfilePanel}>
+			<button type="button" class="profile-panel__item" onclick={() => { closeProfilePanel(); messagePanelOpen = true; }}>
 				<span class="profile-panel__icon">💬</span>
 				<span class="profile-panel__text">{m.msg_heading()}</span>
 				{#if $unreadMessages > 0}<span class="profile-panel__badge">{$unreadMessages}</span>{/if}
-			</a>
+			</button>
 			<a href={localizeHref('/profile/submissions')} class="profile-panel__item" onclick={closeProfilePanel}>
 				<span class="profile-panel__icon">📋</span>
 				<span class="profile-panel__text">{m.user_menu_submissions()}</span>
@@ -563,6 +565,8 @@
 		</nav>
 	</aside>
 {/if}
+
+<MessagePanel bind:open={messagePanelOpen} />
 
 <style>
 	.theme-toggle {

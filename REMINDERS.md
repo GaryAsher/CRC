@@ -25,6 +25,12 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 
 ## Immediate Priorities
 ### 1. Bug Fixes
+- Admin:
+  - Games:
+    - General tab:
+      - [ ] remove supabase text used for "Or paste an external image URL"
+      - [ ] Make the General Rules larger to read.
+      - [ ] Allow Preview for General Rules
 
 ### 2. Spanish Language Support
 - [ ] Update translation excel file then ask for help
@@ -33,8 +39,8 @@ Cross-reference with `CLAUDE.md` Development Checklist for technical implementat
 **Tier 1 — Notifications**
 - [ ] RLS: users can only read/update their own notifications
 **Tier 2 — Messaging**
-- [ ] Unread message count in header alongside notification bell
 - [ ] Build page in the same format as Game Editor
+- [ ] Messaging should work in Profile Panel or at least not require user to go to a new page.
 
 ### 4. User Report & Request Systems
 - [ ] **Report buttons** — "Report" button on runner profiles, game pages, runs (table exists, needs frontend buttons)
