@@ -400,20 +400,10 @@
 				<span class="admin-panel__text">{m.admin_dashboard()}</span>
 			</a>
 
-			{#if isSuperAdmin}
-				<hr class="admin-panel__divider" />
-				<div class="admin-panel__section-title">{m.admin_sidebar_super_admin()}</div>
-				<a href={localizeHref("/admin/health")} class="admin-panel__item" class:is-active={isAdminActive('/admin/health')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">💚</span><span class="admin-panel__text">{m.admin_nav_health()}</span>
-				</a>
-				<a href={localizeHref("/admin/financials")} class="admin-panel__item" class:is-active={isAdminActive('/admin/financials')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">💰</span><span class="admin-panel__text">{m.admin_nav_financials()}</span>
-				</a>
-			{/if}
-
+			<!-- Review Queue -->
+			<hr class="admin-panel__divider" />
+			<div class="admin-panel__section-title">Review Queue</div>
 			{#if sidebarIsAdmin}
-				<hr class="admin-panel__divider" />
-				<div class="admin-panel__section-title">{m.admin_sidebar_admin()}</div>
 				<a href={localizeHref("/admin/profiles")} class="admin-panel__item" class:is-active={isAdminActive('/admin/profiles')} onclick={closeAdminPanel}>
 					<span class="admin-panel__icon">👥</span>
 					<span class="admin-panel__text">{m.admin_nav_profiles()}</span>
@@ -424,14 +414,29 @@
 					<span class="admin-panel__text">{m.admin_nav_games()}</span>
 					{#if adminCounts.pendingGames > 0}<span class="admin-panel__badge">{adminCounts.pendingGames}</span>{/if}
 				</a>
-				<a href={localizeHref("/admin/news")} class="admin-panel__item" class:is-active={isAdminActive('/admin/news')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">📰</span><span class="admin-panel__text">{m.admin_nav_news()}</span>
+			{/if}
+			{#if sidebarIsVerifier}
+				<a href={localizeHref("/admin/game-updates")} class="admin-panel__item" class:is-active={isAdminActive('/admin/game-updates')} onclick={closeAdminPanel}>
+					<span class="admin-panel__icon">📝</span>
+					<span class="admin-panel__text">{m.admin_nav_game_updates()}</span>
+					{#if adminCounts.pendingUpdates > 0}<span class="admin-panel__badge">{adminCounts.pendingUpdates}</span>{/if}
+				</a>
+				<a href={localizeHref("/admin/runs")} class="admin-panel__item" class:is-active={isAdminActive('/admin/runs')} onclick={closeAdminPanel}>
+					<span class="admin-panel__icon">🏃</span>
+					<span class="admin-panel__text">{m.admin_nav_runs()}</span>
+					{#if adminCounts.pendingRuns > 0}<span class="admin-panel__badge">{adminCounts.pendingRuns}</span>{/if}
+				</a>
+			{/if}
+			{#if sidebarIsModerator}
+				<a href={localizeHref("/admin/reports")} class="admin-panel__item" class:is-active={isAdminActive('/admin/reports')} onclick={closeAdminPanel}>
+					<span class="admin-panel__icon">🚩</span><span class="admin-panel__text">{m.admin_nav_reports()}</span>
 				</a>
 			{/if}
 
+			<!-- Tools -->
+			<hr class="admin-panel__divider" />
+			<div class="admin-panel__section-title">Tools</div>
 			{#if sidebarIsModerator}
-				<hr class="admin-panel__divider" />
-				<div class="admin-panel__section-title">{m.admin_sidebar_moderator()}</div>
 				<a href={localizeHref("/admin/users")} class="admin-panel__item" class:is-active={isAdminActive('/admin/users')} onclick={closeAdminPanel}>
 					<span class="admin-panel__icon">👤</span><span class="admin-panel__text">{m.admin_nav_users()}</span>
 				</a>
@@ -439,31 +444,37 @@
 					<span class="admin-panel__icon">🛠️</span><span class="admin-panel__text">{m.admin_nav_game_editor()}</span>
 				</a>
 			{/if}
-
-			{#if sidebarIsVerifier}
-				<hr class="admin-panel__divider" />
-				<div class="admin-panel__section-title">{m.admin_sidebar_verifier()}</div>
-				<a href={localizeHref("/admin/runs")} class="admin-panel__item" class:is-active={isAdminActive('/admin/runs')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">🏃</span>
-					<span class="admin-panel__text">{m.admin_nav_runs()}</span>
-					{#if adminCounts.pendingRuns > 0}<span class="admin-panel__badge">{adminCounts.pendingRuns}</span>{/if}
-				</a>
-				<a href={localizeHref("/admin/game-updates")} class="admin-panel__item" class:is-active={isAdminActive('/admin/game-updates')} onclick={closeAdminPanel}>
-					<span class="admin-panel__icon">📝</span>
-					<span class="admin-panel__text">{m.admin_nav_game_updates()}</span>
-					{#if adminCounts.pendingUpdates > 0}<span class="admin-panel__badge">{adminCounts.pendingUpdates}</span>{/if}
+			{#if sidebarIsAdmin}
+				<a href={localizeHref("/admin/news")} class="admin-panel__item" class:is-active={isAdminActive('/admin/news')} onclick={closeAdminPanel}>
+					<span class="admin-panel__icon">📰</span><span class="admin-panel__text">{m.admin_nav_news()}</span>
 				</a>
 			{/if}
-
-			<!-- Staff Guides — all staff roles -->
-			<hr class="admin-panel__divider" />
+			{#if sidebarIsModerator}
+				<a href={localizeHref("/admin/rule-suggestions")} class="admin-panel__item" class:is-active={isAdminActive('/admin/rule-suggestions')} onclick={closeAdminPanel}>
+					<span class="admin-panel__icon">💬</span><span class="admin-panel__text">Rule Suggestions</span>
+				</a>
+			{/if}
 			<a href={localizeHref("/admin/staff-guides")} class="admin-panel__item" class:is-active={isAdminActive('/admin/staff-guides')} onclick={closeAdminPanel}>
 				<span class="admin-panel__icon">📖</span><span class="admin-panel__text">{m.admin_nav_staff_guides()}</span>
 			</a>
-
 			{#if sidebarIsModerator}
 				<a href={localizeHref("/admin/debug")} class="admin-panel__item" class:is-active={isAdminActive('/admin/debug')} onclick={closeAdminPanel}>
 					<span class="admin-panel__icon">🔧</span><span class="admin-panel__text">{m.admin_nav_debug()}</span>
+				</a>
+			{/if}
+
+			<!-- System -->
+			{#if isSuperAdmin}
+				<hr class="admin-panel__divider" />
+				<div class="admin-panel__section-title">System</div>
+				<a href={localizeHref("/admin/health")} class="admin-panel__item" class:is-active={isAdminActive('/admin/health')} onclick={closeAdminPanel}>
+					<span class="admin-panel__icon">💚</span><span class="admin-panel__text">{m.admin_nav_health()}</span>
+				</a>
+				<a href={localizeHref("/admin/financials")} class="admin-panel__item" class:is-active={isAdminActive('/admin/financials')} onclick={closeAdminPanel}>
+					<span class="admin-panel__icon">💰</span><span class="admin-panel__text">{m.admin_nav_financials()}</span>
+				</a>
+				<a href={localizeHref("/admin/site-settings")} class="admin-panel__item" class:is-active={isAdminActive('/admin/site-settings')} onclick={closeAdminPanel}>
+					<span class="admin-panel__icon">⚙️</span><span class="admin-panel__text">Site Settings</span>
 				</a>
 			{/if}
 		</nav>

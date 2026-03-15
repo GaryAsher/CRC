@@ -176,18 +176,21 @@
 	]);
 	const categoryTabs = $derived(
 		currentTier === 'full-runs'
-			? (game.full_runs || []).map((c: any) => ({ slug: c.slug, label: c.label, isGroup: false }))
+			? (game.full_runs || []).map((c: any) => ({ slug: c.slug, label: c.label, isGroup: false, parentSlug: null }))
 			: currentTier === 'mini-challenges'
 				? (game.mini_challenges || []).flatMap((g: any) =>
 					g.children?.length
 						? [
-							{ slug: g.slug, label: g.label, isGroup: true },
-							...g.children.map((c: any) => ({ slug: c.slug, label: c.label, isGroup: false }))
+							{ slug: g.slug, label: g.label, isGroup: true, parentSlug: null },
+							...g.children.map((c: any) => ({ slug: c.slug, label: c.label, isGroup: false, parentSlug: g.slug }))
 						]
-						: [{ slug: g.slug, label: g.label, isGroup: false }]
+						: [{ slug: g.slug, label: g.label, isGroup: false, parentSlug: null }]
 				)
-				: (game.player_made || []).map((c: any) => ({ slug: c.slug, label: c.label, isGroup: false }))
+				: (game.player_made || []).map((c: any) => ({ slug: c.slug, label: c.label, isGroup: false, parentSlug: null }))
 	);
+
+	// For mini-challenges: parent is active if it's directly selected OR if a child of it is selected
+	const activeParentSlug = $derived(cat.parentGroup || (cat.isGroup ? cat.slug : null));
 </script>
 
 <svelte:head>
@@ -219,7 +222,8 @@
 				href="/games/{game.game_id}/runs/{currentTier}/{ct.slug}"
 				class="tab"
 				class:tab--group={ct.isGroup}
-				class:active={cat.slug === ct.slug}
+				class:tab--child={!!ct.parentSlug}
+				class:active={cat.slug === ct.slug || (ct.isGroup && activeParentSlug === ct.slug)}
 				data-sveltekit-noscroll
 			>{ct.label}</a>
 		{/each}
@@ -393,6 +397,9 @@
 	:global(.runs-tier-tabs) { top: 115px !important; }
 	:global(.runs-category-tabs) { top: 155px !important; border-bottom: 2px solid var(--border); margin-bottom: 1rem; flex-wrap: wrap; overflow-x: visible; padding-top: 0.25rem; }
 	:global(.runs-category-tabs .tab--group) { font-weight: 700; letter-spacing: 0.01em; }
+	:global(.runs-category-tabs .tab--child) { font-size: 0.8rem; padding: 0.35rem 0.75rem; margin-left: 0.25rem; opacity: 0.85; border-left: 2px solid var(--border); border-radius: 0 8px 0 0; }
+	:global(.runs-category-tabs .tab--child:hover) { opacity: 1; }
+	:global(.runs-category-tabs .tab--child.active) { opacity: 1; border-left-color: var(--accent); }
 	h2 { margin-bottom: 0.5rem; }
 	.filter-bar { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
 	.filter-input { position: relative; flex: 1; min-width: 200px; }

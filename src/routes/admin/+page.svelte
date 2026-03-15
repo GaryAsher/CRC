@@ -68,21 +68,22 @@
 
 	// Navigation sections grouped by tab
 	const NAV_SECTIONS = [
-		// Queue — items with pending counts
-		{ key: 'games',        icon: '🎮', title: m.admin_nav_games(),            desc: m.admin_nav_games_desc(),        href: '/admin/games',        countKey: 'pendingGames',   group: 'queue' },
+		// Review Queue (Profiles → Games → Updates → Runs → Reports)
 		{ key: 'profiles',     icon: '👥', title: m.admin_nav_profiles(),         desc: m.admin_nav_profiles_desc(),     href: '/admin/profiles',     countKey: 'pendingProfiles', group: 'queue' },
-		{ key: 'runs',         icon: '🏃', title: m.admin_nav_runs(),             desc: m.admin_nav_runs_desc(),         href: '/admin/runs',         countKey: 'pendingRuns',    group: 'queue' },
+		{ key: 'games',        icon: '🎮', title: m.admin_nav_games(),            desc: m.admin_nav_games_desc(),        href: '/admin/games',        countKey: 'pendingGames',   group: 'queue' },
 		{ key: 'game-updates', icon: '📝', title: m.admin_nav_game_updates(),     desc: m.admin_nav_game_updates_desc(), href: '/admin/game-updates', countKey: 'pendingUpdates', group: 'queue' },
+		{ key: 'runs',         icon: '🏃', title: m.admin_nav_runs(),             desc: m.admin_nav_runs_desc(),         href: '/admin/runs',         countKey: 'pendingRuns',    group: 'queue' },
 		{ key: 'reports',      icon: '🚩', title: m.admin_nav_reports(),          desc: m.admin_nav_reports_desc(),      href: '/admin/reports',      countKey: 'pendingReports', group: 'queue' },
 
-		// Tools
+		// Tools (Users → Game Editor → News → Rule Suggestions → Staff Guides → Debug)
+		{ key: 'users',            icon: '👤', title: m.admin_nav_users(),         desc: m.admin_nav_users_desc(),          href: '/admin/users',            group: 'tools' },
 		{ key: 'game-editor',      icon: '🛠️', title: m.admin_nav_game_editor(),  desc: m.admin_nav_game_editor_desc(),    href: '/admin/game-editor',      group: 'tools' },
-		{ key: 'users',            icon: '👥', title: m.admin_nav_users(),         desc: m.admin_nav_users_desc(),          href: '/admin/users',            group: 'tools' },
+		{ key: 'news',             icon: '📰', title: 'News',                      desc: 'Create and manage news posts',    href: '/admin/news',             group: 'tools' },
 		{ key: 'rule-suggestions', icon: '💬', title: 'Rule Suggestions',          desc: 'Community rule change proposals', href: '/admin/rule-suggestions', group: 'tools' },
 		{ key: 'staff-guides',     icon: '📖', title: m.admin_nav_staff_guides(),  desc: m.admin_nav_staff_guides_desc(),   href: '/admin/staff-guides',     group: 'tools' },
 		{ key: 'debug',            icon: '🔧', title: m.admin_nav_debug(),         desc: m.admin_nav_debug_desc(),          href: '/admin/debug',            group: 'tools' },
 
-		// System (super admin / admin)
+		// System
 		{ key: 'health',        icon: '💚', title: m.admin_nav_health(),       desc: m.admin_nav_health_desc(),                  href: '/admin/health',        group: 'system' },
 		{ key: 'financials',    icon: '💰', title: m.admin_nav_financials(),   desc: m.admin_nav_financials_desc(),              href: '/admin/financials',    group: 'system' },
 		{ key: 'site-settings', icon: '⚙️', title: 'Site Settings',            desc: 'Default rules template and global config', href: '/admin/site-settings', group: 'system' },
@@ -161,9 +162,13 @@
 				{/if}
 			</div>
 
-			<!-- Stats row — game-related left, user-related right -->
+			<!-- Stats row (matches Review Queue order: Profiles → Games → Updates → Runs) -->
 			<div class="dash-stats">
 				{#if isAdminPlus}
+					<div class="dash-stat" class:dash-stat--alert={counts.pendingProfiles > 0}>
+						<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingProfiles ?? 0}</span>
+						<span class="dash-stat__label">{m.admin_pending_profiles()}</span>
+					</div>
 					<div class="dash-stat" class:dash-stat--alert={counts.pendingGames > 0}>
 						<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingGames ?? 0}</span>
 						<span class="dash-stat__label">{m.admin_pending_games()}</span>
@@ -173,12 +178,6 @@
 					<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingUpdates ?? 0}</span>
 					<span class="dash-stat__label">{m.admin_pending_game_updates()}</span>
 				</div>
-				{#if isAdminPlus}
-					<div class="dash-stat" class:dash-stat--alert={counts.pendingProfiles > 0}>
-						<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingProfiles ?? 0}</span>
-						<span class="dash-stat__label">{m.admin_pending_profiles()}</span>
-					</div>
-				{/if}
 				<div class="dash-stat" class:dash-stat--alert={counts.pendingRuns > 0}>
 					<span class="dash-stat__value">{countsLoading ? '…' : counts.pendingRuns ?? 0}</span>
 					<span class="dash-stat__label">{m.admin_pending_runs()}</span>

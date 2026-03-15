@@ -5,7 +5,13 @@
 	let { data } = $props();
 
 	let toast = $state<{ type: 'success' | 'error'; text: string } | null>(null);
-	let activeSection = $state<'rules' | 'challenges' | 'glossary'>('rules');
+	let openSections = $state<Set<string>>(new Set(['rules']));
+
+	function toggleSection(id: string) {
+		const next = new Set(openSections);
+		if (next.has(id)) next.delete(id); else next.add(id);
+		openSections = next;
+	}
 
 	function showToast(type: 'success' | 'error', text: string) {
 		toast = { type, text };
@@ -181,156 +187,160 @@
 		<div class="toast toast--{toast.type}">{toast.text}</div>
 	{/if}
 
-	<!-- Section tabs -->
-	<nav class="section-tabs">
-		<button class="section-tab" class:active={activeSection === 'rules'} onclick={() => activeSection = 'rules'}>📘 Default Rules</button>
-		<button class="section-tab" class:active={activeSection === 'challenges'} onclick={() => activeSection = 'challenges'}>⚔️ Challenges ({challenges.length})</button>
-		<button class="section-tab" class:active={activeSection === 'glossary'} onclick={() => activeSection = 'glossary'}>📖 Glossary ({glossarySections.reduce((n, s) => n + s.terms.length, 0)})</button>
-	</nav>
-
 	<!-- ═══════════════════════ DEFAULT RULES ═══════════════════════ -->
-	{#if activeSection === 'rules'}
-		<section class="settings-section">
-			<h2>📘 Default Rules Template</h2>
-			<p class="muted mb-1">Shown on all Community Review game pages as the "Active Rules" baseline. Supports markdown.</p>
+	<section class="accordion-section">
+		<button class="accordion-header" class:accordion-header--open={openSections.has('rules')} onclick={() => toggleSection('rules')}>
+			<span class="accordion-header__icon">{openSections.has('rules') ? '▼' : '▶'}</span>
+			<span>📘 Default Rules Template</span>
+		</button>
+		{#if openSections.has('rules')}
+			<div class="accordion-body">
+				<p class="muted mb-1">Shown on all Community Review game pages as the "Active Rules" baseline. Supports markdown.</p>
 
-			<div class="editor-toolbar">
-				<button class="btn btn--small" class:btn--active={!rulesPreview} onclick={() => rulesPreview = false}>✏️ Edit</button>
-				<button class="btn btn--small" class:btn--active={rulesPreview} onclick={() => rulesPreview = true}>👁️ Preview</button>
-			</div>
-
-			{#if rulesPreview}
-				<div class="preview-pane">
-					{#if rulesTemplate.trim()}
-						<div class="md">{@html renderMarkdown(rulesTemplate)}</div>
-					{:else}
-						<p class="muted">No content to preview.</p>
-					{/if}
+				<div class="editor-toolbar">
+					<button class="btn btn--small" class:btn--active={!rulesPreview} onclick={() => rulesPreview = false}>✏️ Edit</button>
+					<button class="btn btn--small" class:btn--active={rulesPreview} onclick={() => rulesPreview = true}>👁️ Preview</button>
 				</div>
-			{:else}
-				<textarea class="rules-editor" bind:value={rulesTemplate} rows="16" placeholder="Write default rules in markdown..."></textarea>
-			{/if}
 
-			<div class="save-row">
-				<button class="btn btn--save" onclick={saveRules} disabled={rulesSaving}>{rulesSaving ? 'Saving...' : '💾 Save Default Rules'}</button>
+				{#if rulesPreview}
+					<div class="preview-pane">
+						{#if rulesTemplate.trim()}
+							<div class="md">{@html renderMarkdown(rulesTemplate)}</div>
+						{:else}
+							<p class="muted">No content to preview.</p>
+						{/if}
+					</div>
+				{:else}
+					<textarea class="rules-editor" bind:value={rulesTemplate} rows="16" placeholder="Write default rules in markdown..."></textarea>
+				{/if}
+
+				<div class="save-row">
+					<button class="btn btn--save" onclick={saveRules} disabled={rulesSaving}>{rulesSaving ? 'Saving...' : '💾 Save Default Rules'}</button>
+				</div>
 			</div>
-		</section>
-	{/if}
+		{/if}
+	</section>
 
 	<!-- ═══════════════════════ CHALLENGES ═══════════════════════ -->
-	{#if activeSection === 'challenges'}
-		<section class="settings-section">
-			<div class="section-top">
-				<div>
-					<h2>⚔️ Challenge Types</h2>
+	<section class="accordion-section">
+		<button class="accordion-header" class:accordion-header--open={openSections.has('challenges')} onclick={() => toggleSection('challenges')}>
+			<span class="accordion-header__icon">{openSections.has('challenges') ? '▼' : '▶'}</span>
+			<span>⚔️ Challenge Types ({challenges.length})</span>
+		</button>
+		{#if openSections.has('challenges')}
+			<div class="accordion-body">
+				<div class="section-top">
 					<p class="muted mb-1">Definitions used across CRC. Shown on the glossary page and referenced in game rules.</p>
+					<button class="btn btn--small btn--accent" onclick={addChallenge}>+ Add Challenge</button>
 				</div>
-				<button class="btn btn--small btn--accent" onclick={addChallenge}>+ Add Challenge</button>
-			</div>
 
-			<div class="entry-list">
-				{#each challenges as c, i}
-					<div class="entry-card">
-						<div class="entry-card__row">
+				<div class="entry-list">
+					{#each challenges as c, i}
+						<div class="entry-card">
+							<div class="entry-card__row">
+								<div class="entry-card__field">
+									<label class="field-label">Slug</label>
+									<input class="field-input field-input--sm" bind:value={c.slug} placeholder="e.g. hitless" />
+								</div>
+								<div class="entry-card__field entry-card__field--grow">
+									<label class="field-label">Label</label>
+									<input class="field-input" bind:value={c.label} placeholder="e.g. Hitless" />
+								</div>
+								<button class="btn btn--small btn--reject entry-card__delete" onclick={() => removeChallenge(i)}>✕</button>
+							</div>
 							<div class="entry-card__field">
-								<label class="field-label">Slug</label>
-								<input class="field-input field-input--sm" bind:value={c.slug} placeholder="e.g. hitless" />
+								<label class="field-label">Description (markdown)</label>
+								<textarea class="field-input" bind:value={c.description} rows="3" placeholder="Rules for this challenge type..."></textarea>
 							</div>
-							<div class="entry-card__field entry-card__field--grow">
-								<label class="field-label">Label</label>
-								<input class="field-input" bind:value={c.label} placeholder="e.g. Hitless" />
+							<div class="entry-card__field">
+								<label class="field-label">Aliases</label>
+								<div class="tag-editor">
+									{#each c.aliases as alias, ai}
+										<span class="tag-pill">{alias} <button class="tag-pill__x" onclick={() => removeChallengeAlias(i, ai)}>✕</button></span>
+									{/each}
+									<input class="tag-editor__input" bind:value={challengeAliasInput[i]} placeholder="Add alias + Enter"
+										onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addChallengeAlias(i); } }} />
+								</div>
 							</div>
-							<button class="btn btn--small btn--reject entry-card__delete" onclick={() => removeChallenge(i)}>✕</button>
 						</div>
-						<div class="entry-card__field">
-							<label class="field-label">Description (markdown)</label>
-							<textarea class="field-input" bind:value={c.description} rows="3" placeholder="Rules for this challenge type..."></textarea>
-						</div>
-						<div class="entry-card__field">
-							<label class="field-label">Aliases</label>
-							<div class="tag-editor">
-								{#each c.aliases as alias, ai}
-									<span class="tag-pill">{alias} <button class="tag-pill__x" onclick={() => removeChallengeAlias(i, ai)}>✕</button></span>
-								{/each}
-								<input class="tag-editor__input" bind:value={challengeAliasInput[i]} placeholder="Add alias + Enter"
-									onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addChallengeAlias(i); } }} />
+					{/each}
+				</div>
+
+				{#if challenges.length === 0}
+					<p class="muted" style="text-align:center; padding: 2rem;">No challenges defined. Click "Add Challenge" to start.</p>
+				{/if}
+
+				<div class="save-row">
+					<button class="btn btn--save" onclick={saveChallenges} disabled={challengesSaving}>{challengesSaving ? 'Saving...' : '💾 Save Challenges'}</button>
+				</div>
+			</div>
+		{/if}
+	</section>
+
+	<!-- ═══════════════════════ GLOSSARY ═══════════════════════ -->
+	<section class="accordion-section">
+		<button class="accordion-header" class:accordion-header--open={openSections.has('glossary')} onclick={() => toggleSection('glossary')}>
+			<span class="accordion-header__icon">{openSections.has('glossary') ? '▼' : '▶'}</span>
+			<span>📖 Glossary ({glossarySections.reduce((n, s) => n + s.terms.length, 0)} terms)</span>
+		</button>
+		{#if openSections.has('glossary')}
+			<div class="accordion-body">
+				<div class="section-top">
+					<p class="muted mb-1">Grouped terminology shown on the glossary page.</p>
+					<button class="btn btn--small btn--accent" onclick={addGlossarySection}>+ Add Section</button>
+				</div>
+
+				{#each glossarySections as section, si}
+					<div class="glossary-section">
+						<div class="glossary-section__header">
+							<div class="entry-card__row">
+								<div class="entry-card__field">
+									<label class="field-label">Section Key</label>
+									<input class="field-input field-input--sm" bind:value={section.key} placeholder="e.g. gameplay" />
+								</div>
+								<div class="entry-card__field entry-card__field--grow">
+									<label class="field-label">Section Label</label>
+									<input class="field-input" bind:value={section.label} placeholder="e.g. Gameplay Interactions" />
+								</div>
+								<button class="btn btn--small btn--reject" onclick={() => removeGlossarySection(si)}>✕ Section</button>
 							</div>
+						</div>
+
+						<div class="glossary-terms">
+							{#each section.terms as term, ti}
+								<div class="term-card">
+									<div class="entry-card__row">
+										<div class="entry-card__field">
+											<label class="field-label">Slug</label>
+											<input class="field-input field-input--sm" bind:value={term.slug} placeholder="e.g. hit" />
+										</div>
+										<div class="entry-card__field entry-card__field--grow">
+											<label class="field-label">Label</label>
+											<input class="field-input" bind:value={term.label} placeholder="e.g. Hit" />
+										</div>
+										<button class="btn btn--small btn--reject term-card__delete" onclick={() => removeGlossaryTerm(si, ti)}>✕</button>
+									</div>
+									<div class="entry-card__field">
+										<label class="field-label">Description</label>
+										<textarea class="field-input" bind:value={term.description} rows="2" placeholder="Definition of this term..."></textarea>
+									</div>
+								</div>
+							{/each}
+							<button class="btn btn--small btn--outline" onclick={() => addGlossaryTerm(si)}>+ Add Term</button>
 						</div>
 					</div>
 				{/each}
-			</div>
 
-			{#if challenges.length === 0}
-				<p class="muted" style="text-align:center; padding: 2rem;">No challenges defined. Click "Add Challenge" to start.</p>
-			{/if}
+				{#if glossarySections.length === 0}
+					<p class="muted" style="text-align:center; padding: 2rem;">No glossary sections. Click "Add Section" to start.</p>
+				{/if}
 
-			<div class="save-row">
-				<button class="btn btn--save" onclick={saveChallenges} disabled={challengesSaving}>{challengesSaving ? 'Saving...' : '💾 Save Challenges'}</button>
-			</div>
-		</section>
-	{/if}
-
-	<!-- ═══════════════════════ GLOSSARY ═══════════════════════ -->
-	{#if activeSection === 'glossary'}
-		<section class="settings-section">
-			<div class="section-top">
-				<div>
-					<h2>📖 Glossary</h2>
-					<p class="muted mb-1">Grouped terminology shown on the glossary page.</p>
+				<div class="save-row">
+					<button class="btn btn--save" onclick={saveGlossary} disabled={glossarySaving}>{glossarySaving ? 'Saving...' : '💾 Save Glossary'}</button>
 				</div>
-				<button class="btn btn--small btn--accent" onclick={addGlossarySection}>+ Add Section</button>
 			</div>
-
-			{#each glossarySections as section, si}
-				<div class="glossary-section">
-					<div class="glossary-section__header">
-						<div class="entry-card__row">
-							<div class="entry-card__field">
-								<label class="field-label">Section Key</label>
-								<input class="field-input field-input--sm" bind:value={section.key} placeholder="e.g. gameplay" />
-							</div>
-							<div class="entry-card__field entry-card__field--grow">
-								<label class="field-label">Section Label</label>
-								<input class="field-input" bind:value={section.label} placeholder="e.g. Gameplay Interactions" />
-							</div>
-							<button class="btn btn--small btn--reject" onclick={() => removeGlossarySection(si)}>✕ Section</button>
-						</div>
-					</div>
-
-					<div class="glossary-terms">
-						{#each section.terms as term, ti}
-							<div class="term-card">
-								<div class="entry-card__row">
-									<div class="entry-card__field">
-										<label class="field-label">Slug</label>
-										<input class="field-input field-input--sm" bind:value={term.slug} placeholder="e.g. hit" />
-									</div>
-									<div class="entry-card__field entry-card__field--grow">
-										<label class="field-label">Label</label>
-										<input class="field-input" bind:value={term.label} placeholder="e.g. Hit" />
-									</div>
-									<button class="btn btn--small btn--reject term-card__delete" onclick={() => removeGlossaryTerm(si, ti)}>✕</button>
-								</div>
-								<div class="entry-card__field">
-									<label class="field-label">Description</label>
-									<textarea class="field-input" bind:value={term.description} rows="2" placeholder="Definition of this term..."></textarea>
-								</div>
-							</div>
-						{/each}
-						<button class="btn btn--small btn--outline" onclick={() => addGlossaryTerm(si)}>+ Add Term</button>
-					</div>
-				</div>
-			{/each}
-
-			{#if glossarySections.length === 0}
-				<p class="muted" style="text-align:center; padding: 2rem;">No glossary sections. Click "Add Section" to start.</p>
-			{/if}
-
-			<div class="save-row">
-				<button class="btn btn--save" onclick={saveGlossary} disabled={glossarySaving}>{glossarySaving ? 'Saving...' : '💾 Save Glossary'}</button>
-			</div>
-		</section>
-	{/if}
+		{/if}
+	</section>
 </div>
 
 <style>
@@ -342,13 +352,19 @@
 	.toast--success { background: rgba(40, 167, 69, 0.1); border: 1px solid rgba(40, 167, 69, 0.3); color: #28a745; }
 	.toast--error { background: rgba(220, 53, 69, 0.1); border: 1px solid rgba(220, 53, 69, 0.3); color: #dc3545; }
 
-	/* Section tabs */
-	.section-tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; flex-wrap: wrap; }
-	.section-tab { padding: 0.5rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px 8px 0 0; color: var(--fg); font-size: 0.85rem; cursor: pointer; font-family: inherit; border-bottom-color: var(--border); }
-	.section-tab:hover { background: rgba(255,255,255,0.05); }
-	.section-tab.active { background: var(--surface); border-bottom-color: var(--surface); font-weight: 600; }
+	/* Accordion */
+	.accordion-section { margin-bottom: 0.75rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+	.accordion-header {
+		display: flex; align-items: center; gap: 0.5rem; width: 100%;
+		padding: 0.85rem 1.25rem; background: var(--surface); border: none;
+		color: var(--fg); font-size: 1rem; font-weight: 600; cursor: pointer;
+		font-family: inherit; text-align: left; transition: background 0.15s;
+	}
+	.accordion-header:hover { background: rgba(255,255,255,0.03); }
+	.accordion-header--open { border-bottom: 1px solid var(--border); }
+	.accordion-header__icon { font-size: 0.7rem; width: 1rem; text-align: center; color: var(--muted); transition: transform 0.15s; }
+	.accordion-body { padding: 1.25rem; background: var(--surface); }
 
-	.settings-section { background: var(--surface); border: 1px solid var(--border); border-radius: 0 8px 8px 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
 	.settings-section h2 { margin: 0 0 0.25rem; font-size: 1.15rem; }
 
 	.section-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
