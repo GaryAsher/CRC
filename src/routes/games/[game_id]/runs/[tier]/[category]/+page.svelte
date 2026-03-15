@@ -174,19 +174,18 @@
 		...(game.mini_challenges?.length ? [{ id: 'mini-challenges', label: m.game_category_tier_mini() }] : []),
 		...(game.player_made?.length ? [{ id: 'player-made', label: m.game_category_tier_player() }] : [])
 	]);
-	const categoryTabs = $derived(
-		currentTier === 'full-runs'
-			? (game.full_runs || []).map((c: any) => ({ slug: c.slug, label: c.label, isGroup: false, parentSlug: null }))
-			: currentTier === 'mini-challenges'
-				? (game.mini_challenges || []).flatMap((g: any) =>
-					g.children?.length
-						? [
-							{ slug: g.slug, label: g.label, isGroup: true, parentSlug: null },
-							...g.children.map((c: any) => ({ slug: c.slug, label: c.label, isGroup: false, parentSlug: g.slug }))
-						]
-						: [{ slug: g.slug, label: g.label, isGroup: false, parentSlug: null }]
-				)
-				: (game.player_made || []).map((c: any) => ({ slug: c.slug, label: c.label, isGroup: false, parentSlug: null }))
+	// For mini-challenges, build a grouped structure: [{ parent, children }]
+	// For full-runs/player-made, each category is its own group with no children
+	const categoryGroups = $derived(
+		currentTier === 'mini-challenges'
+			? (game.mini_challenges || []).map((g: any) => ({
+				parent: { slug: g.slug, label: g.label },
+				children: (g.children || []).map((c: any) => ({ slug: c.slug, label: c.label }))
+			}))
+			: (currentTier === 'full-runs' ? game.full_runs : game.player_made || []).map((c: any) => ({
+				parent: { slug: c.slug, label: c.label },
+				children: [] as { slug: string; label: string }[]
+			}))
 	);
 
 	// For mini-challenges: parent is active if it's directly selected OR if a child of it is selected
@@ -215,19 +214,31 @@
 {/if}
 
 <!-- Category Sub-Tabs -->
-{#if categoryTabs.length > 1}
-	<nav class="runner-tabs runs-category-tabs" aria-label="Categories">
-		{#each categoryTabs as ct}
-			<a
-				href="/games/{game.game_id}/runs/{currentTier}/{ct.slug}"
-				class="tab"
-				class:tab--group={ct.isGroup}
-				class:tab--child={!!ct.parentSlug}
-				class:active={cat.slug === ct.slug || (ct.isGroup && activeParentSlug === ct.slug)}
-				data-sveltekit-noscroll
-			>{ct.label}</a>
+{#if categoryGroups.length > 1 || categoryGroups.some(g => g.children.length > 0)}
+	<div class="runs-category-nav">
+		{#each categoryGroups as group}
+			<div class="cat-group" class:cat-group--active={activeParentSlug === group.parent.slug}>
+				<a
+					href="/games/{game.game_id}/runs/{currentTier}/{group.parent.slug}"
+					class="cat-group__parent"
+					class:active={cat.slug === group.parent.slug || activeParentSlug === group.parent.slug}
+					data-sveltekit-noscroll
+				>{group.parent.label}</a>
+				{#if group.children.length > 0 && activeParentSlug === group.parent.slug}
+					<div class="cat-group__children">
+						{#each group.children as child}
+							<a
+								href="/games/{game.game_id}/runs/{currentTier}/{child.slug}"
+								class="cat-group__child"
+								class:active={cat.slug === child.slug}
+								data-sveltekit-noscroll
+							>{child.label}</a>
+						{/each}
+					</div>
+				{/if}
+			</div>
 		{/each}
-	</nav>
+	</div>
 {/if}
 
 <h2>{cat.label}</h2>
@@ -395,11 +406,28 @@
 
 <style>
 	:global(.runs-tier-tabs) { top: 115px !important; }
-	:global(.runs-category-tabs) { top: 155px !important; border-bottom: 2px solid var(--border); margin-bottom: 1rem; flex-wrap: wrap; overflow-x: visible; padding-top: 0.25rem; }
-	:global(.runs-category-tabs .tab--group) { font-weight: 700; letter-spacing: 0.01em; }
-	:global(.runs-category-tabs .tab--child) { font-size: 0.8rem; padding: 0.35rem 0.75rem; margin-left: 0.25rem; opacity: 0.85; border-left: 2px solid var(--border); border-radius: 0 8px 0 0; }
-	:global(.runs-category-tabs .tab--child:hover) { opacity: 1; }
-	:global(.runs-category-tabs .tab--child.active) { opacity: 1; border-left-color: var(--accent); }
+	:global(.runs-category-nav) { margin-bottom: 1rem; display: flex; flex-wrap: wrap; gap: 0; border-bottom: 2px solid var(--border); position: sticky; top: 155px; z-index: 49; background: var(--bg); }
+	:global(.cat-group) { display: flex; flex-direction: column; }
+	:global(.cat-group__parent) {
+		padding: 0.5rem 1rem; background: var(--surface); border: 1px solid var(--border); border-bottom: none;
+		border-radius: 8px 8px 0 0; color: var(--text-muted); text-decoration: none; white-space: nowrap;
+		font-size: 0.9rem; font-weight: 700; letter-spacing: 0.01em; margin-bottom: -2px;
+		transition: color 0.15s, background 0.15s;
+	}
+	:global(.cat-group__parent:hover) { color: var(--fg); }
+	:global(.cat-group__parent.active) { color: var(--accent); background: var(--bg); border-color: var(--border); border-bottom-color: var(--bg); }
+	:global(.cat-group__children) {
+		display: flex; gap: 0; padding: 0.25rem 0 0 0.5rem;
+		background: var(--bg); border-left: 2px solid var(--accent);
+		margin-left: 0.75rem; margin-bottom: -2px;
+	}
+	:global(.cat-group__child) {
+		padding: 0.3rem 0.75rem; font-size: 0.8rem; color: var(--text-muted);
+		text-decoration: none; border-radius: 4px; white-space: nowrap;
+		transition: color 0.15s, background 0.15s;
+	}
+	:global(.cat-group__child:hover) { color: var(--fg); background: var(--surface); }
+	:global(.cat-group__child.active) { color: var(--accent); font-weight: 600; background: rgba(99, 102, 241, 0.1); }
 	h2 { margin-bottom: 0.5rem; }
 	.filter-bar { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
 	.filter-input { position: relative; flex: 1; min-width: 200px; }
