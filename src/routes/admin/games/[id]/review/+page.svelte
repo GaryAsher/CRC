@@ -170,14 +170,25 @@
 	// ── Helpers ───────────────────────────────────────────────────────────
 	const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
+	function moveItem<T>(list: T[], from: number, to: number): T[] {
+		if (to < 0 || to >= list.length) return list;
+		const arr = [...list];
+		const [item] = arr.splice(from, 1);
+		arr.splice(to, 0, item);
+		return arr;
+	}
+
 	function addChallenge() { challenges = [...challenges, { slug: '', label: '', description: '', exceptions: '' }]; }
 	function removeChallenge(i: number) { challenges = challenges.filter((_, idx) => idx !== i); }
+	function moveChallenge(i: number, dir: number) { challenges = moveItem(challenges, i, i + dir); }
 
 	function addFullRun() { fullRuns = [...fullRuns, { slug: '', label: '', description: '', exceptions: '' }]; }
 	function removeFullRun(i: number) { fullRuns = fullRuns.filter((_, idx) => idx !== i); }
+	function moveFullRun(i: number, dir: number) { fullRuns = moveItem(fullRuns, i, i + dir); }
 
 	function addMiniGroup() { miniChallenges = [...miniChallenges, { slug: '', label: '', description: '', exceptions: '', children: [] }]; }
 	function removeMiniGroup(i: number) { miniChallenges = miniChallenges.filter((_, idx) => idx !== i); }
+	function moveMiniGroup(i: number, dir: number) { miniChallenges = moveItem(miniChallenges, i, i + dir); }
 	function addMiniChild(gi: number) {
 		miniChallenges = miniChallenges.map((g, i) =>
 			i === gi ? { ...g, children: [...(g.children || []), { slug: '', label: '', description: '', exceptions: '' }] } : g
@@ -188,9 +199,15 @@
 			i === gi ? { ...g, children: (g.children || []).filter((_: any, j: number) => j !== ci) } : g
 		);
 	}
+	function moveMiniChild(gi: number, ci: number, dir: number) {
+		miniChallenges = miniChallenges.map((g, i) =>
+			i === gi ? { ...g, children: moveItem(g.children || [], ci, ci + dir) } : g
+		);
+	}
 
 	function addRestriction() { restrictions = [...restrictions, { slug: '', label: '', description: '', exceptions: '', children: [] }]; }
 	function removeRestriction(i: number) { restrictions = restrictions.filter((_, idx) => idx !== i); }
+	function moveRestriction(i: number, dir: number) { restrictions = moveItem(restrictions, i, i + dir); }
 	function addRestrictionChild(ri: number) {
 		restrictions = restrictions.map((r, i) =>
 			i === ri ? { ...r, children: [...(r.children || []), { slug: '', label: '', description: '' }] } : r
@@ -201,9 +218,15 @@
 			i === ri ? { ...r, children: (r.children || []).filter((_: any, j: number) => j !== ci) } : r
 		);
 	}
+	function moveRestrictionChild(ri: number, ci: number, dir: number) {
+		restrictions = restrictions.map((r, i) =>
+			i === ri ? { ...r, children: moveItem(r.children || [], ci, ci + dir) } : r
+		);
+	}
 
 	function addGlitch() { glitches = [...glitches, { slug: '', label: '', description: '' }]; }
 	function removeGlitch(i: number) { glitches = glitches.filter((_, idx) => idx !== i); }
+	function moveGlitch(i: number, dir: number) { glitches = moveItem(glitches, i, i + dir); }
 
 	function addCharacter() { characterOptions = [...characterOptions, '']; }
 	function removeCharacter(i: number) { characterOptions = characterOptions.filter((_, idx) => idx !== i); }
@@ -604,10 +627,14 @@
 					<div class="item-row">
 						<div class="item-row__fields">
 							<div class="labeled-field"><span class="labeled-field__tag">{m.ge_label()}</span><input type="text" class="fi fi--sm" bind:value={fullRuns[i].label} placeholder="Category name" oninput={() => { fullRuns[i].slug = slugify(fullRuns[i].label); fullRuns = [...fullRuns]; }} /></div>
-							<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="2" bind:value={fullRuns[i].description} placeholder="What does this category involve?"></textarea></div>
-							<div class="labeled-field"><span class="labeled-field__tag labeled-field__tag--exc">{m.ge_review_exceptions()}</span><textarea class="fi fi--sm" rows="2" bind:value={fullRuns[i].exceptions} placeholder="Any exceptions to the rules for this category?"></textarea></div>
+							<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="6" bind:value={fullRuns[i].description} placeholder="What does this category involve?"></textarea></div>
+							<div class="labeled-field"><span class="labeled-field__tag labeled-field__tag--exc">{m.ge_review_exceptions()}</span><textarea class="fi fi--sm" rows="4" bind:value={fullRuns[i].exceptions} placeholder="Any exceptions to the rules for this category?"></textarea></div>
 						</div>
-						<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeFullRun(i)}>✕</button>
+						<div class="item-row__actions">
+							<button type="button" class="btn-icon" onclick={() => moveFullRun(i, -1)} disabled={i === 0} title="Move up">↑</button>
+							<button type="button" class="btn-icon" onclick={() => moveFullRun(i, 1)} disabled={i === fullRuns.length - 1} title="Move down">↓</button>
+							<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeFullRun(i)}>✕</button>
+						</div>
 					</div>
 				{/each}
 				<button type="button" class="btn btn--sm" onclick={addFullRun}>+ Add Full Run</button>
@@ -618,10 +645,14 @@
 						<div class="item-row">
 							<div class="item-row__fields">
 								<div class="labeled-field"><span class="labeled-field__tag">{m.ge_label()}</span><input type="text" class="fi fi--sm" bind:value={miniChallenges[gi].label} placeholder="Group label" oninput={() => { miniChallenges[gi].slug = slugify(miniChallenges[gi].label); miniChallenges = [...miniChallenges]; }} /></div>
-								<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="2" bind:value={miniChallenges[gi].description} placeholder="What does this group cover?"></textarea></div>
-								<div class="labeled-field"><span class="labeled-field__tag labeled-field__tag--exc">{m.ge_review_exceptions()}</span><textarea class="fi fi--sm" rows="2" bind:value={miniChallenges[gi].exceptions} placeholder="Any exceptions?"></textarea></div>
+								<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="6" bind:value={miniChallenges[gi].description} placeholder="What does this group cover?"></textarea></div>
+								<div class="labeled-field"><span class="labeled-field__tag labeled-field__tag--exc">{m.ge_review_exceptions()}</span><textarea class="fi fi--sm" rows="4" bind:value={miniChallenges[gi].exceptions} placeholder="Any exceptions?"></textarea></div>
 							</div>
-							<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeMiniGroup(gi)}>✕</button>
+							<div class="item-row__actions">
+								<button type="button" class="btn-icon" onclick={() => moveMiniGroup(gi, -1)} disabled={gi === 0} title="Move up">↑</button>
+								<button type="button" class="btn-icon" onclick={() => moveMiniGroup(gi, 1)} disabled={gi === miniChallenges.length - 1} title="Move down">↓</button>
+								<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeMiniGroup(gi)}>✕</button>
+							</div>
 						</div>
 						{#if group.children?.length}
 							<div class="children-indent">
@@ -629,10 +660,14 @@
 									<div class="item-row">
 										<div class="item-row__fields">
 											<div class="labeled-field"><span class="labeled-field__tag">{m.ge_label()}</span><input type="text" class="fi fi--sm" bind:value={miniChallenges[gi].children[ci].label} placeholder="Child label" oninput={() => { miniChallenges[gi].children[ci].slug = slugify(miniChallenges[gi].children[ci].label); miniChallenges = [...miniChallenges]; }} /></div>
-											<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="1" bind:value={miniChallenges[gi].children[ci].description} placeholder="Description"></textarea></div>
-											<div class="labeled-field"><span class="labeled-field__tag labeled-field__tag--exc">{m.ge_review_exceptions()}</span><textarea class="fi fi--sm" rows="1" bind:value={miniChallenges[gi].children[ci].exceptions} placeholder="Exceptions"></textarea></div>
+											<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="3" bind:value={miniChallenges[gi].children[ci].description} placeholder="Description"></textarea></div>
+											<div class="labeled-field"><span class="labeled-field__tag labeled-field__tag--exc">{m.ge_review_exceptions()}</span><textarea class="fi fi--sm" rows="2" bind:value={miniChallenges[gi].children[ci].exceptions} placeholder="Exceptions"></textarea></div>
 										</div>
-										<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeMiniChild(gi, ci)}>✕</button>
+										<div class="item-row__actions">
+											<button type="button" class="btn-icon" onclick={() => moveMiniChild(gi, ci, -1)} disabled={ci === 0} title="Move up">↑</button>
+											<button type="button" class="btn-icon" onclick={() => moveMiniChild(gi, ci, 1)} disabled={ci === group.children.length - 1} title="Move down">↓</button>
+											<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeMiniChild(gi, ci)}>✕</button>
+										</div>
 									</div>
 								{/each}
 							</div>
@@ -652,10 +687,14 @@
 					<div class="item-row">
 						<div class="item-row__fields">
 							<div class="labeled-field"><span class="labeled-field__tag">{m.ge_label()}</span><input type="text" class="fi fi--sm" bind:value={challenges[i].label} placeholder="Challenge name" oninput={() => { challenges[i].slug = slugify(challenges[i].label); challenges = [...challenges]; }} /></div>
-							<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="2" bind:value={challenges[i].description} placeholder="What does this challenge involve?"></textarea></div>
-							<div class="labeled-field"><span class="labeled-field__tag labeled-field__tag--exc">{m.ge_review_exceptions()}</span><textarea class="fi fi--sm" rows="2" bind:value={challenges[i].exceptions} placeholder="Any exceptions to the standard rules?"></textarea></div>
+							<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="6" bind:value={challenges[i].description} placeholder="What does this challenge involve?"></textarea></div>
+							<div class="labeled-field"><span class="labeled-field__tag labeled-field__tag--exc">{m.ge_review_exceptions()}</span><textarea class="fi fi--sm" rows="4" bind:value={challenges[i].exceptions} placeholder="Any exceptions to the standard rules?"></textarea></div>
 						</div>
-						<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeChallenge(i)}>✕</button>
+						<div class="item-row__actions">
+							<button type="button" class="btn-icon" onclick={() => moveChallenge(i, -1)} disabled={i === 0} title="Move up">↑</button>
+							<button type="button" class="btn-icon" onclick={() => moveChallenge(i, 1)} disabled={i === challenges.length - 1} title="Move down">↓</button>
+							<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeChallenge(i)}>✕</button>
+						</div>
 					</div>
 				{/each}
 				<button type="button" class="btn btn--sm" onclick={addChallenge}>+ Add Challenge</button>
@@ -698,10 +737,14 @@
 						<div class="item-row">
 							<div class="item-row__fields">
 								<div class="labeled-field"><span class="labeled-field__tag">{m.ge_label()}</span><input type="text" class="fi fi--sm" bind:value={restrictions[i].label} placeholder="Restriction name" oninput={() => { restrictions[i].slug = slugify(restrictions[i].label); restrictions = [...restrictions]; }} /></div>
-								<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="2" bind:value={restrictions[i].description} placeholder="What does this restriction mean?"></textarea></div>
-								<div class="labeled-field"><span class="labeled-field__tag labeled-field__tag--exc">{m.ge_review_exceptions()}</span><textarea class="fi fi--sm" rows="2" bind:value={restrictions[i].exceptions} placeholder="Any exceptions?"></textarea></div>
+								<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="6" bind:value={restrictions[i].description} placeholder="What does this restriction mean?"></textarea></div>
+								<div class="labeled-field"><span class="labeled-field__tag labeled-field__tag--exc">{m.ge_review_exceptions()}</span><textarea class="fi fi--sm" rows="4" bind:value={restrictions[i].exceptions} placeholder="Any exceptions?"></textarea></div>
 							</div>
-							<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeRestriction(i)}>✕</button>
+							<div class="item-row__actions">
+								<button type="button" class="btn-icon" onclick={() => moveRestriction(i, -1)} disabled={i === 0} title="Move up">↑</button>
+								<button type="button" class="btn-icon" onclick={() => moveRestriction(i, 1)} disabled={i === restrictions.length - 1} title="Move down">↓</button>
+								<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeRestriction(i)}>✕</button>
+							</div>
 						</div>
 						{#if item.children?.length}
 							<div class="children-indent">
@@ -709,9 +752,13 @@
 									<div class="item-row">
 										<div class="item-row__fields">
 											<div class="labeled-field"><span class="labeled-field__tag">{m.ge_label()}</span><input type="text" class="fi fi--sm" bind:value={restrictions[i].children[ci].label} placeholder="Child label" oninput={() => { restrictions[i].children[ci].slug = slugify(restrictions[i].children[ci].label); restrictions = [...restrictions]; }} /></div>
-											<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="1" bind:value={restrictions[i].children[ci].description} placeholder="Description"></textarea></div>
+											<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="3" bind:value={restrictions[i].children[ci].description} placeholder="Description"></textarea></div>
 										</div>
-										<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeRestrictionChild(i, ci)}>✕</button>
+										<div class="item-row__actions">
+											<button type="button" class="btn-icon" onclick={() => moveRestrictionChild(i, ci, -1)} disabled={ci === 0} title="Move up">↑</button>
+											<button type="button" class="btn-icon" onclick={() => moveRestrictionChild(i, ci, 1)} disabled={ci === item.children.length - 1} title="Move down">↓</button>
+											<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeRestrictionChild(i, ci)}>✕</button>
+										</div>
 									</div>
 								{/each}
 							</div>
@@ -731,9 +778,13 @@
 					<div class="item-row">
 						<div class="item-row__fields">
 							<div class="labeled-field"><span class="labeled-field__tag">{m.ge_label()}</span><input type="text" class="fi fi--sm" bind:value={glitches[i].label} placeholder="Glitch category name" oninput={() => { glitches[i].slug = slugify(glitches[i].label); glitches = [...glitches]; }} /></div>
-							<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="2" bind:value={glitches[i].description} placeholder="What does this glitch category allow or restrict?"></textarea></div>
+							<div class="labeled-field"><span class="labeled-field__tag">{m.ge_description()}</span><textarea class="fi fi--sm" rows="6" bind:value={glitches[i].description} placeholder="What does this glitch category allow or restrict?"></textarea></div>
 						</div>
-						<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeGlitch(i)}>✕</button>
+						<div class="item-row__actions">
+							<button type="button" class="btn-icon" onclick={() => moveGlitch(i, -1)} disabled={i === 0} title="Move up">↑</button>
+							<button type="button" class="btn-icon" onclick={() => moveGlitch(i, 1)} disabled={i === glitches.length - 1} title="Move down">↓</button>
+							<button type="button" class="btn-icon btn-icon--danger" onclick={() => removeGlitch(i)}>✕</button>
+						</div>
 					</div>
 				{/each}
 				<button type="button" class="btn btn--sm" onclick={addGlitch}>+ Add Glitch Category</button>
@@ -861,6 +912,7 @@
 	.item-row { display: flex; gap: 0.5rem; align-items: flex-start; padding-bottom: 0.75rem; margin-bottom: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.06); }
 	.item-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 	.item-row__fields { flex: 1; display: flex; flex-direction: column; gap: 0.35rem; }
+	.item-row__actions { display: flex; flex-direction: column; gap: 0.2rem; flex-shrink: 0; }
 	.item-group { padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.75rem; }
 	.children-indent { margin: 0.5rem 0 0.5rem 1.25rem; padding-left: 0.75rem; border-left: 2px solid var(--border); }
 
@@ -901,6 +953,8 @@
 	.crop-modal__actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.75rem; flex-wrap: wrap; }
 
 	.btn-icon { background: none; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; padding: 0.3rem 0.5rem; font-size: 1rem; color: var(--muted); flex-shrink: 0; }
+	.btn-icon:disabled { opacity: 0.25; cursor: not-allowed; }
+	.btn-icon:hover:not(:disabled) { border-color: var(--accent); color: var(--fg); }
 	.btn-icon--danger:hover { color: #ef4444; border-color: #ef4444; }
 
 	.btn { display: inline-flex; align-items: center; padding: 0.45rem 0.9rem; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--fg); font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; }
