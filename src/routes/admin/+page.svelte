@@ -15,6 +15,7 @@
 	let checking = $state(true);
 	let counts = $state<Record<string, number>>({});
 	let countsLoading = $state(true);
+	let activeTab = $state('queue');
 
 	// Effective role for UI filtering
 	let effectiveRole = $derived($debugRole ?? realRoleId);
@@ -65,33 +66,55 @@
 		countsLoading = false;
 	}
 
-	// Navigation sections — 2-column grid: left = game-related, right = user-related.
-	// canAccessRoute() from permissions.ts handles per-role filtering.
+	// Navigation sections grouped by tab
 	const NAV_SECTIONS = [
-		// Super Admin
-		{ key: 'health',       icon: '💚', title: m.admin_nav_health(),      desc: m.admin_nav_health_desc(),               href: '/admin/health' },
-		{ key: 'financials',   icon: '💰', title: m.admin_nav_financials(),       desc: m.admin_nav_financials_desc(),                         href: '/admin/financials' },
-		{ key: 'site-settings', icon: '⚙️', title: 'Site Settings',               desc: 'Default rules template and global config',           href: '/admin/site-settings' },
-		// Admin (left = games, right = profiles)
-		{ key: 'games',        icon: '🎮', title: m.admin_nav_games(),            desc: m.admin_nav_games_desc(),    href: '/admin/games',       countKey: 'pendingGames' },
-		{ key: 'profiles',     icon: '👥', title: m.admin_nav_profiles(),         desc: m.admin_nav_profiles_desc(),  href: '/admin/profiles',    countKey: 'pendingProfiles' },
-		// Moderator (left = users, right = game editor)
-		{ key: 'game-editor',  icon: '🛠️', title: m.admin_nav_game_editor(),      desc: m.admin_nav_game_editor_desc(), href: '/admin/game-editor' },
-		{ key: 'users',        icon: '👥', title: m.admin_nav_users(),    desc: m.admin_nav_users_desc(),                    href: '/admin/users' },
-		// Verifier (left = game updates, right = runs)
-		{ key: 'game-updates', icon: '📝', title: m.admin_nav_game_updates(),     desc: m.admin_nav_game_updates_desc(), href: '/admin/game-updates', countKey: 'pendingUpdates' },
-		{ key: 'runs',         icon: '🏃', title: m.admin_nav_runs(),             desc: m.admin_nav_runs_desc(),            href: '/admin/runs',        countKey: 'pendingRuns' },
-		{ key: 'reports',      icon: '🚩', title: m.admin_nav_reports(),          desc: m.admin_nav_reports_desc(), href: '/admin/reports',    countKey: 'pendingReports' },
-		{ key: 'rule-suggestions', icon: '💬', title: 'Rule Suggestions',          desc: 'Community rule change proposals',                     href: '/admin/rule-suggestions' },
-		// All staff
-		{ key: 'staff-guides', icon: '📖', title: m.admin_nav_staff_guides(),     desc: m.admin_nav_staff_guides_desc(),                       href: '/admin/staff-guides' },
-		{ key: 'debug',        icon: '🔧', title: m.admin_nav_debug(),      desc: m.admin_nav_debug_desc(),                    href: '/admin/debug' },
+		// Queue — items with pending counts
+		{ key: 'games',        icon: '🎮', title: m.admin_nav_games(),            desc: m.admin_nav_games_desc(),        href: '/admin/games',        countKey: 'pendingGames',   group: 'queue' },
+		{ key: 'profiles',     icon: '👥', title: m.admin_nav_profiles(),         desc: m.admin_nav_profiles_desc(),     href: '/admin/profiles',     countKey: 'pendingProfiles', group: 'queue' },
+		{ key: 'runs',         icon: '🏃', title: m.admin_nav_runs(),             desc: m.admin_nav_runs_desc(),         href: '/admin/runs',         countKey: 'pendingRuns',    group: 'queue' },
+		{ key: 'game-updates', icon: '📝', title: m.admin_nav_game_updates(),     desc: m.admin_nav_game_updates_desc(), href: '/admin/game-updates', countKey: 'pendingUpdates', group: 'queue' },
+		{ key: 'reports',      icon: '🚩', title: m.admin_nav_reports(),          desc: m.admin_nav_reports_desc(),      href: '/admin/reports',      countKey: 'pendingReports', group: 'queue' },
+
+		// Tools
+		{ key: 'game-editor',      icon: '🛠️', title: m.admin_nav_game_editor(),  desc: m.admin_nav_game_editor_desc(),    href: '/admin/game-editor',      group: 'tools' },
+		{ key: 'users',            icon: '👥', title: m.admin_nav_users(),         desc: m.admin_nav_users_desc(),          href: '/admin/users',            group: 'tools' },
+		{ key: 'rule-suggestions', icon: '💬', title: 'Rule Suggestions',          desc: 'Community rule change proposals', href: '/admin/rule-suggestions', group: 'tools' },
+		{ key: 'staff-guides',     icon: '📖', title: m.admin_nav_staff_guides(),  desc: m.admin_nav_staff_guides_desc(),   href: '/admin/staff-guides',     group: 'tools' },
+		{ key: 'debug',            icon: '🔧', title: m.admin_nav_debug(),         desc: m.admin_nav_debug_desc(),          href: '/admin/debug',            group: 'tools' },
+
+		// System (super admin / admin)
+		{ key: 'health',        icon: '💚', title: m.admin_nav_health(),       desc: m.admin_nav_health_desc(),                  href: '/admin/health',        group: 'system' },
+		{ key: 'financials',    icon: '💰', title: m.admin_nav_financials(),   desc: m.admin_nav_financials_desc(),              href: '/admin/financials',    group: 'system' },
+		{ key: 'site-settings', icon: '⚙️', title: 'Site Settings',            desc: 'Default rules template and global config', href: '/admin/site-settings', group: 'system' },
 	];
 
-	// Filter nav cards based on effective role (real or debug)
+	// Filter nav cards based on effective role AND active tab
 	let visibleSections = $derived(
-		NAV_SECTIONS.filter(s => canAccessRoute(effectiveRole, s.href))
+		NAV_SECTIONS
+			.filter(s => canAccessRoute(effectiveRole, s.href))
+			.filter(s => s.group === activeTab)
 	);
+
+	// Total pending count for the Queue tab badge
+	let totalPending = $derived(
+		(counts.pendingGames ?? 0) +
+		(counts.pendingProfiles ?? 0) +
+		(counts.pendingRuns ?? 0) +
+		(counts.pendingUpdates ?? 0) +
+		(counts.pendingReports ?? 0)
+	);
+
+	// Only show System tab if user has access to at least one system route
+	let showSystemTab = $derived(
+		['super_admin', 'admin'].includes(effectiveRole)
+	);
+
+	// Tab definitions
+	let dashTabs = $derived([
+		{ id: 'queue', label: 'Review Queue', badge: totalPending },
+		{ id: 'tools', label: 'Tools', badge: 0 },
+		...(showSystemTab ? [{ id: 'system', label: 'System', badge: 0 }] : []),
+	]);
 
 	// Admin+ can see profile/game pending counts; lower roles only see runs + updates
 	let isAdminPlus = $derived(
@@ -162,9 +185,26 @@
 				</div>
 			</div>
 
-			<!-- Navigation grid -->
+			<!-- Tabs -->
+			<nav class="game-tabs" aria-label="Admin sections">
+				{#each dashTabs as tab}
+					<button
+						type="button"
+						class="game-tab"
+						class:game-tab--active={activeTab === tab.id}
+						onclick={() => activeTab = tab.id}
+					>
+						{tab.label}
+						{#if tab.badge > 0}
+							<span class="dash-tab-badge">{tab.badge}</span>
+						{/if}
+					</button>
+				{/each}
+			</nav>
+
+			<!-- Tab content: navigation grid -->
 			<div class="dash-nav">
-				{#each visibleSections as sec}
+				{#each visibleSections as sec (sec.key)}
 					<a class="dash-nav-card" href={sec.href}>
 						<span class="dash-nav-card__icon">{sec.icon}</span>
 						<span class="dash-nav-card__title">
@@ -176,6 +216,9 @@
 						<p class="dash-nav-card__desc">{sec.desc}</p>
 					</a>
 				{/each}
+				{#if visibleSections.length === 0}
+					<p class="muted" style="grid-column: 1 / -1; text-align: center; padding: 2rem 0;">No items in this section for your role.</p>
+				{/if}
 			</div>
 		</div>
 	{/if}
@@ -212,7 +255,7 @@
 	.dash-stats {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-		gap: 1rem; margin-bottom: 2rem;
+		gap: 1rem; margin-bottom: 1.5rem;
 	}
 	.dash-stat {
 		background: var(--surface); border: 1px solid var(--border);
@@ -230,6 +273,15 @@
 	.dash-stat__label {
 		display: block; font-size: 0.8rem; font-weight: 500;
 		color: var(--muted); margin-top: 0.25rem;
+	}
+
+	/* Tab badge (pending count inside tab button) */
+	.dash-tab-badge {
+		display: inline-flex; align-items: center; justify-content: center;
+		min-width: 18px; height: 18px; padding: 0 5px;
+		border-radius: 9px; font-size: 0.7rem; font-weight: 700;
+		background: #ef4444; color: #fff;
+		margin-left: 0.35rem;
 	}
 
 	/* Nav grid — 2 columns */
