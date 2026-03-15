@@ -216,27 +216,29 @@
 <!-- Category Sub-Tabs -->
 {#if categoryGroups.length > 1 || categoryGroups.some(g => g.children.length > 0)}
 	<div class="runs-category-nav">
-		{#each categoryGroups as group}
-			<div class="cat-group" class:cat-group--active={activeParentSlug === group.parent.slug}>
+		<div class="cat-parents">
+			{#each categoryGroups as group}
 				<a
 					href="/games/{game.game_id}/runs/{currentTier}/{group.parent.slug}"
-					class="cat-group__parent"
+					class="cat-parent"
 					class:active={cat.slug === group.parent.slug || activeParentSlug === group.parent.slug}
 					data-sveltekit-noscroll
 				>{group.parent.label}</a>
-				{#if group.children.length > 0 && activeParentSlug === group.parent.slug}
-					<div class="cat-group__children">
-						{#each group.children as child}
-							<a
-								href="/games/{game.game_id}/runs/{currentTier}/{child.slug}"
-								class="cat-group__child"
-								class:active={cat.slug === child.slug}
-								data-sveltekit-noscroll
-							>{child.label}</a>
-						{/each}
-					</div>
-				{/if}
-			</div>
+			{/each}
+		</div>
+		{#each categoryGroups as group}
+			{#if group.children.length > 0 && activeParentSlug === group.parent.slug}
+				<div class="cat-children">
+					{#each group.children as child}
+						<a
+							href="/games/{game.game_id}/runs/{currentTier}/{child.slug}"
+							class="cat-child"
+							class:active={cat.slug === child.slug}
+							data-sveltekit-noscroll
+						>{child.label}</a>
+					{/each}
+				</div>
+			{/if}
 		{/each}
 	</div>
 {/if}
@@ -406,28 +408,30 @@
 
 <style>
 	:global(.runs-tier-tabs) { top: 115px !important; }
-	:global(.runs-category-nav) { margin-bottom: 1rem; display: flex; flex-wrap: wrap; gap: 0; border-bottom: 2px solid var(--border); position: sticky; top: 155px; z-index: 49; background: var(--bg); }
-	:global(.cat-group) { display: flex; flex-direction: column; }
-	:global(.cat-group__parent) {
+	:global(.runs-category-nav) { margin-bottom: 1rem; position: sticky; top: 155px; z-index: 49; background: var(--bg); }
+	:global(.cat-parents) {
+		display: flex; flex-wrap: wrap; gap: 0; border-bottom: 2px solid var(--border);
+	}
+	:global(.cat-parent) {
 		padding: 0.5rem 1rem; background: var(--surface); border: 1px solid var(--border); border-bottom: none;
 		border-radius: 8px 8px 0 0; color: var(--text-muted); text-decoration: none; white-space: nowrap;
 		font-size: 0.9rem; font-weight: 700; letter-spacing: 0.01em; margin-bottom: -2px;
 		transition: color 0.15s, background 0.15s;
 	}
-	:global(.cat-group__parent:hover) { color: var(--fg); }
-	:global(.cat-group__parent.active) { color: var(--accent); background: var(--bg); border-color: var(--border); border-bottom-color: var(--bg); }
-	:global(.cat-group__children) {
-		display: flex; gap: 0; padding: 0.25rem 0 0 0.5rem;
-		background: var(--bg); border-left: 2px solid var(--accent);
-		margin-left: 0.75rem; margin-bottom: -2px;
+	:global(.cat-parent:hover) { color: var(--fg); }
+	:global(.cat-parent.active) { color: var(--accent); background: var(--bg); border-color: var(--border); border-bottom-color: var(--bg); }
+	:global(.cat-children) {
+		display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.5rem 0.5rem;
+		border-bottom: 1px solid var(--border); border-left: 3px solid var(--accent);
+		margin-left: 0.5rem;
 	}
-	:global(.cat-group__child) {
+	:global(.cat-child) {
 		padding: 0.3rem 0.75rem; font-size: 0.8rem; color: var(--text-muted);
 		text-decoration: none; border-radius: 4px; white-space: nowrap;
 		transition: color 0.15s, background 0.15s;
 	}
-	:global(.cat-group__child:hover) { color: var(--fg); background: var(--surface); }
-	:global(.cat-group__child.active) { color: var(--accent); font-weight: 600; background: rgba(99, 102, 241, 0.1); }
+	:global(.cat-child:hover) { color: var(--fg); background: var(--surface); }
+	:global(.cat-child.active) { color: var(--accent); font-weight: 600; background: rgba(99, 102, 241, 0.1); }
 	h2 { margin-bottom: 0.5rem; }
 	.filter-bar { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
 	.filter-input { position: relative; flex: 1; min-width: 200px; }
