@@ -4,6 +4,7 @@
 	import { tick } from 'svelte';
 	import { adminAction } from '$lib/admin';
 	import { supabase } from '$lib/supabase';
+	import { renderMarkdown } from '$lib/utils/markdown';
 
 	let { data } = $props();
 	const game = data.game;
@@ -63,6 +64,12 @@
 	let saving = $state(false);
 	let msg = $state<{ type: 'success' | 'error'; text: string } | null>(null);
 	let activeTab = $state('general');
+	let showRulesPreview = $state(false);
+
+	// Draft state
+	let draftStatus = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
+	let draftExists = $state(false);
+	let draftPromptVisible = $state(false);
 
 	const TABS = [
 		{ id: 'general', label: 'General', icon: '📋' },
@@ -201,6 +208,122 @@
 	function addCharacter() { characterOptions = [...characterOptions, '']; }
 	function removeCharacter(i: number) { characterOptions = characterOptions.filter((_, idx) => idx !== i); }
 
+	// ── Draft Save/Load ──────────────────────────────────────────────────
+	function serializeReviewState() {
+		return {
+			gameName, aliases, description, selectedPlatforms, customPlatforms,
+			selectedGenres, customGenres, rules, timingMethod, coverUrl,
+			characterEnabled, characterLabel, characterOptions,
+			challenges, fullRuns, miniChallenges, restrictions,
+			glitches, glitchDocLinks, nmgRules, customChallengeDescription,
+			reviewerNotes,
+		};
+	}
+
+	function loadFromDraft(d: any) {
+		if (!d) return;
+		gameName = d.gameName ?? gameName;
+		aliases = d.aliases ?? aliases;
+		description = d.description ?? description;
+		selectedPlatforms = d.selectedPlatforms ?? selectedPlatforms;
+		customPlatforms = d.customPlatforms ?? customPlatforms;
+		selectedGenres = d.selectedGenres ?? selectedGenres;
+		customGenres = d.customGenres ?? customGenres;
+		rules = d.rules ?? rules;
+		timingMethod = d.timingMethod ?? timingMethod;
+		coverUrl = d.coverUrl ?? coverUrl;
+		characterEnabled = d.characterEnabled ?? characterEnabled;
+		characterLabel = d.characterLabel ?? characterLabel;
+		characterOptions = d.characterOptions ?? characterOptions;
+		challenges = d.challenges ?? challenges;
+		fullRuns = d.fullRuns ?? fullRuns;
+		miniChallenges = d.miniChallenges ?? miniChallenges;
+		restrictions = d.restrictions ?? restrictions;
+		glitches = d.glitches ?? glitches;
+		glitchDocLinks = d.glitchDocLinks ?? glitchDocLinks;
+		nmgRules = d.nmgRules ?? nmgRules;
+		customChallengeDescription = d.customChallengeDescription ?? customChallengeDescription;
+		reviewerNotes = d.reviewerNotes ?? reviewerNotes;
+	}
+
+	async function checkForDraft() {
+		try {
+			const { data: { session: sess } } = await supabase.auth.getSession();
+			if (!sess) return;
+			const { data: draft, error } = await supabase
+				.from('game_review_drafts')
+				.select('draft_data')
+				.eq('user_id', sess.user.id)
+				.eq('game_id', game.id)
+				.maybeSingle();
+			if (!error && draft?.draft_data) {
+				draftExists = true;
+				draftPromptVisible = true;
+			}
+		} catch { /* silent — table may not exist yet */ }
+	}
+
+	async function loadDraft() {
+		try {
+			const { data: { session: sess } } = await supabase.auth.getSession();
+			if (!sess) return;
+			const { data: draft } = await supabase
+				.from('game_review_drafts')
+				.select('draft_data')
+				.eq('user_id', sess.user.id)
+				.eq('game_id', game.id)
+				.maybeSingle();
+			if (draft?.draft_data) {
+				loadFromDraft(draft.draft_data);
+				msg = { type: 'success', text: 'Draft loaded.' };
+				setTimeout(() => msg = null, 3000);
+			}
+		} catch { /* silent */ }
+		draftPromptVisible = false;
+	}
+
+	function dismissDraftPrompt() { draftPromptVisible = false; }
+
+	async function saveDraft() {
+		draftStatus = 'saving';
+		try {
+			const { data: { session: sess } } = await supabase.auth.getSession();
+			if (!sess) { draftStatus = 'error'; return; }
+			const { error } = await supabase
+				.from('game_review_drafts')
+				.upsert({
+					user_id: sess.user.id,
+					game_id: game.id,
+					draft_data: serializeReviewState(),
+					updated_at: new Date().toISOString(),
+				}, { onConflict: 'user_id,game_id' });
+			if (error) throw error;
+			draftStatus = 'saved';
+			draftExists = true;
+			setTimeout(() => { if (draftStatus === 'saved') draftStatus = 'idle'; }, 3000);
+		} catch {
+			draftStatus = 'error';
+			setTimeout(() => { if (draftStatus === 'error') draftStatus = 'idle'; }, 4000);
+		}
+	}
+
+	async function deleteDraft() {
+		try {
+			const { data: { session: sess } } = await supabase.auth.getSession();
+			if (!sess) return;
+			await supabase
+				.from('game_review_drafts')
+				.delete()
+				.eq('user_id', sess.user.id)
+				.eq('game_id', game.id);
+			draftExists = false;
+			draftPromptVisible = false;
+		} catch { /* silent */ }
+	}
+
+	// Check for draft on load
+	checkForDraft();
+
 	// ── Save ──────────────────────────────────────────────────────────────
 	async function handleSave() {
 		if (!reviewerNotes.trim()) {
@@ -287,6 +410,7 @@
 
 		if (result.ok) {
 			msg = { type: 'success', text: 'Changes saved and submitter notified.' };
+			deleteDraft();
 			setTimeout(() => goto('/admin/games'), 1500);
 		} else {
 			msg = { type: 'error', text: result.message };
@@ -322,6 +446,28 @@
 			</div>
 		</div>
 	{/if}
+
+	{#if draftPromptVisible}
+		<div class="draft-banner">
+			<span>📝 You have an unsaved draft for this review.</span>
+			<div class="draft-banner__actions">
+				<button type="button" class="btn btn--sm btn--primary" onclick={loadDraft}>{m.btn_load_draft()}</button>
+				<button type="button" class="btn btn--sm" onclick={dismissDraftPrompt}>{m.btn_start_fresh()}</button>
+			</div>
+		</div>
+	{/if}
+
+	<div class="draft-bar">
+		<span>💾 Save your review progress before navigating away.</span>
+		<div class="draft-bar__actions">
+			<button type="button" class="btn btn--sm btn--draft" onclick={saveDraft} disabled={draftStatus === 'saving'}>
+				{#if draftStatus === 'saving'}{m.btn_draft_saving()}{:else if draftStatus === 'saved'}{m.btn_draft_saved()}{:else if draftStatus === 'error'}{m.btn_draft_save_failed()}{:else}{m.btn_save_draft()}{/if}
+			</button>
+			{#if draftExists}
+				<button type="button" class="btn btn--sm" onclick={deleteDraft}>Discard</button>
+			{/if}
+		</div>
+	</div>
 
 	<!-- Tab bar -->
 	<nav class="game-tabs review-tabs">
@@ -369,12 +515,6 @@
 						</div>
 					{/if}
 					<span class="field-hint">460×215px (Steam capsule). JPEG, PNG, WebP — max 5MB.</span>
-					<details class="url-fallback">
-						<summary class="url-fallback__toggle">{m.ge_general_paste_url()}</summary>
-						<div class="field mt-1">
-							<input type="text" class="fi" bind:value={coverUrl} placeholder="https://..." />
-						</div>
-					</details>
 				</div>
 
 				<hr class="section-divider" />
@@ -429,7 +569,24 @@
 
 				<hr class="section-divider" />
 
-				<div class="field"><label class="fl">{m.ge_review_general_rules()}</label><textarea class="fi" rows="4" bind:value={rules}></textarea></div>
+				<div class="field">
+						<label class="fl">{m.ge_review_general_rules()}</label>
+						<div class="rules-toolbar">
+							<button type="button" class="btn btn--sm" class:btn--primary={!showRulesPreview} onclick={() => showRulesPreview = false}>✏️ Edit</button>
+							<button type="button" class="btn btn--sm" class:btn--primary={showRulesPreview} onclick={() => showRulesPreview = true}>👁️ Preview</button>
+						</div>
+						{#if showRulesPreview}
+							<div class="rules-preview">
+								{#if rules?.trim()}
+									{@html renderMarkdown(rules)}
+								{:else}
+									<p class="muted">No rules content to preview.</p>
+								{/if}
+							</div>
+						{:else}
+							<textarea class="fi rules-textarea" rows="20" bind:value={rules}></textarea>
+						{/if}
+					</div>
 			</div>
 		{/if}
 
@@ -714,9 +871,6 @@
 	.cover-empty__icon { font-size: 2rem; }
 	.cover-upload-btn { cursor: pointer; }
 	.field-hint { display: block; font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
-	.url-fallback { margin-top: 0.5rem; }
-	.url-fallback__toggle { font-size: 0.82rem; color: var(--muted); cursor: pointer; }
-	.url-fallback__toggle:hover { color: var(--accent); }
 
 	/* Crop modal */
 	.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 999; }
@@ -759,6 +913,45 @@
 	.action-bar { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; padding: 1rem 0; border-top: 1px solid var(--border); }
 
 	.muted { opacity: 0.6; }
+
+	/* Draft banner + bar */
+	.draft-banner {
+		display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+		padding: 0.75rem 1rem; margin-bottom: 1rem;
+		background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 8px;
+		font-size: 0.9rem;
+	}
+	.draft-banner__actions { display: flex; gap: 0.35rem; margin-left: auto; }
+	.draft-bar {
+		display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+		padding: 0.65rem 1rem; margin-bottom: 1rem;
+		background: rgba(139, 92, 246, 0.06); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 8px;
+		font-size: 0.85rem; color: var(--muted);
+	}
+	.draft-bar__actions { display: flex; gap: 0.35rem; margin-left: auto; }
+	.btn--draft { border-color: #8b5cf6; color: #8b5cf6; }
+	.btn--draft:hover { background: #8b5cf6; color: #fff; }
+
+	/* Rules toolbar + preview */
+	.rules-toolbar { display: flex; gap: 0.35rem; margin-bottom: 0.5rem; }
+	.rules-textarea { min-height: 400px; font-size: 1rem; line-height: 1.7; font-family: 'SF Mono', 'Fira Code', monospace; }
+	.rules-preview {
+		padding: 1.25rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+		min-height: 300px; font-size: 1rem; line-height: 1.7; color: var(--fg);
+	}
+	.rules-preview h1, .rules-preview h2, .rules-preview h3 { margin-top: 1.25rem; margin-bottom: 0.5rem; }
+	.rules-preview h1:first-child, .rules-preview h2:first-child, .rules-preview h3:first-child { margin-top: 0; }
+	.rules-preview p { margin: 0 0 0.75rem; }
+	.rules-preview ul, .rules-preview ol { margin: 0 0 0.75rem; padding-left: 1.5rem; }
+	.rules-preview li { margin-bottom: 0.25rem; }
+	.rules-preview code { background: var(--surface); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
+	.rules-preview pre { background: var(--surface); padding: 0.75rem 1rem; border-radius: 6px; overflow-x: auto; margin: 0 0 0.75rem; }
+	.rules-preview pre code { background: none; padding: 0; }
+	.rules-preview blockquote { border-left: 3px solid var(--accent); padding-left: 0.75rem; margin: 0 0 0.75rem; color: var(--muted); }
+	.rules-preview a { color: var(--accent); text-decoration: underline; }
+	.rules-preview table { width: 100%; border-collapse: collapse; margin: 0 0 0.75rem; }
+	.rules-preview th, .rules-preview td { padding: 0.4rem 0.6rem; border: 1px solid var(--border); text-align: left; }
+	.rules-preview th { background: var(--surface); font-weight: 600; }
 
 	@media (max-width: 600px) {
 		.item-row { flex-direction: column; }
